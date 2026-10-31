@@ -60,7 +60,7 @@ export default {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: SISTEMA + `\nturn=${turn} max=${max}` }] },
-        contents, generationConfig: { temperature: 0.9, maxOutputTokens: 400, responseMimeType: 'application/json' }
+        contents, generationConfig: { temperature: 0.9, maxOutputTokens: 1200, responseMimeType: 'application/json' }
       })
     });
     if (!resp.ok) return json({ error: 'la IA no respondió (' + resp.status + ')' }, 502, cors);

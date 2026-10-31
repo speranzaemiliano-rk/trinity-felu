@@ -210,6 +210,11 @@ summary::after{margin-left:auto}
 .ord .irr .og.dots{color:var(--accent-ink)}
 .ord div>span:nth-child(3){min-width:0;overflow-wrap:anywhere}
 .ord div[data-say]::after{margin-left:auto;flex:none}
+td.say-td{cursor:pointer;transition:background .12s}
+td.say-td:hover{background:color-mix(in srgb,var(--accent) 16%,transparent)}
+td.say-td::after{content:" 🔊";font-size:.75em;opacity:.45}
+td.say-td.pressed{background:color-mix(in srgb,var(--accent) 35%,transparent)}
+.qsay{margin:-6px 0 12px}
 </style>
 </head>
 <body>
@@ -873,12 +878,27 @@ document.getElementById("vocab").innerHTML=VOCAB.map(([en,es,ex,w])=>`<details><
 function toast(m){let t=$("toast");if(!t){t=document.createElement("div");t.id="toast";t.setAttribute("role","status");document.body.appendChild(t)}t.innerHTML=m;t.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("on"),5000)}
 function tocarSonido(e){
   let c=e.target.closest("[data-say]"),txt=c&&c.dataset.say.replace(" / "," or ");
-  if(!c){c=e.target.closest("ul.ex li");if(!c)return;const b=c.querySelector("b");txt=(b?b.textContent:c.textContent.split("—")[0]).trim()}
+  if(!c){c=e.target.closest("ul.ex li");if(!c)return;const k=c.cloneNode(true);k.querySelectorAll(".es").forEach(x=>x.remove());
+    txt=k.textContent.replace(/^\s*(Negativo|Pregunta|Afirmativo|Afirmativa|Respuesta|Ejemplo|Corta)s?:\s*/i,"").replace(/[.]?\s*\/\s*/g,". ").replace(/\s+/g," ").trim()}
   if(!txt)return;
   c.classList.add("pressed");say(txt,toast).then(()=>c.classList.remove("pressed"))}
 document.addEventListener("click",tocarSonido);
 document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.matches&&e.target.matches('.ord div[data-say]')){e.preventDefault();tocarSonido(e)}});
 
+
+// ---- todo lo de estudiar se puede escuchar: celdas en inglés de las tablas
+(function(){
+  const ES=/^(espa[ñn]ol|significa|con)$/i;
+  document.querySelectorAll("#v-study table").forEach(t=>{
+    const hs=[...t.querySelectorAll("tr:first-child th")].map(h=>h.textContent.trim());
+    t.querySelectorAll("tr").forEach((tr,ri)=>{if(!ri)return;
+      [...tr.children].forEach((td,ci)=>{
+        if(td.tagName!=="TD"||ES.test(hs[ci]||""))return;
+        const c=td.cloneNode(true);c.querySelectorAll(".scene").forEach(x=>x.remove());
+        const txt=c.textContent.replace(/[…]+/g," ").replace(/[.]?\s*\/\s*/g,". ").replace(/\s+/g," ").trim();
+        if(!txt||!/[a-z]/i.test(txt))return;
+        td.classList.add("say-td");td.dataset.say=txt;td.setAttribute("title","Tocá para escuchar")})})});
+})();
 
 // ---- dibujos (emojis) para estudiar: vocabulario, números y gramática
 const DIB={
@@ -1028,11 +1048,12 @@ function show(){
   const q=qs[i];
   ex.innerHTML=`<div class="row" style="margin:0"><span class="tag">Pregunta ${i+1} de ${qs.length}</span><span class="tag">Correctas: ${score}</span></div>
   <div class="bar"><i style="width:${i/qs.length*100}%"></i></div>
-  <div class="card"><div class="tag">${q.t}</div><div class="qtext">${q.q}</div>
+  <div class="card"><div class="tag">${q.t}</div><div class="qtext">${q.q}</div><button class="link qsay" id="qsay">🔊 Escuchar la pregunta</button>
   <div class="opts">${q.o.map((o,k)=>`<button class="opt" id="opt${k}" data-k="${k}">${o}</button>`).join("")}</div>
   <div class="fb" id="fb"></div>
   <div class="row"><span></span><button class="btn" id="next" hidden>${i+1<qs.length?"Siguiente":"Ver resultado"}</button></div></div>`;
   ex.querySelectorAll(".opt").forEach(b=>b.onclick=()=>answer(+b.dataset.k));
+  $("qsay").onclick=()=>say(q.q.replace(/_{2,}/g," blank ").replace(/\([^)]*\)/g,"").replace(/\s+/g," ").trim(),toast);
 }
 function answer(k){
   const q=qs[i],btns=ex.querySelectorAll(".opt"),fb=document.getElementById("fb");

@@ -187,6 +187,17 @@ nav{-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px)
 @media (prefers-reduced-transparency:reduce){nav{background:var(--paper);backdrop-filter:none;-webkit-backdrop-filter:none}}
 @media (prefers-reduced-motion:reduce){.msg,.mic{animation:none}.btn:active:not(:disabled),.opt:active:not(:disabled),.chip:active,nav button:active{transform:none;opacity:.8}.bar i,.btn,.opt{transition:none}.btn.rec,.btn.pressed,.mic .dot{animation:none}}
 .meter.lvl{height:8px;margin-top:8px;background:color-mix(in srgb,var(--bad) 22%,var(--paper))}.meter.lvl i{background:var(--bad)}
+.ejem{all:unset;box-sizing:border-box;display:block;width:100%;cursor:pointer;padding:10px 12px;border-radius:12px;background:var(--bg);border:2px solid var(--line);color:var(--ink);font-size:.95rem;line-height:1.4;margin-bottom:4px}
+.ejem:active,.ejem.pressed{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 22%,var(--bg))}
+.ejem:focus-visible,.ord div:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.ord div[data-say]{cursor:pointer;transition:transform .08s}
+.ord div[data-say]::after{content:"🔊";margin-left:auto;font-size:.75em;opacity:.55}
+.ord div.pressed{transform:scale(.96);outline:2px solid var(--blue)}
+ul.ex li{cursor:pointer;border-radius:8px;padding:2px 4px}
+ul.ex li::marker{content:"🔊 "}
+ul.ex li.pressed{background:color-mix(in srgb,var(--accent) 28%,transparent)}
+#toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom,0px));transform:translate(-50%,30px);max-width:min(92vw,460px);background:var(--ink);color:var(--paper);padding:12px 16px;border-radius:14px;box-shadow:var(--soft);opacity:0;pointer-events:none;transition:.2s;z-index:20;font-size:.95rem}
+#toast.on{opacity:1;transform:translate(-50%,0)}
 </style>
 </head>
 <body>
@@ -410,7 +421,7 @@ nav{-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px)
 const ord=["first","second","third","fourth","fifth","sixth","seventh","eighth","ninth","tenth","eleventh","twelfth","thirteenth","fourteenth","fifteenth","sixteenth","seventeenth","eighteenth","nineteenth","twentieth","twenty-first","twenty-second","twenty-third","twenty-fourth","twenty-fifth","twenty-sixth","twenty-seventh","twenty-eighth","twenty-ninth","thirtieth","thirty-first"];
 const irr=new Set([1,2,3,5,8,9,12,20,30]);
 const suf=n=>(n%10==1&&n!=11)?"st":(n%10==2&&n!=12)?"nd":(n%10==3&&n!=13)?"rd":"th";
-document.getElementById("ordinals").innerHTML=ord.map((w,i)=>{const n=i+1;return `<div class="${irr.has(n)?'irr':''}"><span class="n">${n}${suf(n)}</span><span>${w}</span></div>`}).join("");
+document.getElementById("ordinals").innerHTML=ord.map((w,i)=>{const n=i+1;return `<div role="button" tabindex="0" data-say="${w}" class="${irr.has(n)?'irr':''}"><span class="n">${n}${suf(n)}</span><span>${w}</span></div>`}).join("");
 
 // ---- conversación con el examinador (práctica y examen oral)
 document.addEventListener("click",e=>{if(e.target.id!=="dgVoice")return;
@@ -596,8 +607,9 @@ function say(t,status){
       // si a los 2,5 s no arrancó, reintento una vez; si sigue mudo, aviso
       setTimeout(()=>{if(started||ended)return;if(tries<1){tries++;try{synth.cancel()}catch(e){}setTimeout(go,150)}else{status((noEnVoice?"Tu celular no tiene voz en inglés instalada: Ajustes → Texto a voz → Google → Instalar datos de voz → English. ":"")+"No se escucha la voz. Subí el volumen multimedia o probá con <b>Chrome</b> / <b>Edge</b>. Podés activar <b>Ver lo que dice el examinador</b> para leer las preguntas.");fin()}},2500);
     };
-    try{synth.cancel()}catch(e){}
-    setTimeout(()=>{try{synth.resume()}catch(e){}go()},ANDROID?450:120);
+    // Si no hay nada sonando, se habla EN EL ACTO: los celulares sólo dejan hablar dentro del toque (con demora no suena)
+    if(synth.speaking||synth.pending){try{synth.cancel()}catch(e){}setTimeout(()=>{try{synth.resume()}catch(e){}go()},ANDROID?450:120)}
+    else{try{synth.resume()}catch(e){}go()}
     setTimeout(fin,maxMs);
   });
 }
@@ -788,8 +800,15 @@ const VOCAB=[
   [["teacher","maestro/a"],["doctor","médico/a"],["nurse","enfermero/a"],["firefighter","bombero/a"],["police officer","policía"],["barber","peluquero"],["pilot","piloto"],["cook","cocinero/a"],["mail carrier","cartero/a"],["dentist","dentista"],["vet","veterinario/a"],["mechanic","mecánico/a"],["soldier","soldado"],["artist","artista"],["farmer","granjero/a"],["photographer","fotógrafo/a"],["singer","cantante"],["carpenter","carpintero/a"],["scientist","científico/a"],["worker","obrero/a"],["taxi driver","taxista"],["waiter","mozo/a"],["musician","músico/a"],["astronaut","astronauta"],["baker","panadero/a"]]]
 ];
 document.getElementById("vocab").innerHTML=VOCAB.map(([en,es,ex,w])=>`<details><summary>${en} <span class="es">· ${es}</span></summary>
-<p class="es">Ejemplo: ${ex}</p><div class="chips">${w.map(([a,b])=>`<button class="chip" data-say="${a.replace(/"/g,"")}"><b>${a}</b><span>${b}</span></button>`).join("")}</div></details>`).join("");
-document.addEventListener("click",e=>{const c=e.target.closest("[data-say]");if(!c)return;c.classList.add("pressed");say(c.dataset.say.replace(" / "," or "),()=>{}).then(()=>c.classList.remove("pressed"))});
+<p class="es"><button class="ejem" data-say="${ex.replace(/<[^>]+>/g,"").replace(/ \/ /g,". ").replace(/"/g,"")}">🔊 Ejemplo: ${ex}</button></p><div class="chips">${w.map(([a,b])=>`<button class="chip" data-say="${a.replace(/"/g,"")}"><b>${a}</b><span>${b}</span></button>`).join("")}</div></details>`).join("");
+function toast(m){let t=$("toast");if(!t){t=document.createElement("div");t.id="toast";t.setAttribute("role","status");document.body.appendChild(t)}t.innerHTML=m;t.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("on"),5000)}
+function tocarSonido(e){
+  let c=e.target.closest("[data-say]"),txt=c&&c.dataset.say.replace(" / "," or ");
+  if(!c){c=e.target.closest("ul.ex li");if(!c)return;const b=c.querySelector("b");txt=(b?b.textContent:c.textContent.split("—")[0]).trim()}
+  if(!txt)return;
+  c.classList.add("pressed");say(txt,toast).then(()=>c.classList.remove("pressed"))}
+document.addEventListener("click",tocarSonido);
+document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.matches&&e.target.matches('.ord div[data-say]')){e.preventDefault();tocarSonido(e)}});
 
 // ---- examen
 const bank=[

@@ -53,7 +53,7 @@ table{border-collapse:collapse;width:100%;font-size:.95rem}
 th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
 th{font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 td b{color:var(--blue)}
-.ord{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.ord{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:6px}
 .ord div{display:flex;gap:8px;align-items:baseline;padding:5px 8px;border-radius:8px;background:var(--bg)}
 .ord .n{font-weight:800;min-width:2.6em;font-variant-numeric:tabular-nums;color:var(--blue)}
 .ord .irr{background:var(--accent);color:var(--accent-ink)}
@@ -198,6 +198,18 @@ ul.ex li::marker{content:"🔊 "}
 ul.ex li.pressed{background:color-mix(in srgb,var(--accent) 28%,transparent)}
 #toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom,0px));transform:translate(-50%,30px);max-width:min(92vw,460px);background:var(--ink);color:var(--paper);padding:12px 16px;border-radius:14px;box-shadow:var(--soft);opacity:0;pointer-events:none;transition:.2s;z-index:20;font-size:.95rem}
 #toast.on{opacity:1;transform:translate(-50%,0)}
+.cat-ic{font-size:1.35rem;margin-right:8px;flex:none}
+summary{align-items:center;justify-content:flex-start;gap:6px}
+summary::after{margin-left:auto}
+.chip .pic{font-size:2rem;line-height:1.1;display:block;margin-bottom:2px}
+.chip{align-items:flex-start}
+.scene{font-size:1.5rem;line-height:1.15;display:inline-block;white-space:nowrap;text-align:center}
+.ord .og{font-size:1.15rem;line-height:1}
+.ord .og.dots{font-size:.6rem;letter-spacing:1px;color:var(--blue);align-self:center;max-width:5.5em;overflow:hidden}
+.ord div{align-items:center}
+.ord .irr .og.dots{color:var(--accent-ink)}
+.ord div>span:nth-child(3){min-width:0;overflow-wrap:anywhere}
+.ord div[data-say]::after{margin-left:auto;flex:none}
 </style>
 </head>
 <body>
@@ -738,7 +750,11 @@ function mountConv(rootId,mode){
   async function conversation(){
     if(activeStop)activeStop();activeStop=halt;
     const id=++run;pts=0;total=0;review=[];kidName="";
-    const steps=E?[...OPEN,...shuffleA(MIDDLE).slice(0,8),CLOSE]:[...OPEN,...MIDDLE,CLOSE];
+    // para que no pregunte siempre lo mismo: saludo y despedida con variantes, y las preguntas del medio se sortean cada vez
+    OPEN[0].q=pick(["Hello! Come in and sit down, please. How are you today?","Good morning! Please, take a seat. How are you today?","Hi there! Nice to see you. How are you today?","Hello! Welcome. Sit down, please. How are you feeling today?"]);
+    OPEN[1].q=pick(["What's your name?","Can you tell me your name, please?","And what is your name?"]);
+    CLOSE.q=pick(["Thank you. That's the end of our conversation. Goodbye!","Thank you very much. That's all. Goodbye!","OK, that's the end of the exam. Thank you. Goodbye!"]);
+    const steps=[...OPEN,...shuffleA(MIDDLE).slice(0,E?8:10),CLOSE];
     el("chat").innerHTML="";el("start").hidden=true;el("stop").hidden=false;el("rep").hidden=false;el("kb").hidden=false;status("");
     for(let k=0;k<steps.length;k++){
       const step=steps[k];
@@ -762,7 +778,7 @@ function mountConv(rootId,mode){
     else{grade="Todavía no";msg="Seguí practicando en la pestaña Speaking y probá otra vez."}
     const rv=review.length?`<br>Para practicar:<ul>${review.map(s=>`<li>${esc(s.q)}<br><span class="r">✓ ${esc(s.a)}</span></li>`).join("")}</ul>`:"<br>¡Todas las respuestas completas!";
     bubble("tip",E?`<span class="grade">${grade}</span><br><b>${pct}%</b> — ${msg}${rv}`:`<b>¡Terminaste la conversación!</b><br>Respuestas completas: <b>${pct}%</b>${rv}`);
-    endUI();el("start").textContent=E?"Hacer otro examen oral":"Otra conversación";activeStop=null;
+    endUI();el("start").textContent=E?"Hacer otro examen oral":"Otra conversación (preguntas nuevas)";activeStop=null;
   }
   function endUI(){el("start").hidden=false;el("stop").hidden=true;el("rep").hidden=true;el("kb").hidden=true;micUI(false)}
   function stopAll(){run++;lvlStop();if(synth)synth.cancel();if(rec){try{rec.abort()}catch(e){}rec=null}finishNow=null;typedResolve=null;micUI(false)}
@@ -820,6 +836,62 @@ function tocarSonido(e){
   c.classList.add("pressed");say(txt,toast).then(()=>c.classList.remove("pressed"))}
 document.addEventListener("click",tocarSonido);
 document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.matches&&e.target.matches('.ord div[data-say]')){e.preventDefault();tocarSonido(e)}});
+
+
+// ---- dibujos (emojis) para estudiar: vocabulario, números y gramática
+const DIB={
+ // días y meses
+ monday:"🌙",tuesday:"🔥",wednesday:"🐸",thursday:"⚡",friday:"🎉",saturday:"⚽",sunday:"☀️",
+ january:"⛄",february:"💌",march:"🍀",april:"🌧️",may:"🌷",june:"🏖️",july:"🎆",august:"🪁",september:"🍂",october:"🎃",november:"🍁",december:"🎄",
+ // estaciones y clima
+ winter:"❄️",spring:"🌸",summer:"🏖️",autumn:"🍂",
+ sunny:"☀️",hot:"🥵",cold:"🥶","partly cloudy":"⛅",stormy:"⛈️",windy:"💨",rainy:"🌧️",snowy:"🌨️",cloudy:"☁️",hailing:"🧊",tornado:"🌪️",rainbow:"🌈",
+ // casa
+ attic:"🏚️",bedroom:"🛏️",bathroom:"🛁",nursery:"🍼","home office":"💻","living room":"🛋️","dining room":"🍽️",kitchen:"🍳","laundry room":"🧺",basement:"🪜",garage:"🚗",
+ bed:"🛏️",desk:"🖥️",wardrobe:"🚪",lamp:"💡",nightstand:"🛎️",bathtub:"🛁",toilet:"🚽",sink:"🚰",shower:"🚿",curtain:"🪟",sofa:"🛋️",armchair:"💺",table:"🪑",carpet:"🟫",bookcase:"📚","tv / television":"📺",fridge:"🧊",chair:"🪑",cup:"☕",cupboard:"🗄️",
+ // ciudad
+ "shopping centre":"🛍️","bus stop":"🚏",supermarket:"🛒","town hall":"🏛️",house:"🏠",playground:"🛝",library:"📚",square:"⛲","sports centre":"🏟️",museum:"🖼️",theatre:"🎭",bakery:"🥖",church:"⛪",cinema:"🎬","police station":"🚓","fire station":"🚒",greengrocery:"🥦","chemist's":"💊","butcher's":"🥩","café":"☕",street:"🛣️","post office":"📮",
+ // deportes
+ basketball:"🏀","football / soccer":"⚽","ice hockey":"🏒",cricket:"🏏",baseball:"⚾","american football":"🏈",volleyball:"🏐",tennis:"🎾",rugby:"🏉",golf:"⛳",swimming:"🏊",
+ // tiempo libre
+ "i watch tv":"📺","i listen to music":"🎧","i paint":"🎨","i draw":"✏️","i dance":"💃","i fly a kite":"🪁","i take photos":"📸","i spend time with my family":"👨‍👩‍👧‍👦","i take a nap":"😴","i write stories":"📝","i read a book":"📖","i read the newspaper":"📰","i read magazines":"📔","i read comics":"🦸","i read news online":"📱","i watch videos online":"▶️","i surf the internet":"🌐","i check my social media":"👍","i send messages to my friends":"💬","i chat with my friends":"🗣️","i play cards":"🃏","i play dominoes":"🁢","i play scrabble":"🔤","i play with my dolls":"🪆","i play with my toys":"🧸",
+ // trabajos
+ teacher:"👩‍🏫",doctor:"👨‍⚕️",nurse:"👩‍⚕️",firefighter:"🧑‍🚒","police officer":"👮",barber:"💈",pilot:"🧑‍✈️",cook:"🧑‍🍳","mail carrier":"📬",dentist:"🦷",vet:"🐶",mechanic:"🔧",soldier:"🪖",artist:"🧑‍🎨",farmer:"🧑‍🌾",photographer:"📷",singer:"🎤",carpenter:"🪚",scientist:"🔬",worker:"👷","taxi driver":"🚕",waiter:"🍽️",musician:"🎸",astronaut:"🧑‍🚀",baker:"🧁"
+};
+const DIB_CAT={"days of the week":"📅","months":"🗓️","seasons":"🍂","weather":"🌦️","parts of the house":"🏠","household items":"🛋️","places in town":"🏙️","sports":"⚽","free time activities":"🎮","jobs":"👩‍🏫",
+ "ordinal numbers":"🔢","greetings":"👋","personal information":"🪪","pronouns":"👦","present simple":"☀️","present continuous":"🏃","prepositions of place":"📍","prepositions of movement":"➡️","prepositions of time":"⏰","wh- questions":"❓","can (ability)":"💪","past tense of the verb to be":"⏪"};
+// escenas para las preposiciones (dos renglones = arriba / abajo)
+const DIB_PREP={"in":"🐱📦","on":"📖<br>🪑","under":"🪑<br>⚽","next to":"🛋️💡","behind":"🚪🐕","in front of":"🚗🏠","between":"👦🧒👧","near":"🏫🏠","beside":"🦉📦","above":"💡<br>🪑","below":"📦<br>⚽","among":"🦉🦉🦜🦉",
+ "up / down":"🪜⬆️⬇️","into / out of":"🐸➡️💧","across":"🚶↔️🛣️","along":"🚶🌊","through":"🚂🚇","over / under":"🐦🏠","past":"🦉🌳","to / from":"🏫🚶",
+ "at":"🕒","on ":"📅"};
+(function(){
+  // 1) iconos en los títulos de cada tema
+  document.querySelectorAll("details > summary").forEach(sm=>{
+    if(sm.closest(".diag"))return;
+    const nom=sm.firstChild&&sm.firstChild.nodeType===3?sm.firstChild.textContent:sm.textContent;
+    const ic=DIB_CAT[nom.trim().toLowerCase()];if(ic){const i=document.createElement("span");i.className="cat-ic";i.textContent=ic;i.setAttribute("aria-hidden","true");sm.insertBefore(i,sm.firstChild)}
+  });
+  // 2) cada palabra del vocabulario lleva su dibujo
+  document.querySelectorAll(".chip").forEach(c=>{
+    const b=c.querySelector("b");if(!b)return;const k=b.textContent.trim().toLowerCase();
+    const e=DIB[k];if(e){const s=document.createElement("span");s.className="pic";s.textContent=e;s.setAttribute("aria-hidden","true");c.insertBefore(s,c.firstChild)}
+  });
+  // 3) escenas en las tablas de preposiciones
+  document.querySelectorAll("details").forEach(d=>{
+    const sm=d.querySelector("summary");if(!sm)return;
+    const t=sm.textContent.toLowerCase();
+    if(!/prepositions of (place|movement|time)/.test(t))return;
+    d.querySelectorAll("table tr").forEach((tr,i)=>{
+      if(!i)return;const td=tr.querySelector("td"),b=tr.querySelector("b");if(!td||!b)return;
+      const k=b.textContent.trim().toLowerCase();const key=/time/.test(t)&&k==="on"?"on ":k;
+      if(DIB_PREP[key])td.insertAdjacentHTML("afterbegin",'<span class="scene" aria-hidden="true">'+DIB_PREP[key]+"</span><br>")});
+  });
+  // 4) números ordinales: medallas, puntitos y calendario
+  document.querySelectorAll("#ordinals div").forEach((d,i)=>{
+    const n=i+1;let g=n===1?"🥇":n===2?"🥈":n===3?"🥉":n<=10?"🏅":"📅";
+    const s=document.createElement("span");s.className="og";s.setAttribute("aria-hidden","true");s.textContent=g;d.insertBefore(s,d.children[1]);
+  });
+})();
 
 // ---- examen
 const bank=[

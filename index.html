@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trinity GESE Grade 3</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@400;600;800&display=swap">
+<style>
+/* Layout: cuaderno escolar — una columna, pestañas Estudiar / Speaking / Examen, tarjetas por tema */
+:root{
+  --bg:#f7f8fc; --paper:#ffffff; --ink:#1d2a5c; --muted:#5b6690; --line:#dfe4f3;
+  --accent:#ffc83d; --accent-ink:#3a2c00; --blue:#3157d5;
+  --good:#1f9d55; --good-bg:#e3f6ea; --bad:#d23c3c; --bad-bg:#fde7e7;
+  --display:"Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --body:"Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11152a; --paper:#1a2040; --ink:#e8ecff; --muted:#a3acd6; --line:#2c3462;
+  --accent:#ffcf52; --accent-ink:#2b2000; --blue:#8aa5ff;
+  --good:#5fd68f; --good-bg:#183a28; --bad:#ff7f7f; --bad-bg:#43202a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11152a; --paper:#1a2040; --ink:#e8ecff; --muted:#a3acd6; --line:#2c3462;
+  --accent:#ffcf52; --accent-ink:#2b2000; --blue:#8aa5ff;
+  --good:#5fd68f; --good-bg:#183a28; --bad:#ff7f7f; --bad-bg:#43202a; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
+.wrap{max-width:760px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header h1{font-family:var(--display);font-weight:800;font-size:clamp(1.9rem,6vw,2.6rem);line-height:1.05;margin:0;text-wrap:balance}
+header h1 span{background:var(--accent);color:var(--accent-ink);padding:0 .25em;border-radius:6px}
+header p{margin:.4rem 0 0;color:var(--muted)}
+nav{display:flex;gap:6px;margin:20px 0 18px;background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:5px;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+nav button{flex:1;font:800 .95rem var(--body);border:0;border-radius:10px;padding:10px 6px;background:transparent;color:var(--muted);cursor:pointer}
+nav button[aria-selected="true"]{background:var(--blue);color:#fff}
+nav button:focus-visible,.opt:focus-visible,.btn:focus-visible,summary:focus-visible,.qa button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+h2{font-family:var(--display);font-weight:800;font-size:1.45rem;margin:0 0 .2rem;line-height:1.2}
+h3{font-family:var(--display);font-weight:600;font-size:1.1rem;margin:1rem 0 .3rem;color:var(--blue)}
+.lead{color:var(--muted);margin:0 0 14px}
+.stack{display:flex;flex-direction:column;gap:12px}
+details{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:0 16px}
+summary{font-family:var(--display);font-weight:600;font-size:1.15rem;padding:13px 0;cursor:pointer;list-style:none;display:flex;justify-content:space-between;gap:10px}
+summary::after{content:"+";color:var(--blue);font-weight:800}
+details[open] summary::after{content:"–"}
+details[open]{padding-bottom:14px}
+.es{color:var(--muted);font-size:.93rem}
+table{border-collapse:collapse;width:100%;font-size:.95rem}
+.tbl{overflow-x:auto}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+th{font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+td b{color:var(--blue)}
+.ord{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.ord div{display:flex;gap:8px;align-items:baseline;padding:5px 8px;border-radius:8px;background:var(--bg)}
+.ord .n{font-weight:800;min-width:2.6em;font-variant-numeric:tabular-nums;color:var(--blue)}
+.ord .irr{background:var(--accent);color:var(--accent-ink)}
+.ord .irr .n{color:var(--accent-ink)}
+.tip{background:var(--bg);border-left:4px solid var(--accent);border-radius:8px;padding:8px 12px;margin:10px 0;font-size:.95rem}
+ul.ex{margin:.3rem 0;padding-left:1.1rem}
+ul.ex li{margin:.15rem 0}
+.qa{display:flex;flex-direction:column;gap:8px}
+.qa button{all:unset;box-sizing:border-box;cursor:pointer;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:block}
+.qa .q{font-weight:800}
+.qa .a{color:var(--good);margin-top:4px}
+.qa .hint{font-size:.8rem;color:var(--muted)}
+/* exam */
+.bar{height:10px;background:var(--line);border-radius:99px;overflow:hidden;margin:6px 0 16px}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:18px}
+.tag{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:800}
+.qtext{font-family:var(--display);font-weight:600;font-size:1.3rem;line-height:1.3;margin:6px 0 14px}
+.opts{display:grid;gap:8px}
+.opt{font:600 1rem var(--body);text-align:left;padding:12px 14px;border-radius:12px;border:2px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer}
+.opt:hover:not(:disabled){border-color:var(--blue)}
+.opt.ok{border-color:var(--good);background:var(--good-bg)}
+.opt.no{border-color:var(--bad);background:var(--bad-bg)}
+.opt:disabled{cursor:default}
+.fb{margin-top:12px;font-weight:600;min-height:1.5em}
+.fb.ok{color:var(--good)}.fb.no{color:var(--bad)}
+.row{display:flex;gap:10px;justify-content:space-between;align-items:center;margin-top:14px;flex-wrap:wrap}
+.btn{font:800 1rem var(--body);border:0;border-radius:12px;padding:12px 18px;background:var(--blue);color:#fff;cursor:pointer}
+.btn.alt{background:var(--accent);color:var(--accent-ink)}
+.score{font-family:var(--display);font-weight:800;font-size:3rem;line-height:1;margin:6px 0}
+.review li{margin:.4rem 0}
+.review .w{color:var(--bad)}.review .r{color:var(--good)}
+.sbtns{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.sbtns .btn{flex:1 1 140px}
+.btn.ghost{background:transparent;color:var(--blue);border:2px solid var(--line)}
+.btn.rec{background:var(--bad);color:#fff}
+.btn:disabled{opacity:.45;cursor:default}
+.link{all:unset;cursor:pointer;color:var(--blue);font-weight:800;font-size:.9rem;text-decoration:underline;text-underline-offset:3px}
+.link:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+#spInput{flex:2 1 180px;min-width:0;font:600 1rem var(--body);padding:12px;border-radius:12px;border:2px solid var(--line);background:var(--paper);color:var(--ink)}
+.heard{margin-top:14px;padding:10px 12px;border-radius:10px;background:var(--bg);font-size:1.05rem}
+.model{margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--good-bg);display:flex;flex-direction:column;gap:4px}
+.model div{font-weight:800;color:var(--good);font-size:1.05rem}
+.fb ul{margin:.3rem 0 0;padding-left:1.1rem;font-weight:600;color:var(--ink)}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <h1>Trinity GESE <span>Grade 3</span></h1>
+  <p>Guía de estudio, práctica oral y examen de práctica.</p>
+</header>
+
+<nav role="tablist">
+  <button role="tab" id="t-study" aria-selected="true" data-v="study">Estudiar</button>
+  <button role="tab" id="t-speak" aria-selected="false" data-v="speak">Speaking</button>
+  <button role="tab" id="t-exam" aria-selected="false" data-v="exam">Examen</button>
+</nav>
+
+<!-- ESTUDIAR -->
+<section id="v-study">
+<h2>Temas del examen</h2>
+<p class="lead">Tocá cada tema para abrirlo. Las palabras en amarillo son las "raras": hay que aprenderlas de memoria.</p>
+<div class="stack">
+
+<details open><summary>1. Ordinal numbers</summary>
+<p class="es">Los ordinales sirven para fechas y posiciones: <i>my birthday is on the 5th of May</i>, <i>I'm in the third grade</i>.</p>
+<div class="ord" id="ordinals"></div>
+<div class="tip">Regla: casi todos terminan en <b>-th</b>. Los que terminan en 1, 2, 3 cambian: <b>-st, -nd, -rd</b> (21st, 22nd, 23rd). Ojo: es <b>twenty-ninth</b>, sin "e".</div>
+</details>
+
+<details><summary>2. Greetings</summary>
+<ul class="ex">
+<li><b>Hello, how are you?</b> <span class="es">— Hola, ¿cómo estás?</span></li>
+<li><b>I'm fine, thank you. How are you?</b> <span class="es">— Bien, gracias. ¿Y vos?</span></li>
+<li><b>Nice to meet you!</b> <span class="es">— ¡Encantado/a!</span></li>
+<li><b>Goodbye, have a nice day!</b> <span class="es">— Chau, ¡que tengas lindo día!</span></li>
+</ul>
+<div class="tip">Al entrar al examen saludá con una sonrisa y al salir decí <b>Goodbye, have a nice day!</b></div>
+</details>
+
+<details><summary>3. Personal information</summary>
+<div class="tbl"><table>
+<tr><th>Pregunta</th><th>Respuesta</th></tr>
+<tr><td>What's your name?</td><td><b>My name is</b> …</td></tr>
+<tr><td>How old are you?</td><td><b>I am</b> eight <b>years old</b>.</td></tr>
+<tr><td>Where are you from?</td><td><b>I am from</b> Argentina.</td></tr>
+<tr><td>What's your favourite colour?</td><td><b>My favourite colour is</b> blue.</td></tr>
+<tr><td>What's your favourite animal?</td><td><b>My favourite animal is</b> the dog.</td></tr>
+</table></div>
+<div class="tip">Contestá siempre con oración completa, no con una sola palabra.</div>
+</details>
+
+<details><summary>4. Pronouns</summary>
+<div class="tbl"><table>
+<tr><th>Inglés</th><th>Español</th><th>Verbo to be</th></tr>
+<tr><td><b>I</b></td><td>yo</td><td>I am</td></tr>
+<tr><td><b>You</b></td><td>vos / ustedes</td><td>you are</td></tr>
+<tr><td><b>He</b></td><td>él</td><td>he is</td></tr>
+<tr><td><b>She</b></td><td>ella</td><td>she is</td></tr>
+<tr><td><b>It</b></td><td>eso (cosas, animales)</td><td>it is</td></tr>
+<tr><td><b>We</b></td><td>nosotros</td><td>we are</td></tr>
+<tr><td><b>They</b></td><td>ellos / ellas</td><td>they are</td></tr>
+</table></div>
+</details>
+
+<details><summary>5. Present simple</summary>
+<p class="es">Para rutinas y cosas que pasan siempre. Palabras pista: <i>every day, always, usually, never</i>.</p>
+<ul class="ex">
+<li>I <b>play</b> football every Saturday.</li>
+<li>She <b>plays</b> the piano. <span class="es">— con he / she / it se agrega <b>-s</b></span></li>
+<li>He <b>watches</b> TV. <span class="es">— después de -ch, -sh, -s, -o se agrega <b>-es</b></span></li>
+<li>I <b>don't</b> like fish. / She <b>doesn't</b> like fish.</li>
+<li><b>Do</b> you like pizza? — Yes, I do. / <b>Does</b> he play tennis? — No, he doesn't.</li>
+</ul>
+</details>
+
+<details><summary>6. Present continuous</summary>
+<p class="es">Para lo que está pasando <b>ahora</b>. Fórmula: <b>am / is / are + verbo-ing</b>. Pistas: <i>now, at the moment, look!</i></p>
+<ul class="ex">
+<li>I <b>am reading</b> a book now.</li>
+<li>She <b>is running</b>. <span class="es">— run → running (se duplica la consonante)</span></li>
+<li>They <b>are playing</b> in the park.</li>
+<li>What <b>are</b> you <b>doing</b>? — I'm <b>drawing</b>.</li>
+</ul>
+<div class="tip">En el examen te pueden mostrar una imagen: <b>What is the boy doing?</b> → <b>He is eating an apple.</b></div>
+</details>
+
+<details><summary>7. Prepositions of place</summary>
+<div class="tbl"><table>
+<tr><th>Inglés</th><th>Español</th><th>Ejemplo</th></tr>
+<tr><td><b>in</b></td><td>adentro de</td><td>The cat is in the box.</td></tr>
+<tr><td><b>on</b></td><td>sobre / encima</td><td>The book is on the table.</td></tr>
+<tr><td><b>under</b></td><td>debajo de</td><td>The ball is under the bed.</td></tr>
+<tr><td><b>next to</b></td><td>al lado de</td><td>The lamp is next to the sofa.</td></tr>
+<tr><td><b>behind</b></td><td>detrás de</td><td>The dog is behind the door.</td></tr>
+<tr><td><b>in front of</b></td><td>delante de</td><td>The car is in front of the house.</td></tr>
+<tr><td><b>between</b></td><td>entre</td><td>I sit between Tom and Ana.</td></tr>
+</table></div>
+</details>
+
+<details><summary>8. Prepositions of movement</summary>
+<div class="tbl"><table>
+<tr><th>Inglés</th><th>Español</th><th>Ejemplo</th></tr>
+<tr><td><b>up / down</b></td><td>arriba / abajo</td><td>Go up the stairs.</td></tr>
+<tr><td><b>into / out of</b></td><td>hacia adentro / afuera</td><td>The frog jumps into the water.</td></tr>
+<tr><td><b>across</b></td><td>a través (cruzar)</td><td>Walk across the street.</td></tr>
+<tr><td><b>along</b></td><td>a lo largo de</td><td>We walk along the river.</td></tr>
+<tr><td><b>through</b></td><td>a través de (por dentro)</td><td>The train goes through the tunnel.</td></tr>
+<tr><td><b>over / under</b></td><td>por encima / por debajo</td><td>The bird flies over the house.</td></tr>
+<tr><td><b>to / from</b></td><td>hacia / desde</td><td>I go to school.</td></tr>
+</table></div>
+</details>
+
+<details><summary>9. Prepositions of time</summary>
+<div class="tbl"><table>
+<tr><th>Usamos</th><th>Con</th><th>Ejemplos</th></tr>
+<tr><td><b>at</b></td><td>horas y momentos</td><td>at 8 o'clock, at night, at the weekend</td></tr>
+<tr><td><b>on</b></td><td>días y fechas</td><td>on Monday, on my birthday, on the 3rd of June</td></tr>
+<tr><td><b>in</b></td><td>meses, años, estaciones, partes del día</td><td>in May, in 2026, in summer, in the morning</td></tr>
+</table></div>
+<div class="tip">Truco: <b>AT</b> la hora, <b>ON</b> el día, <b>IN</b> el mes.</div>
+</details>
+
+<details><summary>10. Wh- questions</summary>
+<div class="tbl"><table>
+<tr><th>Palabra</th><th>Significa</th><th>Ejemplo</th></tr>
+<tr><td><b>What</b></td><td>qué</td><td>What is your favourite food?</td></tr>
+<tr><td><b>Where</b></td><td>dónde</td><td>Where do you live?</td></tr>
+<tr><td><b>When</b></td><td>cuándo</td><td>When is your birthday?</td></tr>
+<tr><td><b>Who</b></td><td>quién</td><td>Who is your best friend?</td></tr>
+<tr><td><b>Why</b></td><td>por qué</td><td>Why do you like dogs? — <b>Because</b> they are funny.</td></tr>
+<tr><td><b>How many</b></td><td>cuántos</td><td>How many brothers have you got?</td></tr>
+</table></div>
+<div class="tip">A <b>Why?</b> se contesta con <b>Because…</b></div>
+</details>
+
+<details><summary>11. Can (ability)</summary>
+<p class="es">Para decir lo que <b>sabés</b> o <b>podés</b> hacer. Va igual para todas las personas, sin -s.</p>
+<ul class="ex">
+<li>I <b>can</b> swim. / She <b>can</b> ride a bike.</li>
+<li>I <b>can't</b> fly. / He <b>can't</b> cook.</li>
+<li><b>Can</b> you dance? — Yes, I can. / No, I can't.</li>
+</ul>
+<div class="tip">Después de can va el verbo solo: <b>she can swim</b>, nunca "she can swims".</div>
+</details>
+
+<details><summary>12. Past tense of the verb to be</summary>
+<div class="tbl"><table>
+<tr><th>Presente</th><th>Pasado</th><th>Ejemplo</th></tr>
+<tr><td>I am / he, she, it is</td><td><b>was</b></td><td>I was at home yesterday.</td></tr>
+<tr><td>you / we / they are</td><td><b>were</b></td><td>They were at the beach last summer.</td></tr>
+</table></div>
+<ul class="ex">
+<li>Negativo: I <b>wasn't</b> tired. / We <b>weren't</b> at school.</li>
+<li>Pregunta: <b>Were</b> you at the park? — Yes, I was. / <b>Was</b> she happy? — No, she wasn't.</li>
+</ul>
+<div class="tip">Pistas de pasado: <i>yesterday, last week, last summer</i>.</div>
+</details>
+
+</div>
+</section>
+
+<!-- SPEAKING -->
+<section id="v-speak" hidden>
+<h2>Speaking</h2>
+<p class="lead">Como en el examen: el examinador pregunta en voz alta y vos contestás hablando. Tocá <b>Escuchar</b>, después <b>Hablar</b>, y respondé con una oración completa.</p>
+<div class="card" id="sp">
+  <div class="row" style="margin:0"><span class="tag" id="spN"></span><button class="link" id="spShow">Ver la pregunta escrita</button></div>
+  <div class="bar"><i id="spBar"></i></div>
+  <div class="qtext" id="spQ" hidden></div>
+  <div class="sbtns">
+    <button class="btn" id="spListen">Escuchar pregunta</button>
+    <button class="btn alt" id="spTalk">Hablar</button>
+  </div>
+  <div id="spType" hidden>
+    <label for="spInput" class="es" id="spTypeMsg">El micrófono no funciona en este navegador. Escribí la respuesta:</label>
+    <div class="sbtns"><input id="spInput" type="text" autocomplete="off" placeholder="My name is…"><button class="btn alt" id="spSend">Enviar</button></div>
+  </div>
+  <div class="heard" id="spHeard" hidden></div>
+  <div class="fb" id="spFb"></div>
+  <div class="model" id="spModel" hidden><span class="tag">Ejemplo de respuesta</span><div id="spModelTxt"></div><button class="link" id="spModelPlay">Escuchar ejemplo</button></div>
+  <div class="row"><button class="btn ghost" id="spPrev">Anterior</button><button class="btn" id="spNext">Siguiente</button></div>
+</div>
+</section>
+
+<!-- EXAMEN -->
+<section id="v-exam" hidden>
+<h2>Examen de práctica</h2>
+<p class="lead">25 preguntas de todos los temas. Cada vez que empezás, cambian de orden.</p>
+<div id="exam"></div>
+</section>
+</div>
+
+<script>
+// ---- ordinales
+const ord=["first","second","third","fourth","fifth","sixth","seventh","eighth","ninth","tenth","eleventh","twelfth","thirteenth","fourteenth","fifteenth","sixteenth","seventeenth","eighteenth","nineteenth","twentieth","twenty-first","twenty-second","twenty-third","twenty-fourth","twenty-fifth","twenty-sixth","twenty-seventh","twenty-eighth","twenty-ninth","thirtieth","thirty-first"];
+const irr=new Set([1,2,3,5,8,9,12,20,30]);
+const suf=n=>(n%10==1&&n!=11)?"st":(n%10==2&&n!=12)?"nd":(n%10==3&&n!=13)?"rd":"th";
+document.getElementById("ordinals").innerHTML=ord.map((w,i)=>{const n=i+1;return `<div class="${irr.has(n)?'irr':''}"><span class="n">${n}${suf(n)}</span><span>${w}</span></div>`}).join("");
+
+// ---- speaking (voz)
+const NUM=/(\b\d+\b|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen)/;
+const sp=[
+{q:"Hello! How are you today?",a:"I'm fine, thank you. And you?",need:[[/fine|good|great|ok|well|happy/,"Decí cómo estás: \"I'm fine\"."],[/thank/,"Agregá \"thank you\"."]]},
+{q:"What's your name?",a:"My name is Felu.",need:[[/my name is|i am \w|i'm \w/,"Empezá con \"My name is…\"."]]},
+{q:"How old are you?",a:"I am nine years old.",need:[[NUM,"Decí tu edad con un número."],[/years? old/,"Terminá con \"years old\": \"I am nine years old\"."]]},
+{q:"Where are you from?",a:"I am from Argentina.",need:[[/(i am|i'm) from/,"Usá \"I am from…\"."]]},
+{q:"What's your favourite colour?",a:"My favourite colour is green.",need:[[/my favou?rite colou?r is|colou?r is/,"Usá \"My favourite colour is…\"."]]},
+{q:"What's your favourite animal? Why?",a:"My favourite animal is the dog because it is funny.",need:[[/animal is|i like/,"Usá \"My favourite animal is…\"."],[/because/,"Explicá por qué con \"because…\"."]]},
+{q:"When is your birthday?",a:"My birthday is on the fourteenth of March.",need:[[/birthday is|it'?s/,"Usá \"My birthday is…\"."],[/\bon\b|\bin\b/,"Con fechas va \"on\": \"on the 14th of March\"."]]},
+{q:"What do you do every morning?",a:"I get up at seven o'clock and I go to school.",need:[[/\bi (get|go|have|wake|eat|brush|wash|take)/,"Contá tu rutina con \"I get up…, I go…\"."]]},
+{q:"What are you doing now?",a:"I am talking to you.",need:[[/(am|'m|i'm) \w+ing/,"Usá present continuous: \"I am …ing\"."]]},
+{q:"What can you do?",a:"I can swim and I can ride a bike.",need:[[/\bcan\b/,"Usá \"I can…\"."]]},
+{q:"Where were you yesterday?",a:"I was at home with my family.",need:[[/\bwas\b/,"Es pasado: \"I was at…\"."]]},
+{q:"Who is your best friend?",a:"My best friend is Mateo.",need:[[/best friend is|friend is/,"Usá \"My best friend is…\"."]]},
+{q:"How many people are there in your family?",a:"There are four people in my family.",need:[[NUM,"Decí el número."],[/there are/,"Empezá con \"There are…\"."]]},
+{q:"Where is your school bag?",a:"My school bag is under my bed.",need:[[/\b(under|on|in|next to|behind|between|in front of)\b/,"Usá una preposición: under, on, in, next to…"],[/\bis\b/,"Hacé la oración completa: \"My school bag is…\"."]]},
+{q:"What do you do on Saturdays?",a:"On Saturdays I play football in the park.",need:[[/\bi (play|go|watch|visit|ride|read|sleep|have|see|eat|swim)/,"Contá qué hacés: \"I play…\", \"I go…\"."]]},
+{q:"Thank you, that's the end of the exam. Goodbye!",a:"Goodbye, have a nice day!",need:[[/bye/,"Despedite: \"Goodbye!\"."],[/nice day|thank/,"Agregá \"have a nice day!\"."]]}
+];
+const $=id=>document.getElementById(id);
+const synth=window.speechSynthesis;let voice=null;
+function pickVoice(){if(!synth)return;const v=synth.getVoices();voice=v.find(x=>/en[-_]GB/i.test(x.lang))||v.find(x=>/^en/i.test(x.lang))||null}
+if(synth){pickVoice();synth.onvoiceschanged=pickVoice}
+function say(t,lang){if(!synth)return;synth.cancel();const u=new SpeechSynthesisUtterance(t);u.lang=lang||"en-GB";if(!lang&&voice)u.voice=voice;u.rate=.85;synth.speak(u)}
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let si=0,res=new Array(sp.length).fill(null),rec=null;
+function typeMode(msg){$("spType").hidden=false;$("spTalk").hidden=true;if(msg)$("spTypeMsg").textContent=msg}
+if(!SR)typeMode();
+function spRender(auto){
+  const q=sp[si];
+  $("spN").textContent=`Pregunta ${si+1} de ${sp.length}`;
+  $("spBar").style.width=(si/sp.length*100)+"%";
+  $("spQ").textContent=q.q;$("spQ").hidden=true;$("spShow").hidden=false;
+  $("spHeard").hidden=true;$("spFb").textContent="";$("spFb").className="fb";
+  $("spModel").hidden=true;$("spModelTxt").textContent=q.a;$("spInput").value="";
+  $("spPrev").disabled=si===0;$("spNext").textContent=si+1<sp.length?"Siguiente":"Ver resultado";
+  if(auto)say(q.q);
+}
+function evaluate(t){
+  const q=sp[si],low=t.toLowerCase().replace(/[.,!?]/g,"");
+  $("spHeard").hidden=false;$("spHeard").innerHTML=`Dijiste: <b>“${t.replace(/</g,"&lt;")}”</b>`;
+  const miss=q.need.filter(([re])=>!re.test(low));
+  const short=low.split(/\s+/).filter(Boolean).length<3 && si!==sp.length-1;
+  const fb=$("spFb");
+  if(!miss.length&&!short){fb.className="fb ok";fb.textContent="¡Muy bien! Respuesta completa.";res[si]=true;say("Very good!")}
+  else{fb.className="fb no";const tips=miss.map(m=>m[1]);if(short&&!tips.length)tips.push("Contestá con una oración completa, no con una sola palabra.");
+    fb.innerHTML="Casi. Probá de nuevo:<ul>"+tips.map(x=>`<li>${x}</li>`).join("")+"</ul>";if(res[si]!==true)res[si]=false;say("Good try! Try again.")}
+  $("spModel").hidden=false;
+}
+$("spListen").onclick=()=>say(sp[si].q);
+$("spShow").onclick=()=>{$("spQ").hidden=false;$("spShow").hidden=true};
+$("spModelPlay").onclick=()=>say(sp[si].a);
+$("spSend").onclick=()=>{const v=$("spInput").value.trim();if(v)evaluate(v)};
+$("spInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("spSend").click()}});
+$("spTalk").onclick=()=>{
+  if(rec){rec.stop();return}
+  if(synth)synth.cancel();
+  try{rec=new SR()}catch(e){typeMode();return}
+  rec.lang="en-GB";rec.interimResults=false;rec.maxAlternatives=1;
+  const b=$("spTalk");b.textContent="Escuchando… (tocá para terminar)";b.classList.add("rec");
+  let got=false;
+  rec.onresult=e=>{got=true;evaluate(e.results[0][0].transcript)};
+  rec.onerror=e=>{if(e.error==="not-allowed"||e.error==="service-not-allowed")typeMode("No hay permiso para el micrófono. Permitilo en el navegador o escribí la respuesta:");else if(e.error==="no-speech"){$("spFb").className="fb no";$("spFb").textContent="No te escuché. Tocá Hablar y decilo un poco más fuerte."}};
+  rec.onend=()=>{b.textContent="Hablar";b.classList.remove("rec");rec=null};
+  try{rec.start()}catch(e){b.textContent="Hablar";b.classList.remove("rec");rec=null}
+};
+$("spPrev").onclick=()=>{if(si>0){si--;spRender(true)}};
+$("spNext").onclick=()=>{
+  if(si+1<sp.length){si++;spRender(true);return}
+  const ok=res.filter(x=>x===true).length,miss=sp.filter((_,k)=>res[k]!==true).map(x=>x.q);
+  $("sp").innerHTML=`<div class="tag">Resultado del speaking</div><div class="score">${ok} / ${sp.length}</div><p>respuestas completas.</p>${miss.length?`<h3>Para practicar otra vez</h3><ul class="ex">${miss.map(x=>`<li>${x}</li>`).join("")}</ul>`:"<p>¡Todas perfectas!</p>"}<div class="row"><button class="btn alt" id="spAgain">Practicar de nuevo</button></div>`;
+  say(ok>=12?"Excellent work! Goodbye!":"Well done! Keep practising. Goodbye!");
+  $("spAgain").onclick=()=>location.reload();
+};
+spRender(false);
+
+// ---- examen
+const bank=[
+["Ordinal numbers","How do you write 3rd?",["third","threeth","thirth"],0],
+["Ordinal numbers","Which is correct for 12th?",["twelveth","twelfth","twelvth"],1],
+["Ordinal numbers","How do you write 22nd?",["twenty-second","twenty-twoth","twenty-secondth"],0],
+["Ordinal numbers","Which number is 'fifth'?",["4th","5th","15th"],1],
+["Ordinal numbers","How do you write 29th?",["twenty-nineth","twenty-ninth","twenty-nineteenth"],1],
+["Ordinal numbers","My birthday is on the ___ of July (31).",["thirty-one","thirty-first","thirtieth"],1],
+["Greetings","'Hello, how are you?' — Best answer:",["I'm eight.","I'm fine, thank you. And you?","My name is Ana."],1],
+["Greetings","When you leave the room you say:",["Nice to meet you!","Goodbye, have a nice day!","How are you?"],1],
+["Personal information","'How old are you?' —",["I am from Argentina.","I am nine years old.","I'm fine."],1],
+["Personal information","'Where are you from?' —",["I am from Argentina.","I am Argentina years.","My favourite is Argentina."],0],
+["Pronouns","Lucas is my friend. ___ is ten.",["She","He","It"],1],
+["Pronouns","Mum and I are at home. ___ are happy.",["They","We","You"],1],
+["Pronouns","Look at the dog! ___ is very big.",["It","He","They"],0],
+["Present simple","She ___ football every Sunday.",["play","plays","playing"],1],
+["Present simple","___ you like pizza?",["Does","Are","Do"],2],
+["Present simple","My dad ___ TV at night.",["watchs","watches","watch"],1],
+["Present continuous","Look! The baby ___.",["is sleeping","sleeps","are sleeping"],0],
+["Present continuous","What are you doing? — I ___ a book.",["read","am reading","is reading"],1],
+["Present continuous","They ___ in the park now.",["are running","is running","runs"],0],
+["Prepositions of place","The ball is ___ the bed (debajo).",["on","under","in"],1],
+["Prepositions of place","The book is ___ the table (encima).",["on","in","between"],0],
+["Prepositions of place","I sit ___ Tom and Ana.",["next","between","behind"],1],
+["Prepositions of movement","The train goes ___ the tunnel.",["through","on","at"],0],
+["Prepositions of movement","Walk ___ the street to the shop (cruzar).",["across","under","into"],0],
+["Prepositions of movement","The frog jumps ___ the water.",["into","out","on"],0],
+["Prepositions of time","I get up ___ 7 o'clock.",["in","on","at"],2],
+["Prepositions of time","My birthday is ___ Monday.",["on","in","at"],0],
+["Prepositions of time","We go to the beach ___ summer.",["at","on","in"],2],
+["Wh- questions","___ do you live? — In Buenos Aires.",["When","Where","Who"],1],
+["Wh- questions","___ is your teacher? — Miss Laura.",["Who","What","Why"],0],
+["Wh- questions","___ brothers have you got? — Two.",["How many","What","When"],0],
+["Wh- questions","Why do you like cats? — ___ they are cute.",["Because","So","And"],0],
+["Can (ability)","She ___ ride a bike.",["can","cans","can to"],0],
+["Can (ability)","Fish ___ walk.",["can","can't","doesn't can"],1],
+["Can (ability)","Can you swim? — Yes, I ___.",["do","am","can"],2],
+["Past of to be","I ___ at school yesterday.",["were","was","am"],1],
+["Past of to be","They ___ at the beach last week.",["was","were","are"],1],
+["Past of to be","___ you at home yesterday? — Yes, I was.",["Was","Were","Did"],1]
+];
+const N=25, ex=document.getElementById("exam");
+let qs=[],i=0,score=0,wrong=[];
+const shuffle=a=>{a=a.slice();for(let k=a.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[a[k],a[j]]=[a[j],a[k]]}return a};
+function intro(){
+  ex.innerHTML=`<div class="card"><div class="tag">Antes de empezar</div><p>Elegí la respuesta correcta. Vas a ver enseguida si está bien. Al final aparece tu nota y las que tenés que repasar.</p><button class="btn alt" id="start">Empezar examen</button></div>`;
+  document.getElementById("start").onclick=start;
+}
+function start(){
+  const byTopic={};bank.forEach(q=>(byTopic[q[0]]=byTopic[q[0]]||[]).push(q));
+  // al menos 2 por tema, el resto al azar
+  let pick=[];Object.values(byTopic).forEach(l=>pick.push(...shuffle(l).slice(0,2)));
+  const rest=shuffle(bank.filter(q=>!pick.includes(q)));
+  pick=shuffle(pick.concat(rest).slice(0,N));
+  qs=pick.map(([t,q,o,a])=>{const idx=shuffle(o.map((_,k)=>k));return{t,q,o:idx.map(k=>o[k]),a:idx.indexOf(a)}});
+  i=0;score=0;wrong=[];show();
+}
+function show(){
+  const q=qs[i];
+  ex.innerHTML=`<div class="row" style="margin:0"><span class="tag">Pregunta ${i+1} de ${qs.length}</span><span class="tag">Correctas: ${score}</span></div>
+  <div class="bar"><i style="width:${i/qs.length*100}%"></i></div>
+  <div class="card"><div class="tag">${q.t}</div><div class="qtext">${q.q}</div>
+  <div class="opts">${q.o.map((o,k)=>`<button class="opt" id="opt${k}" data-k="${k}">${o}</button>`).join("")}</div>
+  <div class="fb" id="fb"></div>
+  <div class="row"><span></span><button class="btn" id="next" hidden>${i+1<qs.length?"Siguiente":"Ver resultado"}</button></div></div>`;
+  ex.querySelectorAll(".opt").forEach(b=>b.onclick=()=>answer(+b.dataset.k));
+}
+function answer(k){
+  const q=qs[i],btns=ex.querySelectorAll(".opt"),fb=document.getElementById("fb");
+  btns.forEach(b=>b.disabled=true);
+  btns[q.a].classList.add("ok");
+  if(k===q.a){score++;fb.className="fb ok";fb.textContent="¡Muy bien!"}
+  else{btns[k].classList.add("no");fb.className="fb no";fb.textContent="La correcta es: "+q.o[q.a];wrong.push(q)}
+  const n=document.getElementById("next");n.hidden=false;n.focus();
+  n.onclick=()=>{i++;i<qs.length?show():result()};
+}
+function result(){
+  const pct=Math.round(score/qs.length*100);
+  const msg=pct>=90?"¡Excelente! Estás listo/a para el examen.":pct>=70?"¡Muy bien! Repasá los temas que fallaste.":pct>=50?"Vas bien, pero conviene repasar.":"Volvé a la pestaña Estudiar y probá de nuevo.";
+  const topics=[...new Set(wrong.map(q=>q.t))];
+  ex.innerHTML=`<div class="card"><div class="tag">Resultado</div><div class="score">${score} / ${qs.length}</div><p><b>${pct}%</b> — ${msg}</p>
+  ${topics.length?`<h3>Temas para repasar</h3><p>${topics.join(" · ")}</p><h3>Tus errores</h3><ol class="review">${wrong.map(q=>`<li>${q.q}<br><span class="r">✓ ${q.o[q.a]}</span></li>`).join("")}</ol>`:"<p>¡Sin errores!</p>"}
+  <div class="row"><button class="btn alt" id="again">Hacer otro examen</button></div></div>`;
+  document.getElementById("again").onclick=start;
+}
+intro();
+
+// ---- pestañas
+document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("nav button").forEach(x=>x.setAttribute("aria-selected",String(x===b)));
+  ["study","speak","exam"].forEach(v=>document.getElementById("v-"+v).hidden=v!==b.dataset.v);
+  window.scrollTo({top:0});
+}));
+</script>
+</body>
+</html>

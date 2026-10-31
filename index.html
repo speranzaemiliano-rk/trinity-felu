@@ -583,13 +583,22 @@ function unlockVoice(){if(unlocked||!synth)return;unlocked=true;try{const u=new 
 // Chrome corta la voz a los ~15 s si no se la "despierta"
 let ttsTimer=null;
 function ttsKeepAlive(on){clearInterval(ttsTimer);if(on)ttsTimer=setInterval(()=>{if(synth.speaking&&!synth.paused){synth.pause();synth.resume()}},9000)}
+// Plan B: si la PC/el celu no tiene voz en inglés instalada, se reproduce desde un servicio en línea (no depende de las voces del sistema)
+function sayOnline(t){
+  const partes=t.match(/[^.!?]+[.!?]*/g)||[t];const trozos=[];let cur="";
+  partes.forEach(x=>{if((cur+x).length>180&&cur){trozos.push(cur);cur=x}else cur+=x});if(cur.trim())trozos.push(cur);
+  return trozos.reduce((pr,tr)=>pr.then(ok=>ok===false?false:new Promise(r=>{
+    const a=new Audio("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en-GB&q="+encodeURIComponent(tr.trim()));
+    a.onended=()=>r(true);a.onerror=()=>r(false);
+    const pl=a.play();if(pl&&pl.catch)pl.catch(()=>r(false))})),Promise.resolve(true));
+}
 function say(t,status){
   return new Promise(res=>{
     const fallback=()=>setTimeout(res,Math.min(6000,600+t.length*55));
-    if(!synth){status("Este navegador no puede leer en voz alta. Abrí el link en <b>Chrome</b> o <b>Edge</b>.");return fallback()}
+    if(!synth){return sayOnline(t).then(ok=>{if(!ok)status("Este navegador no puede leer en voz alta. Abrí el link en <b>Chrome</b> o <b>Edge</b>.")})}
     unlockVoice();
     let started=false,ended=false,tries=0;
-    const maxMs=Math.max(8000,t.length*140+4000);
+    const maxMs=Math.max(12000,t.length*160+6000);
     const fin=()=>{if(ended)return;ended=true;ttsKeepAlive(false);res()};
     const go=()=>{
       if(!voice)pickVoice();
@@ -602,10 +611,10 @@ function say(t,status){
       u.onerror=e=>{
         if(e.error==="interrupted"||e.error==="canceled"){if(!started&&tries<2&&!ended){tries++;setTimeout(go,150);return}return fin()}
         if(e.error==="not-allowed"){status("El navegador bloqueó la voz. Tocá la pantalla una vez y probá de nuevo.");return fin()}
-        status("No se pudo reproducir la voz ("+e.error+").");fin()};
+        sayOnline(t).then(ok=>{if(!ok)status("No se pudo reproducir la voz ("+e.error+").");fin()})};
       synth.speak(u);
       // si a los 2,5 s no arrancó, reintento una vez; si sigue mudo, aviso
-      setTimeout(()=>{if(started||ended)return;if(tries<1){tries++;try{synth.cancel()}catch(e){}setTimeout(go,150)}else{status((noEnVoice?"Tu celular no tiene voz en inglés instalada: Ajustes → Texto a voz → Google → Instalar datos de voz → English. ":"")+"No se escucha la voz. Subí el volumen multimedia o probá con <b>Chrome</b> / <b>Edge</b>. Podés activar <b>Ver lo que dice el examinador</b> para leer las preguntas.");fin()}},2500);
+      setTimeout(()=>{if(started||ended)return;if(tries<1){tries++;try{synth.cancel()}catch(e){}setTimeout(go,150)}else{sayOnline(t).then(ok=>{if(ok)return fin();status((noEnVoice?"Tu celular no tiene voz en inglés instalada: Ajustes → Texto a voz → Google → Instalar datos de voz → English. ":"")+"No se escucha la voz. Subí el volumen multimedia o probá con <b>Chrome</b> / <b>Edge</b>. Podés activar <b>Ver lo que dice el examinador</b> para leer las preguntas.");fin()})}},1600);
     };
     // Si no hay nada sonando, se habla EN EL ACTO: los celulares sólo dejan hablar dentro del toque (con demora no suena)
     if(synth.speaking||synth.pending){try{synth.cancel()}catch(e){}setTimeout(()=>{try{synth.resume()}catch(e){}go()},ANDROID?450:120)}

@@ -186,6 +186,7 @@ nav{-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px)
 .chip{transition:transform .16s cubic-bezier(.2,.8,.2,1),box-shadow .16s ease-out,border-color .15s}
 @media (prefers-reduced-transparency:reduce){nav{background:var(--paper);backdrop-filter:none;-webkit-backdrop-filter:none}}
 @media (prefers-reduced-motion:reduce){.msg,.mic{animation:none}.btn:active:not(:disabled),.opt:active:not(:disabled),.chip:active,nav button:active{transform:none;opacity:.8}.bar i,.btn,.opt{transition:none}.btn.rec,.btn.pressed,.mic .dot{animation:none}}
+.meter.lvl{height:8px;margin-top:8px;background:color-mix(in srgb,var(--bad) 22%,var(--paper))}.meter.lvl i{background:var(--bad)}
 </style>
 </head>
 <body>
@@ -622,7 +623,7 @@ function mountConv(rootId,mode){
   <div class="chat" id="${P}chat" aria-live="polite"><div class="msg tip">${E
     ?"Como en el Trinity: el examinador charla con vos unos 5 minutos y no te ayuda. Si no entendés, podés decir <b>\"Sorry, can you repeat, please?\"</b>"
     :"Tocá <b>Empezar</b>. Cuando veas <b>Te escucho</b>, contestá en voz alta y cuando termines tocá <b>Listo</b> (o hacé una pausa)."}</div></div>
-  <div class="mic" id="${P}mic" hidden><span class="dot"></span><div class="live"><b id="${P}mict">Te escucho…</b><span id="${P}heard"></span></div><button class="btn" id="${P}done">Listo</button></div>
+  <div class="mic" id="${P}mic" hidden><span class="dot"></span><div class="live"><b id="${P}mict">Te escucho…</b><span id="${P}heard"></span><div class="meter lvl"><i id="${P}lvl"></i></div></div><button class="btn" id="${P}done">Listo</button></div>
   <div class="status" id="${P}st" role="status" hidden></div>
   <div id="${P}type" hidden>
     <label for="${P}in" class="es" id="${P}tmsg">El micrófono no funciona en este navegador. Escribí la respuesta:</label>
@@ -641,17 +642,33 @@ function mountConv(rootId,mode){
   if(!SR)typeMode();
   const micUI=(on,txt)=>{el("mic").hidden=!on;if(txt)el("mict").textContent=txt;if(!on)el("heard").textContent=""};
 
+  // Medidor en vivo: muestra si el micrófono manda sonido y avisa si llega silencio total
+  let lvlStream=null,lvlCtx=null,lvlRaf=0,lvlPeak=0;
+  function lvlStop(){cancelAnimationFrame(lvlRaf);if(lvlStream)lvlStream.getTracks().forEach(t=>t.stop());if(lvlCtx)lvlCtx.close().catch(()=>{});lvlStream=lvlCtx=null;if(el("lvl"))el("lvl").style.width="0"}
+  async function lvlStart(){
+    lvlStop();lvlPeak=0;
+    try{
+      lvlStream=await navigator.mediaDevices.getUserMedia({audio:true});
+      lvlCtx=new (window.AudioContext||window.webkitAudioContext)();if(lvlCtx.state==="suspended")lvlCtx.resume();
+      const an=lvlCtx.createAnalyser();an.fftSize=512;lvlCtx.createMediaStreamSource(lvlStream).connect(an);
+      const buf=new Uint8Array(an.fftSize);
+      const tick=()=>{an.getByteTimeDomainData(buf);let m=0;for(const v of buf)m=Math.max(m,Math.abs(v-128));lvlPeak=Math.max(lvlPeak,m);el("lvl").style.width=Math.min(100,m*2.2)+"%";lvlRaf=requestAnimationFrame(tick)};tick();
+    }catch(e){}
+  }
+
   function listen(){
     if(micBroken)return new Promise(res=>{typedResolve=res;micUI(true,"Escribí tu respuesta…");el("in").focus()});
     return new Promise(res=>{
       let done=false,started=false,text="",silence=null,noSound=null,cap=null;
-      const fin=v=>{if(done)return;done=true;clearTimeout(silence);clearTimeout(noSound);clearTimeout(cap);finishNow=null;
+      lvlStart();
+      const fin=v=>{if(done)return;done=true;lvlStop();clearTimeout(silence);clearTimeout(noSound);clearTimeout(cap);finishNow=null;
         if(rec){try{rec.stop()}catch(e){}}rec=null;micUI(false);res(v&&v.trim()?v.trim():null)};
       finishNow=()=>fin(text);
       try{rec=new SR()}catch(e){typeMode();return listen().then(res)}
       rec.lang="en-GB";rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=1;
       rec.onstart=rec.onaudiostart=()=>{if(started)return;started=true;micUI(true,"Te escucho… hablá ahora");
-        noSound=setTimeout(()=>{if(!text){status("No me llega tu voz. Revisá que el micrófono correcto esté elegido: tocá el ícono del micrófono en la barra de direcciones de Chrome → elegí tu micrófono. También podés escribir la respuesta abajo.");el("type").hidden=false}},7000)};
+        noSound=setTimeout(()=>{if(text)return;el("type").hidden=false;
+          status(lvlPeak<6?"<b>Tu PC no está mandando sonido</b> (la barra roja no se mueve). No es de la app: abrí <b>Configuración de Windows → Sistema → Sonido → Entrada</b>, hablá y mirá si se mueve «Probar el micrófono»; revisá también <b>Privacidad → Micrófono</b>. Mientras, tocá <b>⌨️ Escribir</b>.":"El micrófono capta sonido pero el servicio de voz no devuelve texto. Probá con <b>Microsoft Edge</b> o revisá tu conexión a internet. Mientras, tocá <b>⌨️ Escribir</b>.")},7000)};
       rec.onresult=e=>{let s="";for(let r=0;r<e.results.length;r++)s+=e.results[r][0].transcript+" ";text=s.replace(/\s+/g," ").trim();
         el("heard").textContent=text;status("");clearTimeout(noSound);clearTimeout(silence);
         silence=setTimeout(()=>fin(text),2600)};
@@ -696,7 +713,7 @@ function mountConv(rootId,mode){
     }
   }
   async function conversation(){
-    if(activeStop)activeStop();activeStop=stopAll;
+    if(activeStop)activeStop();activeStop=halt;
     const id=++run;pts=0;total=0;review=[];kidName="";
     const steps=E?[...OPEN,...shuffleA(MIDDLE).slice(0,8),CLOSE]:[...OPEN,...MIDDLE,CLOSE];
     el("chat").innerHTML="";el("start").hidden=true;el("stop").hidden=false;el("rep").hidden=false;el("kb").hidden=false;status("");
@@ -725,7 +742,8 @@ function mountConv(rootId,mode){
     endUI();el("start").textContent=E?"Hacer otro examen oral":"Otra conversación";activeStop=null;
   }
   function endUI(){el("start").hidden=false;el("stop").hidden=true;el("rep").hidden=true;el("kb").hidden=true;micUI(false)}
-  function stopAll(){run++;if(synth)synth.cancel();if(rec){try{rec.abort()}catch(e){}rec=null}finishNow=null;typedResolve=null;micUI(false)}
+  function stopAll(){run++;lvlStop();if(synth)synth.cancel();if(rec){try{rec.abort()}catch(e){}rec=null}finishNow=null;typedResolve=null;micUI(false)}
+  function halt(){const was=!el("start").hidden?false:true;stopAll();if(was){endUI();el("start").textContent=E&&total>0?"Hacer otro examen oral":"Empezar de nuevo";bubble("tip","Conversación en pausa.")}activeStop=null}
   el("start").onclick=async()=>{
     stopAll();unlockVoice();
     if(!micBroken){
@@ -897,6 +915,7 @@ document.addEventListener('touchstart',()=>{},{passive:true});
 document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()=>{
   document.querySelectorAll("nav button").forEach(x=>x.setAttribute("aria-selected",String(x===b)));
   ["study","speak","exam"].forEach(v=>document.getElementById("v-"+v).hidden=v!==b.dataset.v);
+  if(activeStop)activeStop();
   window.scrollTo({top:0});
 }));
 

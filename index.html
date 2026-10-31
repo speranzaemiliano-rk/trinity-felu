@@ -13,6 +13,7 @@
   --bg:#f7f8fc; --paper:#ffffff; --ink:#1d2a5c; --muted:#5b6690; --line:#dfe4f3;
   --accent:#ffc83d; --accent-ink:#3a2c00; --blue:#3157d5;
   --good:#1f9d55; --good-bg:#e3f6ea; --bad:#d23c3c; --bad-bg:#fde7e7;
+  --shadow:rgba(20,30,80,.28);
   --display:"Baloo 2", "Trebuchet MS", system-ui, sans-serif;
   --body:"Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
@@ -86,6 +87,13 @@ ul.ex li{margin:.15rem 0}
 .btn.ghost{background:transparent;color:var(--blue);border:2px solid var(--line)}
 .btn.rec{background:var(--bad);color:#fff}
 .btn:disabled{opacity:.45;cursor:default}
+.btn,.opt{box-shadow:0 4px 0 var(--shadow);transform:translateY(0);transition:transform .06s,box-shadow .06s}
+.btn:active:not(:disabled),.opt:active:not(:disabled),.btn.pressed{transform:translateY(4px);box-shadow:0 0 0 var(--shadow)}
+.btn.ghost{box-shadow:0 4px 0 var(--line)}
+.btn.ghost:active:not(:disabled){box-shadow:0 0 0 var(--line)}
+nav button:active{transform:scale(.96)}
+.btn.rec,.btn.pressed{animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{filter:brightness(1.15)}}
 .link{all:unset;cursor:pointer;color:var(--blue);font-weight:800;font-size:.9rem;text-decoration:underline;text-underline-offset:3px}
 .link:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 #spInput{flex:2 1 180px;min-width:0;font:600 1rem var(--body);padding:12px;border-radius:12px;border:2px solid var(--line);background:var(--paper);color:var(--ink)}
@@ -94,7 +102,32 @@ ul.ex li{margin:.15rem 0}
 .model{margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--good-bg);display:flex;flex-direction:column;gap:4px}
 .model div{font-weight:800;color:var(--good);font-size:1.05rem}
 .fb ul{margin:.3rem 0 0;padding-left:1.1rem;font-weight:600;color:var(--ink)}
-@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-top:8px}
+.chip{font:inherit;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:1px;padding:8px 10px;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--ink);box-shadow:0 3px 0 var(--line);transition:transform .06s,box-shadow .06s}
+.chip b{color:var(--blue);font-size:1rem}
+.chip span{font-size:.82rem;color:var(--muted)}
+.chip:active,.chip.pressed{transform:translateY(3px);box-shadow:0 0 0 var(--line);border-color:var(--accent)}
+.chip:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+h3.sec{font-family:var(--display);font-weight:800;font-size:1.2rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 0}
+.chk{display:flex;gap:6px;align-items:center;font-size:.85rem;color:var(--muted);font-weight:600;cursor:pointer}
+.chat{display:flex;flex-direction:column;gap:8px;max-height:min(60vh,520px);overflow-y:auto;padding:4px 2px 8px;margin-top:4px}
+.msg{max-width:85%;padding:10px 14px;border-radius:16px;line-height:1.4;font-size:1.02rem}
+.msg.ex{align-self:flex-start;background:var(--bg);border:1px solid var(--line);border-bottom-left-radius:4px}
+.msg.ex .who{display:block;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--blue);font-weight:800}
+.msg.ex.hide{color:transparent;text-shadow:none;user-select:none}
+.msg.ex.hide::after{content:"(escuchá al examinador)";color:var(--muted);font-size:.9rem;display:block;margin-top:-1.4em}
+.msg.kid{align-self:flex-end;background:var(--accent);color:var(--accent-ink);font-weight:700;border-bottom-right-radius:4px}
+.msg.tip{align-self:stretch;max-width:none;background:var(--good-bg);font-size:.95rem;border-radius:12px}
+.msg.tip ul{margin:.3rem 0 0;padding-left:1.1rem}
+.msg .r{color:var(--good);font-weight:700}
+.grade{font-family:var(--display);font-weight:800;font-size:2rem;color:var(--blue)}
+.mic{display:flex;align-items:center;gap:12px;margin-top:10px;padding:12px 14px;border-radius:14px;background:var(--bad-bg);border:2px solid var(--bad)}
+.mic .dot{width:16px;height:16px;border-radius:50%;background:var(--bad);flex:none;animation:pulse2 1s ease-in-out infinite}
+.mic .live{flex:1;min-width:0;display:flex;flex-direction:column}
+.mic .live span{font-size:1.05rem;font-weight:700;word-wrap:break-word}
+.mic .btn{flex:none}
+@keyframes pulse2{50%{transform:scale(1.35);opacity:.6}}
+@media (prefers-reduced-motion:reduce){.bar i,.btn,.opt{transition:none}.btn.rec,.btn.pressed,.mic .dot{animation:none}}
 </style>
 </head>
 <body>
@@ -117,13 +150,16 @@ ul.ex li{margin:.15rem 0}
 <p class="lead">Tocá cada tema para abrirlo. Las palabras en amarillo son las "raras": hay que aprenderlas de memoria.</p>
 <div class="stack">
 
-<details open><summary>1. Ordinal numbers</summary>
+<h3 class="sec">Vocabulario</h3>
+<details open><summary>Ordinal numbers <span class="es">· Números ordinales</span></summary>
 <p class="es">Los ordinales sirven para fechas y posiciones: <i>my birthday is on the 5th of May</i>, <i>I'm in the third grade</i>.</p>
 <div class="ord" id="ordinals"></div>
 <div class="tip">Regla: casi todos terminan en <b>-th</b>. Los que terminan en 1, 2, 3 cambian: <b>-st, -nd, -rd</b> (21st, 22nd, 23rd). Ojo: es <b>twenty-ninth</b>, sin "e".</div>
 </details>
 
-<details><summary>2. Greetings</summary>
+<div class="stack" id="vocab"></div>
+<h3 class="sec">Gramática</h3>
+<details><summary>Greetings</summary>
 <ul class="ex">
 <li><b>Hello, how are you?</b> <span class="es">— Hola, ¿cómo estás?</span></li>
 <li><b>I'm fine, thank you. How are you?</b> <span class="es">— Bien, gracias. ¿Y vos?</span></li>
@@ -133,7 +169,7 @@ ul.ex li{margin:.15rem 0}
 <div class="tip">Al entrar al examen saludá con una sonrisa y al salir decí <b>Goodbye, have a nice day!</b></div>
 </details>
 
-<details><summary>3. Personal information</summary>
+<details><summary>Personal information</summary>
 <div class="tbl"><table>
 <tr><th>Pregunta</th><th>Respuesta</th></tr>
 <tr><td>What's your name?</td><td><b>My name is</b> …</td></tr>
@@ -145,7 +181,7 @@ ul.ex li{margin:.15rem 0}
 <div class="tip">Contestá siempre con oración completa, no con una sola palabra.</div>
 </details>
 
-<details><summary>4. Pronouns</summary>
+<details><summary>Pronouns</summary>
 <div class="tbl"><table>
 <tr><th>Inglés</th><th>Español</th><th>Verbo to be</th></tr>
 <tr><td><b>I</b></td><td>yo</td><td>I am</td></tr>
@@ -158,8 +194,21 @@ ul.ex li{margin:.15rem 0}
 </table></div>
 </details>
 
-<details><summary>5. Present simple</summary>
+<details><summary>Present simple</summary>
 <p class="es">Para rutinas y cosas que pasan siempre. Palabras pista: <i>every day, always, usually, never</i>.</p>
+<ul class="ex">
+</ul>
+<div class="tbl"><table>
+<tr><th>Afirmativa</th><th>Pregunta</th><th>Negativa</th></tr>
+<tr><td>I think.</td><td>Do I think?</td><td>I do not (don't) think.</td></tr>
+<tr><td>You think.</td><td>Do you think?</td><td>You don't think.</td></tr>
+<tr><td>He <b>thinks</b>.</td><td><b>Does</b> he think?</td><td>He <b>doesn't</b> think.</td></tr>
+<tr><td>She <b>thinks</b>.</td><td><b>Does</b> she think?</td><td>She <b>doesn't</b> think.</td></tr>
+<tr><td>It <b>thinks</b>.</td><td><b>Does</b> it think?</td><td>It <b>doesn't</b> think.</td></tr>
+<tr><td>We think.</td><td>Do we think?</td><td>We don't think.</td></tr>
+<tr><td>They think.</td><td>Do they think?</td><td>They don't think.</td></tr>
+</table></div>
+<div class="tip">He, she, it (3ª persona singular): el verbo lleva <b>-s</b> y en preguntas y negativas se usa <b>does / doesn't</b>.</div>
 <ul class="ex">
 <li>I <b>play</b> football every Saturday.</li>
 <li>She <b>plays</b> the piano. <span class="es">— con he / she / it se agrega <b>-s</b></span></li>
@@ -169,8 +218,18 @@ ul.ex li{margin:.15rem 0}
 </ul>
 </details>
 
-<details><summary>6. Present continuous</summary>
+<details><summary>Present continuous</summary>
 <p class="es">Para lo que está pasando <b>ahora</b>. Fórmula: <b>am / is / are + verbo-ing</b>. Pistas: <i>now, at the moment, look!</i></p>
+<ul class="ex">
+</ul>
+<div class="tbl"><table>
+<tr><th>Afirmativa</th><th>Negativa</th><th>Pregunta</th></tr>
+<tr><td>I <b>am</b> going.</td><td>I am not going.</td><td><b>Am</b> I going?</td></tr>
+<tr><td>You <b>are</b> going.</td><td>You aren't going.</td><td><b>Are</b> you going?</td></tr>
+<tr><td>He / She / It <b>is</b> going.</td><td>He / She / It isn't going.</td><td><b>Is</b> he / she / it going?</td></tr>
+<tr><td>We <b>are</b> going.</td><td>We aren't going.</td><td><b>Are</b> we going?</td></tr>
+<tr><td>They <b>are</b> going.</td><td>They aren't going.</td><td><b>Are</b> they going?</td></tr>
+</table></div>
 <ul class="ex">
 <li>I <b>am reading</b> a book now.</li>
 <li>She <b>is running</b>. <span class="es">— run → running (se duplica la consonante)</span></li>
@@ -180,7 +239,7 @@ ul.ex li{margin:.15rem 0}
 <div class="tip">En el examen te pueden mostrar una imagen: <b>What is the boy doing?</b> → <b>He is eating an apple.</b></div>
 </details>
 
-<details><summary>7. Prepositions of place</summary>
+<details><summary>Prepositions of place</summary>
 <div class="tbl"><table>
 <tr><th>Inglés</th><th>Español</th><th>Ejemplo</th></tr>
 <tr><td><b>in</b></td><td>adentro de</td><td>The cat is in the box.</td></tr>
@@ -190,10 +249,15 @@ ul.ex li{margin:.15rem 0}
 <tr><td><b>behind</b></td><td>detrás de</td><td>The dog is behind the door.</td></tr>
 <tr><td><b>in front of</b></td><td>delante de</td><td>The car is in front of the house.</td></tr>
 <tr><td><b>between</b></td><td>entre</td><td>I sit between Tom and Ana.</td></tr>
+<tr><td><b>near</b></td><td>cerca de</td><td>The school is near my house.</td></tr>
+<tr><td><b>beside</b></td><td>al lado de</td><td>The owl is beside the box.</td></tr>
+<tr><td><b>above</b></td><td>arriba de (sin tocar)</td><td>The lamp is above the table.</td></tr>
+<tr><td><b>below</b></td><td>abajo de</td><td>The ball is below the box.</td></tr>
+<tr><td><b>among</b></td><td>entre (muchos)</td><td>The blue owl is among the other owls.</td></tr>
 </table></div>
 </details>
 
-<details><summary>8. Prepositions of movement</summary>
+<details><summary>Prepositions of movement</summary>
 <div class="tbl"><table>
 <tr><th>Inglés</th><th>Español</th><th>Ejemplo</th></tr>
 <tr><td><b>up / down</b></td><td>arriba / abajo</td><td>Go up the stairs.</td></tr>
@@ -202,21 +266,22 @@ ul.ex li{margin:.15rem 0}
 <tr><td><b>along</b></td><td>a lo largo de</td><td>We walk along the river.</td></tr>
 <tr><td><b>through</b></td><td>a través de (por dentro)</td><td>The train goes through the tunnel.</td></tr>
 <tr><td><b>over / under</b></td><td>por encima / por debajo</td><td>The bird flies over the house.</td></tr>
+<tr><td><b>past</b></td><td>pasar por al lado</td><td>The owl flies past the tree.</td></tr>
 <tr><td><b>to / from</b></td><td>hacia / desde</td><td>I go to school.</td></tr>
 </table></div>
 </details>
 
-<details><summary>9. Prepositions of time</summary>
+<details><summary>Prepositions of time</summary>
 <div class="tbl"><table>
 <tr><th>Usamos</th><th>Con</th><th>Ejemplos</th></tr>
-<tr><td><b>at</b></td><td>horas y momentos</td><td>at 8 o'clock, at night, at the weekend</td></tr>
-<tr><td><b>on</b></td><td>días y fechas</td><td>on Monday, on my birthday, on the 3rd of June</td></tr>
-<tr><td><b>in</b></td><td>meses, años, estaciones, partes del día</td><td>in May, in 2026, in summer, in the morning</td></tr>
+<tr><td><b>at</b></td><td>hora exacta y momentos</td><td>at 3 o'clock, at 4:20, at midnight, at noon, at night</td></tr>
+<tr><td><b>on</b></td><td>días, fechas y feriados</td><td>on Monday, on Thursday, on my birthday, on Christmas Day, on August 15th</td></tr>
+<tr><td><b>in</b></td><td>meses, años, estaciones, partes del día</td><td>in April, in 2010, in winter, in the morning, in the evening</td></tr>
 </table></div>
 <div class="tip">Truco: <b>AT</b> la hora, <b>ON</b> el día, <b>IN</b> el mes.</div>
 </details>
 
-<details><summary>10. Wh- questions</summary>
+<details><summary>Wh- questions</summary>
 <div class="tbl"><table>
 <tr><th>Palabra</th><th>Significa</th><th>Ejemplo</th></tr>
 <tr><td><b>What</b></td><td>qué</td><td>What is your favourite food?</td></tr>
@@ -229,7 +294,7 @@ ul.ex li{margin:.15rem 0}
 <div class="tip">A <b>Why?</b> se contesta con <b>Because…</b></div>
 </details>
 
-<details><summary>11. Can (ability)</summary>
+<details><summary>Can (ability)</summary>
 <p class="es">Para decir lo que <b>sabés</b> o <b>podés</b> hacer. Va igual para todas las personas, sin -s.</p>
 <ul class="ex">
 <li>I <b>can</b> swim. / She <b>can</b> ride a bike.</li>
@@ -239,7 +304,7 @@ ul.ex li{margin:.15rem 0}
 <div class="tip">Después de can va el verbo solo: <b>she can swim</b>, nunca "she can swims".</div>
 </details>
 
-<details><summary>12. Past tense of the verb to be</summary>
+<details><summary>Past tense of the verb to be</summary>
 <div class="tbl"><table>
 <tr><th>Presente</th><th>Pasado</th><th>Ejemplo</th></tr>
 <tr><td>I am / he, she, it is</td><td><b>was</b></td><td>I was at home yesterday.</td></tr>
@@ -258,31 +323,17 @@ ul.ex li{margin:.15rem 0}
 <!-- SPEAKING -->
 <section id="v-speak" hidden>
 <h2>Speaking</h2>
-<p class="lead">Como en el examen: el examinador pregunta en voz alta y vos contestás hablando. Tocá <b>Escuchar</b>, después <b>Hablar</b>, y respondé con una oración completa.</p>
-<div class="card" id="sp">
-  <div class="row" style="margin:0"><span class="tag" id="spN"></span><button class="link" id="spShow">Ver la pregunta escrita</button></div>
-  <div class="bar"><i id="spBar"></i></div>
-  <div class="qtext" id="spQ" hidden></div>
-  <div class="sbtns">
-    <button class="btn" id="spListen">Escuchar pregunta</button>
-    <button class="btn alt" id="spTalk">Hablar</button>
-  </div>
-  <div class="status" id="spStatus" role="status" hidden></div>
-  <div id="spType" hidden>
-    <label for="spInput" class="es" id="spTypeMsg">El micrófono no funciona en este navegador. Escribí la respuesta:</label>
-    <div class="sbtns"><input id="spInput" type="text" autocomplete="off" placeholder="My name is…"><button class="btn alt" id="spSend">Enviar</button></div>
-  </div>
-  <div class="heard" id="spHeard" hidden></div>
-  <div class="fb" id="spFb"></div>
-  <div class="model" id="spModel" hidden><span class="tag">Ejemplo de respuesta</span><div id="spModelTxt"></div><button class="link" id="spModelPlay">Escuchar ejemplo</button></div>
-  <div class="row"><button class="btn ghost" id="spPrev">Anterior</button><button class="btn" id="spNext">Siguiente</button></div>
-</div>
+<p class="lead">Una charla con el examinador para practicar. Él pregunta en voz alta, el micrófono se activa solo y vos contestás hablando. Si la respuesta queda corta, te da un ejemplo y te deja intentar de nuevo.</p>
+<div id="practice"></div>
 </section>
 
 <!-- EXAMEN -->
 <section id="v-exam" hidden>
-<h2>Examen de práctica</h2>
-<p class="lead">25 preguntas de todos los temas. Cada vez que empezás, cambian de orden.</p>
+<h2>Examen oral</h2>
+<p class="lead">Simulacro del Trinity GESE Grade 3: una conversación de unos 5 minutos con el examinador, sin ayudas y con preguntas distintas cada vez. Al final ves la nota: Distinction, Merit o Pass.</p>
+<div id="oral"></div>
+<h2 style="margin-top:32px">Repaso escrito</h2>
+<p class="lead">30 preguntas de vocabulario y gramática. Cambian cada vez que empezás.</p>
 <div id="exam"></div>
 </section>
 </div>
@@ -294,104 +345,280 @@ const irr=new Set([1,2,3,5,8,9,12,20,30]);
 const suf=n=>(n%10==1&&n!=11)?"st":(n%10==2&&n!=12)?"nd":(n%10==3&&n!=13)?"rd":"th";
 document.getElementById("ordinals").innerHTML=ord.map((w,i)=>{const n=i+1;return `<div class="${irr.has(n)?'irr':''}"><span class="n">${n}${suf(n)}</span><span>${w}</span></div>`}).join("");
 
-// ---- speaking (voz)
-const NUM=/(\b\d+\b|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen)/;
-const sp=[
-{q:"Hello! How are you today?",a:"I'm fine, thank you. And you?",need:[[/fine|good|great|ok|well|happy/,"Decí cómo estás: \"I'm fine\"."],[/thank/,"Agregá \"thank you\"."]]},
-{q:"What's your name?",a:"My name is Felu.",need:[[/my name is|i am \w|i'm \w/,"Empezá con \"My name is…\"."]]},
-{q:"How old are you?",a:"I am nine years old.",need:[[NUM,"Decí tu edad con un número."],[/years? old/,"Terminá con \"years old\": \"I am nine years old\"."]]},
-{q:"Where are you from?",a:"I am from Argentina.",need:[[/(i am|i'm) from/,"Usá \"I am from…\"."]]},
-{q:"What's your favourite colour?",a:"My favourite colour is green.",need:[[/my favou?rite colou?r is|colou?r is/,"Usá \"My favourite colour is…\"."]]},
-{q:"What's your favourite animal? Why?",a:"My favourite animal is the dog because it is funny.",need:[[/animal is|i like/,"Usá \"My favourite animal is…\"."],[/because/,"Explicá por qué con \"because…\"."]]},
-{q:"When is your birthday?",a:"My birthday is on the fourteenth of March.",need:[[/birthday is|it'?s/,"Usá \"My birthday is…\"."],[/\bon\b|\bin\b/,"Con fechas va \"on\": \"on the 14th of March\"."]]},
-{q:"What do you do every morning?",a:"I get up at seven o'clock and I go to school.",need:[[/\bi (get|go|have|wake|eat|brush|wash|take)/,"Contá tu rutina con \"I get up…, I go…\"."]]},
-{q:"What are you doing now?",a:"I am talking to you.",need:[[/(am|'m|i'm) \w+ing/,"Usá present continuous: \"I am …ing\"."]]},
-{q:"What can you do?",a:"I can swim and I can ride a bike.",need:[[/\bcan\b/,"Usá \"I can…\"."]]},
-{q:"Where were you yesterday?",a:"I was at home with my family.",need:[[/\bwas\b/,"Es pasado: \"I was at…\"."]]},
-{q:"Who is your best friend?",a:"My best friend is Mateo.",need:[[/best friend is|friend is/,"Usá \"My best friend is…\"."]]},
-{q:"How many people are there in your family?",a:"There are four people in my family.",need:[[NUM,"Decí el número."],[/there are/,"Empezá con \"There are…\"."]]},
-{q:"Where is your school bag?",a:"My school bag is under my bed.",need:[[/\b(under|on|in|next to|behind|between|in front of)\b/,"Usá una preposición: under, on, in, next to…"],[/\bis\b/,"Hacé la oración completa: \"My school bag is…\"."]]},
-{q:"What do you do on Saturdays?",a:"On Saturdays I play football in the park.",need:[[/\bi (play|go|watch|visit|ride|read|sleep|have|see|eat|swim)/,"Contá qué hacés: \"I play…\", \"I go…\"."]]},
-{q:"Thank you, that's the end of the exam. Goodbye!",a:"Goodbye, have a nice day!",need:[[/bye/,"Despedite: \"Goodbye!\"."],[/nice day|thank/,"Agregá \"have a nice day!\"."]]}
-];
+// ---- conversación con el examinador (práctica y examen oral)
 const $=id=>document.getElementById(id);
-const synth=window.speechSynthesis;let voice=null;
+const NUMW=["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen"];
+const NUM=new RegExp("(\\b\\d+\\b|\\b("+NUMW.join("|")+")\\b)");
+const COLOURS=["light blue","sky blue","red","blue","green","yellow","pink","purple","orange","black","white","brown","grey","gray"];
+const ANIMALS=["dog","cat","horse","rabbit","lion","tiger","elephant","monkey","bird","fish","dolphin","panda","giraffe","bear","hamster","turtle","snake","shark","penguin","wolf","fox"];
+const find=(t,list)=>list.find(w=>new RegExp("\\b"+w+"s?\\b").test(t));
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const shuffleA=a=>{a=a.slice();for(let k=a.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[a[k],a[j]]=[a[j],a[k]]}return a};
+const esc=s=>String(s).replace(/[<&]/g,c=>c==="<"?"&lt;":"&amp;");
+let kidName="";
+const NO=/^no\b|haven't|don't|have not/;
+
+const OPEN=[
+ {q:"Hello! Come in and sit down, please. How are you today?",a:"I'm fine, thank you. And you?",
+  need:[[/fine|\bgood\b|great|\bok\b|okay|\bwell\b|happy/,"Decí cómo estás: \"I'm fine, thank you\"."]],
+  react:t=>/and you|how are you/.test(t)?"I'm very well, thank you for asking!":"Good! I'm very well too."},
+ {q:"What's your name?",a:"My name is Felu.",
+  need:[[/my name is|i'm \w|i am \w/,"Empezá con \"My name is…\"."]],
+  react:t=>{const m=t.match(/(?:my name is|i'm|i am)\s+([a-z]+)/);if(m)kidName=cap(m[1]);return kidName?`Nice to meet you, ${kidName}!`:"Nice to meet you!"}}
+];
+const MIDDLE=[
+ {q:"How old are you?",a:"I am nine years old.",
+  need:[[NUM,"Decí tu edad con un número."],[/years? old/,"Terminá con \"years old\": \"I am nine years old\"."]],
+  react:t=>{const m=t.match(NUM);return m?`${cap(m[0])}! That's a great age.`:"That's a great age."}},
+ {q:"Where are you from?",a:"I am from Argentina.",
+  need:[[/(i am|i'm) from/,"Usá \"I am from…\"."]],
+  react:t=>/argentin/.test(t)?"Argentina! What a beautiful country.":"How interesting!",
+  follow:()=>({q:"And where do you live?",a:"I live in Buenos Aires.",need:[[/i live/,"Usá \"I live in…\"."]],react:()=>"Oh, I see. That sounds nice."})},
+ {q:"Let's talk about your family. How many people are there in your family?",a:"There are four people in my family.",
+  need:[[NUM,"Decí el número."],[/there are/,"Empezá con \"There are…\"."]],
+  react:()=>"That's a lovely family.",
+  follow:()=>({q:"Who are they?",a:"My mum, my dad, my brother and me.",need:[[/mum|mom|dad|mother|father|brother|sister|grand/,"Nombrá a tu familia: my mum, my dad…"]],react:()=>"Very good."})},
+ {q:"Have you got any pets?",a:"Yes, I have got a dog.",
+  need:[[/yes|no|i have|i've got|i haven't|i don't/,"Contestá \"Yes, I have got a…\" o \"No, I haven't\"."]],
+  react:t=>{const p=find(t,ANIMALS);return NO.test(t)?"OK, no pets. That's fine.":p?`A ${p}! How lovely.`:"How lovely!"},
+  follow:t=>NO.test(t)?null:{q:"What's your pet's name?",a:"His name is Toby.",need:[[/name is|is called|it's|its|he's|she's/,"Usá \"His name is…\" o \"Her name is…\"."]],react:()=>"What a nice name!"}},
+ {q:"What's your favourite colour?",a:"My favourite colour is green.",
+  need:[[/colou?r is/,"Usá \"My favourite colour is…\"."]],
+  react:t=>{const c=find(t,COLOURS);return c?`${cap(c)}! I like ${c} too.`:"That's a nice colour."}},
+ {q:"What's your favourite animal?",a:"My favourite animal is the lion.",
+  need:[[/animal is|i like/,"Usá \"My favourite animal is…\"."]],
+  react:t=>{const p=find(t,ANIMALS);return p?`Oh, the ${p}!`:"Oh, nice!"},
+  follow:t=>/because/.test(t)?null:{q:"Why do you like it?",a:"Because it is strong and beautiful.",need:[[/because/,"Contestá con \"Because…\"."]],react:()=>"Good answer!"}},
+ {q:"When is your birthday?",a:"My birthday is on the fourteenth of March.",
+  need:[[/birthday is|it'?s|it is/,"Usá \"My birthday is…\"."],[/\bon\b|\bin\b/,"Con fechas va \"on\": \"on the 14th of March\"."]],
+  react:()=>"Great!",
+  follow:()=>({q:"What do you do on your birthday?",a:"I have a party with my friends and I eat cake.",need:[[/\bi (have|eat|play|go|open|get|invite|see)/,"Contá qué hacés: \"I have a party…\"."]],react:()=>"That sounds like fun!"})},
+ {q:"Tell me about your day. What do you do every morning?",a:"I get up at seven o'clock and I go to school.",
+  need:[[/\bi (get|go|have|wake|eat|brush|wash|take|drink)/,"Contá tu rutina: \"I get up…, I go to school…\"."]],
+  react:()=>"Very busy!",
+  follow:()=>({q:"What time do you go to school?",a:"I go to school at eight o'clock.",need:[[/\bat\b/,"Con horas va \"at\": \"at eight o'clock\"."]],react:()=>"OK, thank you."})},
+ {q:"What do you like doing at the weekend?",a:"I like playing football in the park.",
+  need:[[/\bi (like|play|go|watch|visit|ride|read|love|swim)/,"Usá \"I like…\" o \"I play…\"."]],
+  react:()=>pick(["That sounds fun!","Oh, I like that too!"])},
+ {q:"Can you swim?",a:"Yes, I can.",
+  need:[[/\bcan\b|\bcan't\b|cannot/,"Contestá \"Yes, I can\" o \"No, I can't\"."]],
+  react:t=>/can't|cannot|^no/.test(t)?"That's OK!":"Well done!",
+  follow:()=>({q:"What else can you do?",a:"I can ride a bike and I can dance.",need:[[/\bcan\b/,"Usá \"I can…\"."]],react:()=>"Wow, very good!"})},
+ {q:"Where were you yesterday?",a:"I was at home with my family.",
+  need:[[/\bwas\b/,"Es pasado: \"I was at…\"."]],
+  react:()=>"I see."},
+ {q:"Where is your school bag now?",a:"My school bag is in my bedroom, next to my bed.",
+  need:[[/\b(under|on|in|next to|behind|between|in front of)\b/,"Usá una preposición: in, on, under, next to…"]],
+  react:()=>"OK, good."},
+ {q:"Who is your best friend?",a:"My best friend is Mateo.",
+  need:[[/friend is|it's|it is/,"Usá \"My best friend is…\"."]],
+  react:()=>"That's nice.",
+  follow:()=>({q:"What do you do together?",a:"We play football together.",need:[[/\bwe\b/,"Usá \"We…\": \"We play football\"."]],react:()=>"That sounds great!"})},
+ {q:"What's the weather like today?",a:"It's sunny and hot.",
+  need:[[/it'?s|it is/,"Empezá con \"It's…\"."],[/sun|hot|cold|rain|wind|cloud|storm|snow|warm|nice/,"Usá una palabra del clima: sunny, cloudy, rainy, cold…"]],
+  react:t=>/rain|storm/.test(t)?"Oh no! Don't forget your umbrella.":/sun|hot|warm|nice/.test(t)?"Lovely! A good day for the park.":"I see.",
+  follow:()=>({q:"What's your favourite season? Why?",a:"My favourite season is summer because it is hot.",need:[[/summer|winter|spring|autumn|fall/,"Nombrá una estación: summer, winter, spring, autumn."],[/because/,"Explicá con \"because…\"."]],react:()=>"Good answer!"})},
+ {q:"What day is it today?",a:"It's Saturday.",
+  need:[[/monday|tuesday|wednesday|thursday|friday|saturday|sunday/,"Decí el día: \"It's Saturday\"."]],
+  react:()=>"That's right.",
+  follow:()=>({q:"What's your favourite day of the week?",a:"My favourite day is Saturday because I don't go to school.",need:[[/monday|tuesday|wednesday|thursday|friday|saturday|sunday/,"Nombrá un día."]],react:()=>"Me too!"})},
+ {q:"Tell me about your home. How many bedrooms are there in your house?",a:"There are three bedrooms in my house.",
+  need:[[/there (is|are)/,"Usá \"There are… bedrooms\"."],[NUM,"Decí el número."]],
+  react:()=>"Very nice.",
+  follow:()=>({q:"What is there in your bedroom?",a:"There is a bed, a desk and a wardrobe.",need:[[/bed|desk|wardrobe|lamp|chair|table|toy|tv|bookcase|carpet|curtain|nightstand/,"Nombrá cosas: a bed, a desk, a wardrobe…"]],react:()=>"That sounds like a nice bedroom."})},
+ {q:"What is your favourite room in your house?",a:"My favourite room is the living room because I watch TV there.",
+  need:[[/kitchen|bedroom|bathroom|living|dining|garage|garden|attic|basement|office|room/,"Nombrá una habitación: kitchen, bedroom, living room…"]],
+  react:()=>"Nice choice!"},
+ {q:"What places are there near your house?",a:"There is a supermarket and a bakery near my house.",
+  need:[[/there (is|are)/,"Usá \"There is a… near my house\"."],[/shop|supermarket|bakery|park|school|square|library|church|cinema|playground|station|chemist|pharmacy|café|cafe|butcher|greengrocer|street|bus stop|club|museum|hospital/,"Nombrá lugares: a bakery, a park, a supermarket…"]],
+  react:()=>"Great!",
+  follow:()=>({q:"Where do you buy bread?",a:"I buy bread at the bakery.",need:[[/bakery|supermarket|shop/,"Decí dónde: \"at the bakery\"."]],react:()=>"Mmm, fresh bread. Lovely!"})},
+ {q:"Do you like sports? What sports do you play?",a:"Yes, I do. I play football and tennis.",
+  need:[[/i play|i like|i go|i love|i don't|swimming|football|tennis|basketball|rugby|hockey|volleyball/,"Usá \"I play…\"."]],
+  react:t=>/football|soccer/.test(t)?"Football! That's very popular in Argentina.":"Great!",
+  follow:t=>/don't|^no/.test(t)?null:{q:"When do you play?",a:"I play on Saturdays.",need:[[/\bon\b|\bat\b|\bin\b|every|after/,"Decí cuándo: \"on Saturdays\", \"after school\"."]],react:()=>"Very good."}},
+ {q:"What does your mum or dad do?",a:"My dad is an architect.",
+  need:[[/is a|is an|works|is the/,"Usá \"My dad is a…\" o \"My mum is a…\"."]],
+  react:()=>"That's an interesting job.",
+  follow:()=>({q:"And what do you want to be?",a:"I want to be a vet because I love animals.",need:[[/want to be|would like to be|i'd like|be a|be an/,"Usá \"I want to be a…\"."]],react:t=>/vet|doctor|nurse|teacher|pilot|astronaut|scientist|firefighter|police|singer|footballer|artist|cook/.test(t)?"What a great job!":"That sounds great!"})},
+ {q:"And what are you doing now?",a:"I am talking to you.",
+  need:[[/(am|'m) \w+ing/,"Usá \"I am …ing\": \"I am talking to you\"."]],
+  react:()=>"Yes, you are! And you are doing very well."}
+];
+const CLOSE={q:"Thank you. That's the end of our conversation. Goodbye!",a:"Goodbye, have a nice day!",
+  need:[[/bye/,"Despedite: \"Goodbye!\"."]],react:()=>"Have a nice day!",last:true};
+
+// ---- voz del examinador
+const synth=window.speechSynthesis;let voice=null,keep=null;
 function pickVoice(){if(!synth)return;const v=synth.getVoices();voice=v.find(x=>/en[-_]GB/i.test(x.lang))||v.find(x=>/^en/i.test(x.lang))||null}
 if(synth){pickVoice();synth.onvoiceschanged=pickVoice}
-let keep=null;
-function status(msg){const s=$("spStatus");s.hidden=!msg;s.innerHTML=msg||""}
-function say(t,lang){
-  if(!synth){status("Este navegador no puede leer en voz alta. Abrí el link directo en <b>Chrome</b> (no desde WhatsApp) o mostrá la pregunta escrita.");return}
-  if(synth.speaking||synth.pending)synth.cancel();
-  if(!voice)pickVoice();
-  const u=new SpeechSynthesisUtterance(t);u.lang=lang||"en-GB";if(!lang&&voice)u.voice=voice;u.rate=.85;u.volume=1;
-  keep=u;let started=false;
-  u.onstart=()=>{started=true;status("")};
-  u.onerror=e=>{if(e.error!=="interrupted"&&e.error!=="canceled")status("No se pudo reproducir la voz ("+e.error+"). Subí el volumen y probá de nuevo, o abrí el link en Chrome.")};
-  setTimeout(()=>{synth.resume();synth.speak(u)},60);
-  setTimeout(()=>{if(!started&&!synth.speaking)status("No se escucha la voz. Revisá que el celu no esté en silencio y el volumen multimedia esté alto. Si sigue sin sonar, abrí el link directo en <b>Chrome</b>.")},2500);
+function say(t,status){
+  return new Promise(res=>{
+    const fallback=()=>setTimeout(res,Math.min(6000,600+t.length*55));
+    if(!synth){status("Este navegador no puede leer en voz alta. Abrí el link en <b>Chrome</b> o <b>Edge</b>.");return fallback()}
+    if(synth.speaking||synth.pending)synth.cancel();
+    if(!voice)pickVoice();
+    const u=new SpeechSynthesisUtterance(t);u.lang="en-GB";if(voice)u.voice=voice;u.rate=.85;u.volume=1;keep=u;
+    let started=false,ended=false;const fin=()=>{if(!ended){ended=true;res()}};
+    u.onstart=()=>{started=true};u.onend=fin;
+    u.onerror=e=>{if(e.error!=="interrupted"&&e.error!=="canceled")status("No se pudo reproducir la voz ("+e.error+").");fin()};
+    setTimeout(()=>{synth.resume();synth.speak(u)},60);
+    setTimeout(()=>{if(!started&&!synth.speaking){status("No se escucha la voz. Revisá el volumen.");fin()}},3000);
+    setTimeout(fin,15000);
+  });
 }
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-let si=0,res=new Array(sp.length).fill(null),rec=null;
-function typeMode(msg){$("spType").hidden=false;$("spTalk").hidden=true;if(msg)$("spTypeMsg").innerHTML=msg;status("")}
-if(!SR)typeMode();
-function spRender(auto){
-  const q=sp[si];
-  $("spN").textContent=`Pregunta ${si+1} de ${sp.length}`;
-  $("spBar").style.width=(si/sp.length*100)+"%";
-  $("spQ").textContent=q.q;$("spQ").hidden=true;$("spShow").hidden=false;
-  $("spHeard").hidden=true;$("spFb").textContent="";$("spFb").className="fb";
-  $("spModel").hidden=true;$("spModelTxt").textContent=q.a;$("spInput").value="";
-  $("spPrev").disabled=si===0;$("spNext").textContent=si+1<sp.length?"Siguiente":"Ver resultado";
-  if(auto)say(q.q);
+let activeStop=null; // para frenar la otra conversación si se empieza una nueva
+
+// ---- crea una conversación dentro de un contenedor. mode: "practice" | "exam"
+function mountConv(rootId,mode){
+  const P=rootId+"-",E=mode==="exam";
+  const root=$(rootId);
+  root.innerHTML=`<div class="card">
+  <div class="row" style="margin:0"><span class="tag" id="${P}n">${E?"Examen oral":"Conversación"}</span>
+    <label class="chk"><input type="checkbox" id="${P}txt" ${E?"":"checked"}> Ver lo que dice el examinador</label></div>
+  <div class="bar"><i id="${P}bar"></i></div>
+  <div class="chat" id="${P}chat" aria-live="polite"><div class="msg tip">${E
+    ?"Como en el Trinity: el examinador charla con vos unos 5 minutos y no te ayuda. Si no entendés, podés decir <b>\"Sorry, can you repeat, please?\"</b>"
+    :"Tocá <b>Empezar</b>. Cuando veas <b>Te escucho</b>, contestá en voz alta y cuando termines tocá <b>Listo</b> (o hacé una pausa)."}</div></div>
+  <div class="mic" id="${P}mic" hidden><span class="dot"></span><div class="live"><b id="${P}mict">Te escucho…</b><span id="${P}heard"></span></div><button class="btn" id="${P}done">Listo</button></div>
+  <div class="status" id="${P}st" role="status" hidden></div>
+  <div id="${P}type" hidden>
+    <label for="${P}in" class="es" id="${P}tmsg">El micrófono no funciona en este navegador. Escribí la respuesta:</label>
+    <div class="sbtns"><input id="${P}in" type="text" autocomplete="off" placeholder="My name is…"><button class="btn alt" id="${P}send">Enviar</button></div>
+  </div>
+  <div class="sbtns">
+    <button class="btn alt" id="${P}start">${E?"Empezar examen oral":"Empezar conversación"}</button>
+    <button class="btn ghost" id="${P}rep" hidden>Repetir pregunta</button>
+    <button class="btn ghost" id="${P}stop" hidden>${E?"Terminar":"Pausa"}</button>
+  </div></div>`;
+  const el=k=>$(P+k);
+  const status=m=>{const s=el("st");s.hidden=!m;s.innerHTML=m||""};
+  let micBroken=!SR,typedResolve=null,rec=null,finishNow=null,run=0,curQ="";
+  const typeMode=m=>{micBroken=true;el("type").hidden=false;if(m)el("tmsg").innerHTML=m;el("done").hidden=true};
+  if(!SR)typeMode();
+  const micUI=(on,txt)=>{el("mic").hidden=!on;if(txt)el("mict").textContent=txt;if(!on)el("heard").textContent=""};
+
+  function listen(){
+    if(micBroken)return new Promise(res=>{typedResolve=res;micUI(true,"Escribí tu respuesta…");el("in").focus()});
+    return new Promise(res=>{
+      let done=false,started=false,text="",silence=null,noSound=null,cap=null;
+      const fin=v=>{if(done)return;done=true;clearTimeout(silence);clearTimeout(noSound);clearTimeout(cap);finishNow=null;
+        if(rec){try{rec.stop()}catch(e){}}rec=null;micUI(false);res(v&&v.trim()?v.trim():null)};
+      finishNow=()=>fin(text);
+      try{rec=new SR()}catch(e){typeMode();return listen().then(res)}
+      rec.lang="en-GB";rec.continuous=true;rec.interimResults=true;rec.maxAlternatives=1;
+      rec.onstart=rec.onaudiostart=()=>{if(started)return;started=true;micUI(true,"Te escucho… hablá ahora");
+        noSound=setTimeout(()=>{if(!text){status("No me llega tu voz. Revisá que el micrófono correcto esté elegido: tocá el ícono del micrófono en la barra de direcciones de Chrome → elegí tu micrófono. También podés escribir la respuesta abajo.");el("type").hidden=false}},7000)};
+      rec.onresult=e=>{let s="";for(let r=0;r<e.results.length;r++)s+=e.results[r][0].transcript+" ";text=s.replace(/\s+/g," ").trim();
+        el("heard").textContent=text;status("");clearTimeout(noSound);clearTimeout(silence);
+        silence=setTimeout(()=>fin(text),1800)};
+      rec.onerror=e=>{
+        if(e.error==="not-allowed"||e.error==="service-not-allowed"){done=true;rec=null;micUI(false);typeMode("No hay permiso para el micrófono. Tocá el ícono del micrófono o del candado junto a la dirección → Permitir, y recargá. Mientras tanto, escribí:");listen().then(res)}
+        else if(e.error==="audio-capture"){done=true;rec=null;micUI(false);typeMode("No se encontró micrófono. Escribí la respuesta:");listen().then(res)}
+        else if(e.error==="network"){status("El reconocimiento de voz necesita internet. Revisá la conexión.");fin(text)}
+        else if(e.error!=="no-speech"&&e.error!=="aborted")status("Error del micrófono: "+e.error)};
+      rec.onend=()=>{if(!done){ if(text)fin(text); else { try{rec.start()}catch(e){fin(null)} } }};
+      cap=setTimeout(()=>fin(text),20000);
+      micUI(true,"Preparando el micrófono…");
+      setTimeout(()=>{if(!started&&!done){done=true;try{rec.abort()}catch(e){}rec=null;micUI(false);typeMode("Este navegador no deja usar el micrófono. Abrilo en <b>Chrome</b> o <b>Edge</b>, o escribí la respuesta:");listen().then(res)}},4000);
+      try{rec.start()}catch(e){done=true;rec=null;typeMode();listen().then(res)}
+    });
+  }
+  el("done").onclick=()=>{if(finishNow)finishNow()};
+  el("send").onclick=()=>{const v=el("in").value.trim();if(v&&typedResolve){el("in").value="";const r=typedResolve;typedResolve=null;micUI(false);r(v)}};
+  el("in").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();el("send").click()}});
+
+  const bubble=(cls,html)=>{const d=document.createElement("div");d.className="msg "+cls;d.innerHTML=html;el("chat").appendChild(d);d.scrollIntoView({block:"nearest",behavior:"smooth"});return d};
+  async function examiner(text){curQ=text;bubble("ex"+(el("txt").checked?"":" hide"),`<span class="who">Examinador</span>${esc(text)}`);await say(text,status)}
+  const check=(step,t)=>{const low=t.toLowerCase().replace(/[.,!?]/g,"");const tips=step.need.filter(([re])=>!re.test(low)).map(m=>m[1]);
+    if(!step.last&&low.split(/\s+/).filter(Boolean).length<3&&!tips.length)tips.push("Contestá con una oración completa.");return{low,tips}};
+
+  let pts=0,total=0,review=[];
+  async function turn(step,id){
+    total++;
+    for(let attempt=0;attempt<2;attempt++){
+      const t=await listen();if(run!==id)return null;
+      if(t===null){
+        if(attempt===0){await examiner("Sorry, I can't hear you. Can you say that again?");if(run!==id)return null;continue}
+        await examiner("That's OK. Let's go on.");review.push(step);return "";
+      }
+      bubble("kid",esc(t));
+      const {low,tips}=check(step,t);
+      if(/repeat|sorry|don't understand/.test(low)&&attempt===0){total--;await examiner("Of course. "+curQ.replace(/^Of course\. /,""));if(run!==id)return null;total++;continue}
+      if(!tips.length){pts+=attempt===0?1:.6;return low}
+      if(E){pts+=.4;review.push(step);return low}
+      if(attempt===0){bubble("tip","<b>Casi.</b> "+tips.join(" ")+`<br>Ejemplo: <i>${esc(step.a)}</i>`);
+        await examiner("Good try! You can say: "+step.a+" Now you try.");if(run!==id)return null}
+      else{review.push(step);return low}
+    }
+  }
+  async function conversation(){
+    if(activeStop)activeStop();activeStop=stopAll;
+    const id=++run;pts=0;total=0;review=[];kidName="";
+    const steps=E?[...OPEN,...shuffleA(MIDDLE).slice(0,8),CLOSE]:[...OPEN,...MIDDLE,CLOSE];
+    el("chat").innerHTML="";el("start").hidden=true;el("stop").hidden=false;el("rep").hidden=false;status("");
+    for(let k=0;k<steps.length;k++){
+      const step=steps[k];
+      el("n").textContent=`${E?"Examen oral":"Tema"} · ${k+1} de ${steps.length}`;el("bar").style.width=(k/steps.length*100)+"%";
+      const q=step.last&&kidName?step.q.replace("Thank you.",`Thank you, ${kidName}.`):step.q;
+      await examiner(q);if(run!==id)return;
+      const low=await turn(step,id);if(run!==id||low===null)return;
+      const fol=low&&step.follow?step.follow(low):null;
+      if(low)await examiner(step.react(low));
+      if(run!==id)return;
+      if(fol){await examiner(fol.q);if(run!==id)return;const l2=await turn(fol,id);if(run!==id||l2===null)return;if(l2)await examiner(fol.react(l2));if(run!==id)return}
+    }
+    el("bar").style.width="100%";finish();
+  }
+  function finish(){
+    const pct=total?Math.round(pts/total*100):0;
+    let grade,msg;
+    if(pct>=85){grade="Distinction";msg="¡Excelente! Estás listo para el Trinity."}
+    else if(pct>=65){grade="Merit";msg="¡Muy bien! Repasá las preguntas de abajo."}
+    else if(pct>=45){grade="Pass";msg="Aprobado. Practicá las respuestas de abajo para subir la nota."}
+    else{grade="Todavía no";msg="Seguí practicando en la pestaña Speaking y probá otra vez."}
+    const rv=review.length?`<br>Para practicar:<ul>${review.map(s=>`<li>${esc(s.q)}<br><span class="r">✓ ${esc(s.a)}</span></li>`).join("")}</ul>`:"<br>¡Todas las respuestas completas!";
+    bubble("tip",E?`<span class="grade">${grade}</span><br><b>${pct}%</b> — ${msg}${rv}`:`<b>¡Terminaste la conversación!</b><br>Respuestas completas: <b>${pct}%</b>${rv}`);
+    endUI();el("start").textContent=E?"Hacer otro examen oral":"Otra conversación";activeStop=null;
+  }
+  function endUI(){el("start").hidden=false;el("stop").hidden=true;el("rep").hidden=true;micUI(false)}
+  function stopAll(){run++;if(synth)synth.cancel();if(rec){try{rec.abort()}catch(e){}rec=null}finishNow=null;typedResolve=null;micUI(false)}
+  el("start").onclick=()=>{stopAll();conversation()};
+  el("stop").onclick=()=>{stopAll();activeStop=null;if(E&&total>0){finish();return}endUI();el("start").textContent="Empezar de nuevo";bubble("tip","Conversación en pausa.")};
+  el("rep").onclick=()=>{if(curQ)say(curQ,status)};
+  el("txt").onchange=e=>el("chat").querySelectorAll(".msg.ex").forEach(m=>m.classList.toggle("hide",!e.target.checked));
 }
-function evaluate(t){
-  const q=sp[si],low=t.toLowerCase().replace(/[.,!?]/g,"");
-  $("spHeard").hidden=false;$("spHeard").innerHTML=`Dijiste: <b>“${t.replace(/</g,"&lt;")}”</b>`;
-  const miss=q.need.filter(([re])=>!re.test(low));
-  const short=low.split(/\s+/).filter(Boolean).length<3 && si!==sp.length-1;
-  const fb=$("spFb");
-  if(!miss.length&&!short){fb.className="fb ok";fb.textContent="¡Muy bien! Respuesta completa.";res[si]=true;say("Very good!")}
-  else{fb.className="fb no";const tips=miss.map(m=>m[1]);if(short&&!tips.length)tips.push("Contestá con una oración completa, no con una sola palabra.");
-    fb.innerHTML="Casi. Probá de nuevo:<ul>"+tips.map(x=>`<li>${x}</li>`).join("")+"</ul>";if(res[si]!==true)res[si]=false;say("Good try! Try again.")}
-  $("spModel").hidden=false;
-}
-$("spListen").onclick=()=>say(sp[si].q);
-$("spShow").onclick=()=>{$("spQ").hidden=false;$("spShow").hidden=true};
-$("spModelPlay").onclick=()=>say(sp[si].a);
-$("spSend").onclick=()=>{const v=$("spInput").value.trim();if(v)evaluate(v)};
-$("spInput").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("spSend").click()}});
-$("spTalk").onclick=()=>{
-  if(rec){rec.stop();return}
-  if(synth)synth.cancel();
-  try{rec=new SR()}catch(e){typeMode();return}
-  rec.lang="en-GB";rec.interimResults=false;rec.maxAlternatives=1;
-  const b=$("spTalk");b.textContent="Escuchando… (tocá para terminar)";b.classList.add("rec");
-  let got=false,started=false,err=null;
-  status("Preparando el micrófono…");
-  rec.onstart=()=>{started=true;status("")};
-  rec.onaudiostart=()=>{started=true;status("")};
-  rec.onresult=e=>{got=true;evaluate(e.results[0][0].transcript)};
-  rec.onerror=e=>{err=e.error;
-    if(e.error==="not-allowed"||e.error==="service-not-allowed")typeMode("No hay permiso para el micrófono. Tocá el candado junto a la dirección → Micrófono → Permitir, y recargá. O escribí la respuesta:");
-    else if(e.error==="no-speech")status("No te escuché. Tocá <b>Hablar</b> y decilo un poco más fuerte.");
-    else if(e.error==="audio-capture")typeMode("No se encontró micrófono en este dispositivo. Escribí la respuesta:");
-    else if(e.error==="network")status("El reconocimiento de voz necesita internet. Revisá la conexión y probá de nuevo.");
-    else if(e.error!=="aborted")status("El micrófono dio un error ("+e.error+"). Abrí el link directo en <b>Chrome</b>.");};
-  rec.onend=()=>{b.textContent="Hablar";b.classList.remove("rec");rec=null;
-    if(!got&&!err&&started)status("No te escuché. Tocá <b>Hablar</b> y contestá enseguida.")};
-  setTimeout(()=>{if(rec&&!started&&!got&&!err){try{rec.abort()}catch(e){}typeMode("Este navegador no deja usar el micrófono (pasa si el link se abre dentro de WhatsApp u otra app). Abrilo directo en <b>Chrome</b>, o escribí la respuesta:")}},4000);
-  try{rec.start()}catch(e){b.textContent="Hablar";b.classList.remove("rec");rec=null;typeMode("No se pudo activar el micrófono. Abrí el link en Chrome, o escribí la respuesta:")}
-};
-$("spPrev").onclick=()=>{if(si>0){si--;spRender(true)}};
-$("spNext").onclick=()=>{
-  if(si+1<sp.length){si++;spRender(true);return}
-  const ok=res.filter(x=>x===true).length,miss=sp.filter((_,k)=>res[k]!==true).map(x=>x.q);
-  $("sp").innerHTML=`<div class="tag">Resultado del speaking</div><div class="score">${ok} / ${sp.length}</div><p>respuestas completas.</p>${miss.length?`<h3>Para practicar otra vez</h3><ul class="ex">${miss.map(x=>`<li>${x}</li>`).join("")}</ul>`:"<p>¡Todas perfectas!</p>"}<div class="row"><button class="btn alt" id="spAgain">Practicar de nuevo</button></div>`;
-  say(ok>=12?"Excellent work! Goodbye!":"Well done! Keep practising. Goodbye!");
-  $("spAgain").onclick=()=>location.reload();
-};
-spRender(false);
+mountConv("practice","practice");
+mountConv("oral","exam");
+
+// ---- vocabulario del documento (tocá una palabra para escucharla)
+const VOCAB=[
+ ["Days of the week","Días de la semana","Today is <b>Saturday</b>. / <b>On</b> Monday I go to school.",
+  [["Monday","lunes"],["Tuesday","martes"],["Wednesday","miércoles"],["Thursday","jueves"],["Friday","viernes"],["Saturday","sábado"],["Sunday","domingo"]]],
+ ["Months","Meses","My birthday is <b>in</b> March.",
+  [["January","enero"],["February","febrero"],["March","marzo"],["April","abril"],["May","mayo"],["June","junio"],["July","julio"],["August","agosto"],["September","septiembre"],["October","octubre"],["November","noviembre"],["December","diciembre"]]],
+ ["Seasons","Estaciones","My favourite season is <b>summer</b> because it is hot.",
+  [["winter","invierno"],["spring","primavera"],["summer","verano"],["autumn","otoño"]]],
+ ["Weather","El clima","What's the weather like? — <b>It's sunny</b>.",
+  [["sunny","soleado"],["hot","caluroso"],["partly cloudy","parcialmente nublado"],["cold","frío"],["stormy","tormentoso"],["windy","ventoso"],["rainy","lluvioso"],["snowy","nevado"],["cloudy","nublado"],["hailing","está granizando"],["tornado","tornado"],["rainbow","arcoíris"]]],
+ ["Parts of the house","Partes de la casa","There are three <b>bedrooms</b> in my house.",
+  [["attic","altillo"],["bedroom","dormitorio"],["bathroom","baño"],["nursery","cuarto del bebé"],["home office","escritorio / estudio"],["living room","living"],["dining room","comedor"],["kitchen","cocina"],["laundry room","lavadero"],["basement","sótano"],["garage","garaje"]]],
+ ["Household items","Cosas de la casa","There is a <b>bed</b> and a <b>desk</b> in my bedroom.",
+  [["bed","cama"],["desk","escritorio"],["wardrobe","ropero"],["lamp","lámpara"],["nightstand","mesa de luz"],["bathtub","bañadera"],["toilet","inodoro"],["sink","pileta / lavatorio"],["shower","ducha"],["curtain","cortina"],["sofa","sofá"],["armchair","sillón"],["table","mesa"],["carpet","alfombra"],["bookcase","biblioteca (mueble)"],["TV / television","tele"],["fridge","heladera"],["chair","silla"],["cup","taza"],["cupboard","alacena"]]],
+ ["Places in town","Lugares de la ciudad","There is a <b>bakery</b> near my house.",
+  [["shopping centre","shopping"],["bus stop","parada de colectivo"],["supermarket","supermercado"],["town hall","municipalidad"],["house","casa"],["playground","plaza de juegos"],["library","biblioteca"],["square","plaza"],["sports centre","polideportivo"],["museum","museo"],["theatre","teatro"],["bakery","panadería"],["church","iglesia"],["cinema","cine"],["police station","comisaría"],["fire station","cuartel de bomberos"],["greengrocery","verdulería"],["chemist's","farmacia"],["butcher's","carnicería"],["café","café / bar"],["street","calle"],["post office","correo"]]],
+ ["Sports","Deportes","I <b>play football</b> on Saturdays. / I <b>go swimming</b>.",
+  [["basketball","básquet"],["football / soccer","fútbol"],["ice hockey","hockey sobre hielo"],["cricket","críquet"],["baseball","béisbol"],["American football","fútbol americano"],["volleyball","vóley"],["tennis","tenis"],["rugby","rugby"],["golf","golf"],["swimming","natación"]]],
+ ["Free time activities","Tiempo libre","At the weekend <b>I watch TV</b> and <b>I play cards</b>.",
+  [["I watch TV","miro tele"],["I listen to music","escucho música"],["I paint","pinto"],["I draw","dibujo"],["I dance","bailo"],["I fly a kite","remonto un barrilete"],["I take photos","saco fotos"],["I spend time with my family","paso tiempo con mi familia"],["I take a nap","duermo la siesta"],["I write stories","escribo cuentos"],["I read a book","leo un libro"],["I read the newspaper","leo el diario"],["I read magazines","leo revistas"],["I read comics","leo historietas"],["I read news online","leo noticias en internet"],["I watch videos online","miro videos en internet"],["I surf the internet","navego en internet"],["I check my social media","miro mis redes"],["I send messages to my friends","mando mensajes a mis amigos"],["I chat with my friends","charlo con mis amigos"],["I play cards","juego a las cartas"],["I play dominoes","juego al dominó"],["I play scrabble","juego al scrabble"],["I play with my dolls","juego con mis muñecas"],["I play with my toys","juego con mis juguetes"]]],
+ ["Jobs","Trabajos","My dad <b>is an architect</b>. / I want to be <b>a vet</b>.",
+  [["teacher","maestro/a"],["doctor","médico/a"],["nurse","enfermero/a"],["firefighter","bombero/a"],["police officer","policía"],["barber","peluquero"],["pilot","piloto"],["cook","cocinero/a"],["mail carrier","cartero/a"],["dentist","dentista"],["vet","veterinario/a"],["mechanic","mecánico/a"],["soldier","soldado"],["artist","artista"],["farmer","granjero/a"],["photographer","fotógrafo/a"],["singer","cantante"],["carpenter","carpintero/a"],["scientist","científico/a"],["worker","obrero/a"],["taxi driver","taxista"],["waiter","mozo/a"],["musician","músico/a"],["astronaut","astronauta"],["baker","panadero/a"]]]
+];
+document.getElementById("vocab").innerHTML=VOCAB.map(([en,es,ex,w])=>`<details><summary>${en} <span class="es">· ${es}</span></summary>
+<p class="es">Ejemplo: ${ex}</p><div class="chips">${w.map(([a,b])=>`<button class="chip" data-say="${a.replace(/"/g,"")}"><b>${a}</b><span>${b}</span></button>`).join("")}</div></details>`).join("");
+document.addEventListener("click",e=>{const c=e.target.closest("[data-say]");if(!c)return;c.classList.add("pressed");say(c.dataset.say.replace(" / "," or "),()=>{}).then(()=>c.classList.remove("pressed"))});
 
 // ---- examen
 const bank=[
@@ -432,9 +659,41 @@ const bank=[
 ["Can (ability)","Can you swim? — Yes, I ___.",["do","am","can"],2],
 ["Past of to be","I ___ at school yesterday.",["were","was","am"],1],
 ["Past of to be","They ___ at the beach last week.",["was","were","are"],1],
-["Past of to be","___ you at home yesterday? — Yes, I was.",["Was","Were","Did"],1]
+["Past of to be","___ you at home yesterday? — Yes, I was.",["Was","Were","Did"],1],
+["Weather","It's raining. Take an umbrella! It's ___.",["sunny","rainy","windy"],1],
+["Weather","Después de la lluvia aparece un ___.",["rainbow","tornado","snowy"],0],
+["Weather","'Hay viento' es: It's ___.",["cloudy","windy","cold"],1],
+["Days and months","The day after Monday is ___.",["Wednesday","Sunday","Tuesday"],2],
+["Days and months","The first month of the year is ___.",["January","June","December"],0],
+["Days and months","The month after July is ___.",["June","August","September"],1],
+["Days and months","'Otoño' en inglés es:",["autumn","spring","winter"],0],
+["Days and months","It's very hot and we go to the beach. It's ___.",["winter","summer","autumn"],1],
+["Parts of the house","You cook in the ___.",["bathroom","kitchen","garage"],1],
+["Parts of the house","You sleep in the ___.",["bedroom","dining room","basement"],0],
+["Parts of the house","The car is in the ___.",["attic","garage","living room"],1],
+["Household items","You keep food cold in the ___.",["cupboard","fridge","wardrobe"],1],
+["Household items","'Ropero' en inglés es:",["wardrobe","bookcase","desk"],0],
+["Household items","You have a shower in the bathroom. 'Bañadera' es:",["sink","bathtub","toilet"],1],
+["Places in town","You buy bread at the ___.",["bakery","butcher's","library"],0],
+["Places in town","You buy medicine at the ___.",["chemist's","cinema","bus stop"],0],
+["Places in town","You watch a film at the ___.",["museum","cinema","post office"],1],
+["Places in town","You borrow books at the ___.",["library","supermarket","church"],0],
+["Places in town","You send a letter at the ___.",["fire station","post office","square"],1],
+["Sports","You play it with a racket and a ball:",["tennis","swimming","rugby"],0],
+["Sports","You do it in the water:",["golf","swimming","cricket"],1],
+["Free time","'Remonto un barrilete' es:",["I fly a kite","I take a nap","I draw"],0],
+["Free time","'Duermo la siesta' es:",["I take photos","I take a nap","I paint"],1],
+["Jobs","This person helps sick animals:",["vet","pilot","barber"],0],
+["Jobs","This person flies a plane:",["farmer","pilot","waiter"],1],
+["Jobs","This person makes bread:",["baker","dentist","singer"],0],
+["Jobs","This person puts out fires:",["police officer","firefighter","mechanic"],1],
+["Prepositions of place","The lamp is ___ the table (arriba, sin tocarla).",["above","below","among"],0],
+["Prepositions of movement","The owl flies ___ the tree (pasa por al lado).",["past","into","on"],0],
+["Prepositions of time","Santa comes ___ Christmas Day.",["in","on","at"],1],
+["Prepositions of time","I go to bed ___ midnight.",["at","on","in"],0],
+["Prepositions of time","I was born ___ 2017.",["on","at","in"],2]
 ];
-const N=25, ex=document.getElementById("exam");
+const N=30, ex=document.getElementById("exam");
 let qs=[],i=0,score=0,wrong=[];
 const shuffle=a=>{a=a.slice();for(let k=a.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[a[k],a[j]]=[a[j],a[k]]}return a};
 function intro(){
@@ -444,7 +703,7 @@ function intro(){
 function start(){
   const byTopic={};bank.forEach(q=>(byTopic[q[0]]=byTopic[q[0]]||[]).push(q));
   // al menos 2 por tema, el resto al azar
-  let pick=[];Object.values(byTopic).forEach(l=>pick.push(...shuffle(l).slice(0,2)));
+  let pick=[];Object.values(byTopic).forEach(l=>pick.push(...shuffle(l).slice(0,1)));
   const rest=shuffle(bank.filter(q=>!pick.includes(q)));
   pick=shuffle(pick.concat(rest).slice(0,N));
   qs=pick.map(([t,q,o,a])=>{const idx=shuffle(o.map((_,k)=>k));return{t,q,o:idx.map(k=>o[k]),a:idx.indexOf(a)}});

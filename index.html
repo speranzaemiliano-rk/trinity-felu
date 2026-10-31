@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Trinity GESE Grade 3</title>
 <meta name="claude:viewport-fit-sides" content="cover">
+<meta name="theme-color" content="#3157d5">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@400;600;800&display=swap">
 <style>
@@ -190,6 +194,7 @@ nav{-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px)
 <header>
   <h1>Trinity GESE <span>Grade 3</span></h1>
   <p>Guía de estudio, práctica oral y examen de práctica.</p>
+  <button id="instalar" class="btn alt" hidden style="grid-column:1/3;margin-top:10px">⬇️ Instalar en esta PC</button>
 </header>
 
 <nav role="tablist">
@@ -894,6 +899,13 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
   ["study","speak","exam"].forEach(v=>document.getElementById("v-"+v).hidden=v!==b.dataset.v);
   window.scrollTo({top:0});
 }));
+
+// ---- instalar como app
+if("serviceWorker"in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
+let instPrompt=null;
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();instPrompt=e;$("instalar").hidden=false});
+$("instalar").onclick=async()=>{if(!instPrompt)return;instPrompt.prompt();await instPrompt.userChoice;instPrompt=null;$("instalar").hidden=true};
+window.addEventListener("appinstalled",()=>{$("instalar").hidden=true});
 </script>
 </body>
 </html>

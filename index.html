@@ -378,9 +378,9 @@ nav{-webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px)
 <section id="v-speak" hidden>
 <h2>Speaking</h2>
 <p class="lead">Una charla con el examinador para practicar. Él pregunta en voz alta, el micrófono se activa solo y vos contestás hablando. Si la respuesta queda corta, te da un ejemplo y te deja intentar de nuevo.</p>
-<details class="diag" id="diag"><summary>¿No te escucha? Probar micrófono</summary>
+<details class="diag" id="diag"><summary>¿No anda la voz o el micrófono? Probar</summary>
   <p class="es">1) Tocá <b>Probar</b> y hablá: la barra tiene que moverse. 2) Después decí <b>"hello, my name is…"</b> y fijate si aparece escrito.</p>
-  <div class="sbtns"><button class="btn alt" id="dgGo">Probar</button></div>
+  <div class="sbtns"><button class="btn" id="dgVoice">Probar voz</button><button class="btn alt" id="dgGo">Probar micrófono</button></div>
   <div class="meter"><i id="dgLvl"></i></div>
   <div id="dgHeard" class="heard" hidden></div>
   <ol id="dgLog" class="log"></ol>
@@ -407,6 +407,13 @@ const suf=n=>(n%10==1&&n!=11)?"st":(n%10==2&&n!=12)?"nd":(n%10==3&&n!=13)?"rd":"
 document.getElementById("ordinals").innerHTML=ord.map((w,i)=>{const n=i+1;return `<div class="${irr.has(n)?'irr':''}"><span class="n">${n}${suf(n)}</span><span>${w}</span></div>`}).join("");
 
 // ---- conversación con el examinador (práctica y examen oral)
+document.addEventListener("click",e=>{if(e.target.id!=="dgVoice")return;
+  const lg=$("dgLog");lg.innerHTML="";const add=(ok,t)=>{const li=document.createElement("li");li.className=ok?"ok":"no";li.innerHTML=t;lg.appendChild(li)};
+  if(!window.speechSynthesis){add(false,"Este navegador no puede leer en voz alta. Usá Chrome.");return}
+  const v=speechSynthesis.getVoices(),en=v.filter(x=>/^en/i.test(x.lang));
+  add(en.length>0,en.length?"Voces en inglés: <b>"+en.length+"</b>":"No hay voces en inglés instaladas ("+v.length+" voces en total). En Android: Ajustes → Texto a voz → Google → Instalar datos de voz → English.");
+  say("Hello! Can you hear me? Very good!",m=>add(false,m)).then(()=>add(true,"Si escuchaste \"Hello, can you hear me?\", la voz anda. Si no, subí el volumen <b>multimedia</b> y sacá el modo silencio."));
+});
 const $=id=>document.getElementById(id);
 
 // ---- probador de micrófono
@@ -548,8 +555,9 @@ const CLOSE={q:"Thank you. That's the end of our conversation. Goodbye!",a:"Good
 
 // ---- voz del examinador
 const synth=window.speechSynthesis;let voice=null,keep=null,unlocked=false;
+const ANDROID=/Android/i.test(navigator.userAgent);let noEnVoice=false;
 function pickVoice(){if(!synth)return;const v=synth.getVoices();if(!v.length)return;
-  const en=v.filter(x=>/^en/i.test(x.lang));
+  const en=v.filter(x=>/^en/i.test(x.lang));noEnVoice=!en.length;
   voice=en.find(x=>/en[-_]GB/i.test(x.lang)&&/google|natural|premium|enhanced/i.test(x.name))||en.find(x=>/en[-_]GB/i.test(x.lang))||en.find(x=>/google|natural/i.test(x.name))||en[0]||null}
 if(synth){pickVoice();if(synth.addEventListener)synth.addEventListener("voiceschanged",pickVoice);else synth.onvoiceschanged=pickVoice}
 // En celulares y Safari la voz solo arranca si se "desbloquea" con un toque: se hace en el primer clic de la página
@@ -568,7 +576,10 @@ function say(t,status){
     const fin=()=>{if(ended)return;ended=true;ttsKeepAlive(false);res()};
     const go=()=>{
       if(!voice)pickVoice();
-      const u=new SpeechSynthesisUtterance(t);u.lang=(voice&&voice.lang)||"en-GB";if(voice)u.voice=voice;u.rate=.88;u.pitch=1;u.volume=1;keep=u;
+      const u=new SpeechSynthesisUtterance(t);
+      // 1er intento: voz inglesa elegida (en Android solo el idioma). 2º intento: voz por defecto del celu, para que al menos suene
+      if(tries===0){u.lang=(voice&&voice.lang.replace('_','-'))||"en-GB";if(voice&&!ANDROID)u.voice=voice}
+      u.rate=.88;u.pitch=1;u.volume=1;keep=u;
       u.onstart=()=>{started=true;ttsKeepAlive(true)};
       u.onend=fin;
       u.onerror=e=>{
@@ -577,10 +588,10 @@ function say(t,status){
         status("No se pudo reproducir la voz ("+e.error+").");fin()};
       synth.speak(u);
       // si a los 2,5 s no arrancó, reintento una vez; si sigue mudo, aviso
-      setTimeout(()=>{if(started||ended)return;if(tries<1){tries++;try{synth.cancel()}catch(e){}setTimeout(go,150)}else{status("No se escucha la voz. Subí el volumen o probá con <b>Chrome</b> / <b>Edge</b>. Podés activar <b>Ver lo que dice el examinador</b> para leer las preguntas.");fin()}},2500);
+      setTimeout(()=>{if(started||ended)return;if(tries<1){tries++;try{synth.cancel()}catch(e){}setTimeout(go,150)}else{status((noEnVoice?"Tu celular no tiene voz en inglés instalada: Ajustes → Texto a voz → Google → Instalar datos de voz → English. ":"")+"No se escucha la voz. Subí el volumen multimedia o probá con <b>Chrome</b> / <b>Edge</b>. Podés activar <b>Ver lo que dice el examinador</b> para leer las preguntas.");fin()}},2500);
     };
     try{synth.cancel()}catch(e){}
-    setTimeout(()=>{try{synth.resume()}catch(e){}go()},120);
+    setTimeout(()=>{try{synth.resume()}catch(e){}go()},ANDROID?450:120);
     setTimeout(fin,maxMs);
   });
 }

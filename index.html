@@ -702,8 +702,8 @@ function mountConv(rootId,mode){
       rec.onstart=rec.onaudiostart=()=>{if(started)return;started=true;micUI(true,"Te escucho… hablá ahora");
         noSound=setTimeout(async()=>{if(text)return;el("type").hidden=false;
           // recién ahora se abre el medidor (abrirlo desde el principio compite con el reconocimiento en algunos micrófonos)
-          await lvlStart();await new Promise(r=>setTimeout(r,1800));const pk=lvlPeak;lvlStop();if(done||text)return;
-          status(pk<6?"<b>Tu PC no está mandando sonido</b>. Revisá Windows → Sistema → Sonido → Entrada (que se mueva «Probar el micrófono») y Privacidad → Micrófono. Mientras, tocá <b>⌨️ Escribir</b>.":"El micrófono capta sonido pero el servicio de voz de Chrome no devuelve texto"+(lastErr?" (error: <b>"+lastErr+"</b>)":"")+". Suele ser la red, una VPN, un antivirus o el navegador. Probá en <b>Microsoft Edge</b> o en el celular con Chrome. Mientras, tocá <b>⌨️ Escribir</b>.")},6000)};
+          status("Revisando el micrófono… <b>hablá ahora</b>");await lvlStart();await new Promise(r=>setTimeout(r,3000));const pk=lvlPeak;lvlStop();if(done||text)return;
+          status(pk<2?"Casi no llega sonido del micrófono: hablá más cerca y más fuerte, o subí el volumen de entrada en Windows (Sistema → Sonido → Entrada). Mientras, tocá <b>⌨️ Escribir</b>.":"El micrófono sí capta tu voz, pero el servicio de voz de Chrome no devuelve texto"+(lastErr?" (error: <b>"+lastErr+"</b>)":"")+". Suele ser la red, una VPN, un antivirus o el navegador. Probá en <b>Microsoft Edge</b> o en el celular con Chrome. Mientras, tocá <b>⌨️ Escribir</b>.")},6000)};
       rec.onresult=e=>{let s="";for(let r=0;r<e.results.length;r++)s+=e.results[r][0].transcript+" ";text=(base+" "+s).replace(/\s+/g," ").trim();
         el("heard").textContent=text;status("");clearTimeout(noSound);clearTimeout(silence);
         silence=setTimeout(()=>fin(text),2600)};

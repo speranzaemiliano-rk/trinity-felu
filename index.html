@@ -108,6 +108,11 @@ nav button:active{transform:scale(.96)}
 .chip span{font-size:.82rem;color:var(--muted)}
 .chip:active,.chip.pressed{transform:translateY(3px);box-shadow:0 0 0 var(--line);border-color:var(--accent)}
 .chip:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.diag{margin-bottom:14px;border-color:var(--accent)}
+.meter{height:14px;border-radius:99px;background:var(--line);overflow:hidden;margin-top:12px}
+.meter i{display:block;height:100%;width:0;background:var(--good);transition:width .08s}
+.log{margin:10px 0 0;padding-left:1.2rem;font-size:.92rem;display:flex;flex-direction:column;gap:4px}
+.log li.ok{color:var(--good)}.log li.no{color:var(--bad)}
 h3.sec{font-family:var(--display);font-weight:800;font-size:1.2rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 0}
 .chk{display:flex;gap:6px;align-items:center;font-size:.85rem;color:var(--muted);font-weight:600;cursor:pointer}
 .chat{display:flex;flex-direction:column;gap:8px;max-height:min(60vh,520px);overflow-y:auto;padding:4px 2px 8px;margin-top:4px}
@@ -324,6 +329,13 @@ h3.sec{font-family:var(--display);font-weight:800;font-size:1.2rem;color:var(--m
 <section id="v-speak" hidden>
 <h2>Speaking</h2>
 <p class="lead">Una charla con el examinador para practicar. Él pregunta en voz alta, el micrófono se activa solo y vos contestás hablando. Si la respuesta queda corta, te da un ejemplo y te deja intentar de nuevo.</p>
+<details class="diag" id="diag"><summary>¿No te escucha? Probar micrófono</summary>
+  <p class="es">1) Tocá <b>Probar</b> y hablá: la barra tiene que moverse. 2) Después decí <b>"hello, my name is…"</b> y fijate si aparece escrito.</p>
+  <div class="sbtns"><button class="btn alt" id="dgGo">Probar</button></div>
+  <div class="meter"><i id="dgLvl"></i></div>
+  <div id="dgHeard" class="heard" hidden></div>
+  <ol id="dgLog" class="log"></ol>
+</details>
 <div id="practice"></div>
 </section>
 
@@ -347,6 +359,42 @@ document.getElementById("ordinals").innerHTML=ord.map((w,i)=>{const n=i+1;return
 
 // ---- conversación con el examinador (práctica y examen oral)
 const $=id=>document.getElementById(id);
+
+// ---- probador de micrófono
+(function(){
+  const log=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.innerHTML=t;$("dgLog").appendChild(li)};
+  let stream=null,ctx=null,raf=0,r=null;
+  function stop(){cancelAnimationFrame(raf);if(stream)stream.getTracks().forEach(t=>t.stop());if(ctx)ctx.close().catch(()=>{});stream=ctx=null;if(r){try{r.abort()}catch(e){}r=null};$("dgLvl").style.width="0"}
+  $("dgGo").onclick=async()=>{
+    stop();$("dgLog").innerHTML="";$("dgHeard").hidden=true;
+    const ua=navigator.userAgent,isEdge=/Edg\//.test(ua),isChrome=/Chrome\//.test(ua)&&!isEdge&&!/OPR|Brave/.test(ua);
+    const brave=!!(navigator.brave);
+    log(null,"Navegador: <b>"+(brave?"Brave":isEdge?"Edge":/OPR/.test(ua)?"Opera":isChrome?"Chrome":/Firefox/.test(ua)?"Firefox":/Safari/.test(ua)?"Safari":"otro")+"</b>"+(brave||/OPR|Firefox/.test(ua)?" — este navegador no tiene dictado por voz. Usá <b>Chrome</b> o <b>Edge</b>.":""));
+    log(location.protocol==="https:",location.protocol==="https:"?"Página segura (https)":"La página no es https: el micrófono no va a funcionar. Abrí el link de github.io.");
+    // 1) nivel de sonido
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      const tr=stream.getAudioTracks()[0];log(true,"Permiso de micrófono OK. Usando: <b>"+esc(tr.label||"micrófono")+"</b>");
+      ctx=new (window.AudioContext||window.webkitAudioContext)();const an=ctx.createAnalyser();an.fftSize=512;ctx.createMediaStreamSource(stream).connect(an);
+      const buf=new Uint8Array(an.fftSize);let peak=0,t0=performance.now(),told=false;
+      const tick=()=>{an.getByteTimeDomainData(buf);let m=0;for(const v of buf)m=Math.max(m,Math.abs(v-128));peak=Math.max(peak,m);$("dgLvl").style.width=Math.min(100,m*1.6)+"%";
+        if(!told&&performance.now()-t0>4000){told=true;log(peak>8,peak>8?"El micrófono capta sonido.":"El micrófono no capta sonido. Probablemente Chrome está usando otro micrófono: entrá a <b>chrome://settings/content/microphone</b> y elegí el correcto en la lista de arriba. Revisá también que no esté silenciado en Windows.")}
+        raf=requestAnimationFrame(tick)};tick();
+    }catch(e){log(false,"No se pudo abrir el micrófono ("+esc(e.name)+"). "+(e.name==="NotAllowedError"?"Tocá el ícono del candado junto a la dirección → Micrófono → Permitir, y recargá.":e.name==="NotFoundError"?"La PC no tiene micrófono conectado.":""));return}
+    // 2) reconocimiento de voz
+    const SRc=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SRc){log(false,"Este navegador no tiene reconocimiento de voz. Usá <b>Chrome</b> o <b>Edge</b>.");return}
+    r=new SRc();r.lang="en-GB";r.interimResults=true;r.continuous=false;
+    let got=false;
+    r.onstart=()=>log(true,"Reconocimiento de voz iniciado. Decí <b>\"hello, my name is…\"</b>");
+    r.onspeechstart=()=>log(true,"Detectó que estás hablando…");
+    r.onresult=e=>{got=true;const t=[...e.results].map(x=>x[0].transcript).join(" ");$("dgHeard").hidden=false;$("dgHeard").innerHTML="Entendió: <b>"+esc(t)+"</b>"};
+    r.onerror=e=>log(false,"Error del reconocimiento: <b>"+e.error+"</b>. "+({network:"No se puede conectar con el servicio de voz (lo bloquea la red, un antivirus o el navegador). Probá con <b>Edge</b> o en el celular con Chrome.","not-allowed":"Falta permiso de micrófono.","service-not-allowed":"El navegador no permite el dictado. Usá Chrome o Edge.","no-speech":"No escuchó voz: revisá qué micrófono usa Chrome (paso de arriba).","audio-capture":"No encuentra el micrófono."}[e.error]||""));
+    r.onend=()=>{log(got,got?"¡Funciona! Ya podés usar la conversación.":"Terminó sin entender nada.");r=null;setTimeout(stop,1500)};
+    try{r.start()}catch(e){log(false,"No se pudo iniciar: "+esc(e.message))}
+  };
+  $("diag").addEventListener("toggle",()=>{if(!$("diag").open)stop()});
+})();
 const NUMW=["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen"];
 const NUM=new RegExp("(\\b\\d+\\b|\\b("+NUMW.join("|")+")\\b)");
 const COLOURS=["light blue","sky blue","red","blue","green","yellow","pink","purple","orange","black","white","brown","grey","gray"];

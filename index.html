@@ -582,6 +582,15 @@ const MIDDLE=[
 const CLOSE={q:"Thank you. That's the end of our conversation. Goodbye!",a:"Goodbye, have a nice day!",
   need:[[/bye/,"Despedite: \"Goodbye!\"."]],react:()=>"Have a nice day!",last:true};
 
+// ---- examinador con IA (opcional): URL del worker en ia-worker/ (se guarda al abrir el sitio con ?ia=URL)
+const IA_URL=(function(){try{const q=new URLSearchParams(location.search).get("ia");if(q&&/^https:\/\//.test(q))localStorage.setItem("trinity_ia_url",q);return localStorage.getItem("trinity_ia_url")||""}catch(e){return ""}})();
+async function iaPedir(messages,turn,max){
+  const c=new AbortController(),t=setTimeout(()=>c.abort(),20000);
+  try{const r=await fetch(IA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages,turn,max}),signal:c.signal});
+    if(!r.ok)throw new Error("HTTP "+r.status);const o=await r.json();if(!o.reply)throw new Error("vacío");return o}
+  finally{clearTimeout(t)}
+}
+
 // ---- voz del examinador
 const synth=window.speechSynthesis;let voice=null,keep=null,unlocked=false;
 const ANDROID=/Android/i.test(navigator.userAgent);let noEnVoice=false;
@@ -651,12 +660,14 @@ function mountConv(rootId,mode){
   const root=$(rootId);
   root.innerHTML=`<div class="card">
   <div class="row" style="margin:0"><span class="tag" id="${P}n">${E?"Examen oral":"Conversación"}</span>
-    <label class="chk"><input type="checkbox" id="${P}txt" ${E?"":"checked"}> Ver lo que dice el examinador</label></div>
+    <label class="chk"><input type="checkbox" id="${P}txt" ${E?"":"checked"}> Ver lo que dice el examinador</label>
+    <label class="chk"><input type="checkbox" id="${P}tap" checked> Tocar 🎤 para hablar</label>
+    ${IA_URL?`<label class="chk"><input type="checkbox" id="${P}ia" checked> 🤖 Examinador con IA</label>`:""}</div>
   <div class="bar"><i id="${P}bar"></i></div>
   <div class="chat" id="${P}chat" aria-live="polite"><div class="msg tip">${E
     ?"Como en el Trinity: el examinador charla con vos unos 5 minutos y no te ayuda. Si no entendés, podés decir <b>\"Sorry, can you repeat, please?\"</b>"
     :"Tocá <b>Empezar</b>. Cuando veas <b>Te escucho</b>, contestá en voz alta y cuando termines tocá <b>Listo</b> (o hacé una pausa)."}</div></div>
-  <div class="mic" id="${P}mic" hidden><span class="dot"></span><div class="live"><b id="${P}mict">Te escucho…</b><span id="${P}heard"></span><div class="meter lvl"><i id="${P}lvl"></i></div></div><button class="btn" id="${P}done">Listo</button></div>
+  <div class="mic" id="${P}mic" hidden><span class="dot"></span><div class="live"><b id="${P}mict">Te escucho…</b><span id="${P}heard"></span><div class="meter lvl"><i id="${P}lvl"></i></div></div><button class="btn alt" id="${P}talk" hidden>🎤 Hablar</button><button class="btn" id="${P}done">Listo</button></div>
   <div class="status" id="${P}st" role="status" hidden></div>
   <div id="${P}type" hidden>
     <label for="${P}in" class="es" id="${P}tmsg">El micrófono no funciona en este navegador. Escribí la respuesta:</label>
@@ -691,7 +702,13 @@ function mountConv(rootId,mode){
 
   function listen(){
     if(micBroken)return new Promise(res=>{typedResolve=res;micUI(true,"Escribí tu respuesta…");el("in").focus()});
-    return new Promise(res=>{
+    return (el("tap").checked?new Promise(r=>{
+      // Se espera un toque antes de abrir el reconocimiento: así arranca igual que el probador (que anda) y con la voz del examinador ya terminada
+      micUI(true,"Tocá 🎤 Hablar y contestá");el("talk").hidden=false;el("done").hidden=true;
+      el("talk").onclick=()=>{el("talk").hidden=true;el("done").hidden=false;r()};
+      typedResolve=null;finishNow=()=>{el("talk").hidden=true;el("done").hidden=false;finishNow=null;r("cancel")}
+    }):Promise.resolve()).then(go=>go==="cancel"?null:new Promise(res=>{
+      try{synth.cancel()}catch(e){}
       let done=false,started=false,text="",silence=null,noSound=null,cap=null;
       let lastErr="",restarts=0,base="";
       const fin=v=>{if(done)return;done=true;lvlStop();clearTimeout(silence);clearTimeout(noSound);clearTimeout(cap);finishNow=null;
@@ -717,7 +734,7 @@ function mountConv(rootId,mode){
       micUI(true,"Preparando el micrófono…");
       setTimeout(()=>{if(!started&&!done){done=true;try{rec.abort()}catch(e){}rec=null;micUI(false);typeMode("El micrófono no arrancó. Escribí la respuesta (o probá con <b>Chrome</b> / <b>Edge</b>):");listen().then(res)}},9000);
       try{rec.start()}catch(e){done=true;rec=null;typeMode();listen().then(res)}
-    });
+    }));
   }
   el("done").onclick=()=>{if(finishNow)finishNow()};
   el("send").onclick=()=>{const v=el("in").value.trim();if(v&&typedResolve){el("in").value="";const r=typedResolve;typedResolve=null;micUI(false);r(v)}};
@@ -747,6 +764,30 @@ function mountConv(rootId,mode){
       else{review.push(step);return low}
     }
   }
+  // Charla con IA: el examinador inventa las preguntas y reacciona a lo que dice el chico.
+  // La IA juzga cada respuesta (ok/tip/model) en la vuelta SIGUIENTE, por eso se anota con "prev".
+  async function conversationIA(id){
+    const max=E?8:10;let hist=[],prev=null;
+    for(let k=1;k<=max+1;k++){
+      el("n").textContent=`${E?"Examen oral":"Charla con IA"} · ${Math.min(k,max)} de ${max}`;el("bar").style.width=(Math.min(k-1,max)/max*100)+"%";
+      let r;
+      try{r=await iaPedir(hist,k,max)}catch(e){
+        if(run!==id)return false;
+        if(k===1){status("No pude conectarme con la IA: sigo con las preguntas de siempre.");return null}
+        status("Se cortó la conexión con la IA: cerramos la charla.");r={reply:"Thank you. That's the end of our conversation. Goodbye!",ok:true,tip:"",model:"",end:true}}
+      if(run!==id)return false;
+      if(prev){total++;
+        if(r.ok)pts+=1;
+        else{pts+=.4;review.push({q:prev,a:r.model||"…"});
+          if(!E&&(r.tip||r.model))bubble("tip",`<b>Casi.</b> ${esc(r.tip||"")}${r.model?`<br>Ejemplo: <i>${esc(r.model)}</i>`:""}`)}}
+      hist.push({role:"examiner",text:r.reply});
+      await examiner(r.reply);if(run!==id)return false;
+      if(r.end||k>max)break;
+      const t=await listen();if(run!==id)return false;
+      if(t===null){hist.push({role:"child",text:"(silence)"});prev=r.reply;continue}
+      bubble("kid",esc(t));hist.push({role:"child",text:t});prev=r.reply;
+    }
+    return true}
   async function conversation(){
     if(activeStop)activeStop();activeStop=halt;
     const id=++run;pts=0;total=0;review=[];kidName="";
@@ -756,6 +797,7 @@ function mountConv(rootId,mode){
     CLOSE.q=pick(["Thank you. That's the end of our conversation. Goodbye!","Thank you very much. That's all. Goodbye!","OK, that's the end of the exam. Thank you. Goodbye!"]);
     const steps=[...OPEN,...shuffleA(MIDDLE).slice(0,E?8:10),CLOSE];
     el("chat").innerHTML="";el("start").hidden=true;el("stop").hidden=false;el("rep").hidden=false;el("kb").hidden=false;status("");
+    if(IA_URL&&el("ia")&&el("ia").checked){const ok=await conversationIA(id);if(ok===false)return;if(ok===true){el("bar").style.width="100%";finish();return}}
     for(let k=0;k<steps.length;k++){
       const step=steps[k];
       el("n").textContent=`${E?"Examen oral":"Tema"} · ${k+1} de ${steps.length}`;el("bar").style.width=(k/steps.length*100)+"%";

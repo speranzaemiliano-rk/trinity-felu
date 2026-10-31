@@ -89,6 +89,7 @@ ul.ex li{margin:.15rem 0}
 .link{all:unset;cursor:pointer;color:var(--blue);font-weight:800;font-size:.9rem;text-decoration:underline;text-underline-offset:3px}
 .link:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 #spInput{flex:2 1 180px;min-width:0;font:600 1rem var(--body);padding:12px;border-radius:12px;border:2px solid var(--line);background:var(--paper);color:var(--ink)}
+.status{margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--bad-bg);color:var(--ink);font-size:.95rem;border-left:4px solid var(--bad)}
 .heard{margin-top:14px;padding:10px 12px;border-radius:10px;background:var(--bg);font-size:1.05rem}
 .model{margin-top:10px;padding:10px 12px;border-radius:10px;background:var(--good-bg);display:flex;flex-direction:column;gap:4px}
 .model div{font-weight:800;color:var(--good);font-size:1.05rem}
@@ -266,6 +267,7 @@ ul.ex li{margin:.15rem 0}
     <button class="btn" id="spListen">Escuchar pregunta</button>
     <button class="btn alt" id="spTalk">Hablar</button>
   </div>
+  <div class="status" id="spStatus" role="status" hidden></div>
   <div id="spType" hidden>
     <label for="spInput" class="es" id="spTypeMsg">El micrófono no funciona en este navegador. Escribí la respuesta:</label>
     <div class="sbtns"><input id="spInput" type="text" autocomplete="off" placeholder="My name is…"><button class="btn alt" id="spSend">Enviar</button></div>
@@ -316,10 +318,22 @@ const $=id=>document.getElementById(id);
 const synth=window.speechSynthesis;let voice=null;
 function pickVoice(){if(!synth)return;const v=synth.getVoices();voice=v.find(x=>/en[-_]GB/i.test(x.lang))||v.find(x=>/^en/i.test(x.lang))||null}
 if(synth){pickVoice();synth.onvoiceschanged=pickVoice}
-function say(t,lang){if(!synth)return;synth.cancel();const u=new SpeechSynthesisUtterance(t);u.lang=lang||"en-GB";if(!lang&&voice)u.voice=voice;u.rate=.85;synth.speak(u)}
+let keep=null;
+function status(msg){const s=$("spStatus");s.hidden=!msg;s.innerHTML=msg||""}
+function say(t,lang){
+  if(!synth){status("Este navegador no puede leer en voz alta. Abrí el link directo en <b>Chrome</b> (no desde WhatsApp) o mostrá la pregunta escrita.");return}
+  if(synth.speaking||synth.pending)synth.cancel();
+  if(!voice)pickVoice();
+  const u=new SpeechSynthesisUtterance(t);u.lang=lang||"en-GB";if(!lang&&voice)u.voice=voice;u.rate=.85;u.volume=1;
+  keep=u;let started=false;
+  u.onstart=()=>{started=true;status("")};
+  u.onerror=e=>{if(e.error!=="interrupted"&&e.error!=="canceled")status("No se pudo reproducir la voz ("+e.error+"). Subí el volumen y probá de nuevo, o abrí el link en Chrome.")};
+  setTimeout(()=>{synth.resume();synth.speak(u)},60);
+  setTimeout(()=>{if(!started&&!synth.speaking)status("No se escucha la voz. Revisá que el celu no esté en silencio y el volumen multimedia esté alto. Si sigue sin sonar, abrí el link directo en <b>Chrome</b>.")},2500);
+}
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 let si=0,res=new Array(sp.length).fill(null),rec=null;
-function typeMode(msg){$("spType").hidden=false;$("spTalk").hidden=true;if(msg)$("spTypeMsg").textContent=msg}
+function typeMode(msg){$("spType").hidden=false;$("spTalk").hidden=true;if(msg)$("spTypeMsg").innerHTML=msg;status("")}
 if(!SR)typeMode();
 function spRender(auto){
   const q=sp[si];
@@ -353,11 +367,21 @@ $("spTalk").onclick=()=>{
   try{rec=new SR()}catch(e){typeMode();return}
   rec.lang="en-GB";rec.interimResults=false;rec.maxAlternatives=1;
   const b=$("spTalk");b.textContent="Escuchando… (tocá para terminar)";b.classList.add("rec");
-  let got=false;
+  let got=false,started=false,err=null;
+  status("Preparando el micrófono…");
+  rec.onstart=()=>{started=true;status("")};
+  rec.onaudiostart=()=>{started=true;status("")};
   rec.onresult=e=>{got=true;evaluate(e.results[0][0].transcript)};
-  rec.onerror=e=>{if(e.error==="not-allowed"||e.error==="service-not-allowed")typeMode("No hay permiso para el micrófono. Permitilo en el navegador o escribí la respuesta:");else if(e.error==="no-speech"){$("spFb").className="fb no";$("spFb").textContent="No te escuché. Tocá Hablar y decilo un poco más fuerte."}};
-  rec.onend=()=>{b.textContent="Hablar";b.classList.remove("rec");rec=null};
-  try{rec.start()}catch(e){b.textContent="Hablar";b.classList.remove("rec");rec=null}
+  rec.onerror=e=>{err=e.error;
+    if(e.error==="not-allowed"||e.error==="service-not-allowed")typeMode("No hay permiso para el micrófono. Tocá el candado junto a la dirección → Micrófono → Permitir, y recargá. O escribí la respuesta:");
+    else if(e.error==="no-speech")status("No te escuché. Tocá <b>Hablar</b> y decilo un poco más fuerte.");
+    else if(e.error==="audio-capture")typeMode("No se encontró micrófono en este dispositivo. Escribí la respuesta:");
+    else if(e.error==="network")status("El reconocimiento de voz necesita internet. Revisá la conexión y probá de nuevo.");
+    else if(e.error!=="aborted")status("El micrófono dio un error ("+e.error+"). Abrí el link directo en <b>Chrome</b>.");};
+  rec.onend=()=>{b.textContent="Hablar";b.classList.remove("rec");rec=null;
+    if(!got&&!err&&started)status("No te escuché. Tocá <b>Hablar</b> y contestá enseguida.")};
+  setTimeout(()=>{if(rec&&!started&&!got&&!err){try{rec.abort()}catch(e){}typeMode("Este navegador no deja usar el micrófono (pasa si el link se abre dentro de WhatsApp u otra app). Abrilo directo en <b>Chrome</b>, o escribí la respuesta:")}},4000);
+  try{rec.start()}catch(e){b.textContent="Hablar";b.classList.remove("rec");rec=null;typeMode("No se pudo activar el micrófono. Abrí el link en Chrome, o escribí la respuesta:")}
 };
 $("spPrev").onclick=()=>{if(si>0){si--;spRender(true)}};
 $("spNext").onclick=()=>{

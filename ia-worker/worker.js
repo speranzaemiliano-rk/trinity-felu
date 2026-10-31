@@ -31,10 +31,24 @@ export default {
 
     const ip = req.headers.get('CF-Connecting-IP') || 'x', ahora = Date.now();
     const r = (limite.get(ip) || []).filter(t => ahora - t < 60000);
-    if (r.length >= 20) return json({ error: 'demasiados pedidos, esperá un minuto' }, 429, cors);
+    if (r.length >= 30) return json({ error: 'demasiados pedidos, esperá un minuto' }, 429, cors);
     r.push(ahora); limite.set(ip, r);
 
     let body; try { body = await req.json(); } catch (e) { return json({ error: 'JSON inválido' }, 400, cors); }
+    // Transcripción de audio (plan B cuando el dictado del navegador no anda)
+    if (body.audio) {
+      if (!env.GEMINI_API_KEY) return json({ error: 'falta GEMINI_API_KEY' }, 500, cors);
+      const mime = String(body.mime || 'audio/webm').split(';')[0];
+      if (!/^audio\/(webm|ogg|mp4|mpeg|wav|aac)$/.test(mime) || String(body.audio).length > 2000000) return json({ error: 'audio no válido' }, 400, cors);
+      const rs = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.MODEL || 'gemini-2.5-flash'}:generateContent`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ inlineData: { mimeType: mime, data: body.audio } }, { text: 'Transcribe exactly what the speaker says. The speaker is a child learning English; the speech is English (sometimes with a Spanish accent). Output ONLY the transcription text, nothing else. If there is no speech, output an empty string.' }] }], generationConfig: { temperature: 0, maxOutputTokens: 200 } })
+      });
+      if (!rs.ok) return json({ error: 'la IA no respondió (' + rs.status + ')' }, 502, cors);
+      const dd = await rs.json();
+      const text = ((dd.candidates && dd.candidates[0] && dd.candidates[0].content && dd.candidates[0].content.parts) || []).map(x => x.text || '').join('').trim().slice(0, 300);
+      return json({ text }, 200, cors);
+    }
     const msgs = Array.isArray(body.messages) ? body.messages.slice(-24) : [];
     const turn = Math.min(30, Math.max(1, +body.turn || 1)), max = Math.min(14, Math.max(4, +body.max || 8));
     const contents = msgs.map(m => ({ role: m.role === 'child' ? 'user' : 'model', parts: [{ text: String(m.text || '').slice(0, 300) }] }));

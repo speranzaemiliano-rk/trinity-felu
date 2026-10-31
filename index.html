@@ -596,6 +596,16 @@ async function iaPedir(messages,turn,max){
   finally{clearTimeout(t)}
 }
 
+// Plan B del micrófono: se graba la voz y la IA la transcribe (no depende del dictado de Chrome)
+let sttRec=false;
+async function iaTranscribir(blob){
+  const b64=await new Promise((ok,ko)=>{const f=new FileReader();f.onload=()=>ok(String(f.result).split(",")[1]);f.onerror=ko;f.readAsDataURL(blob)});
+  const c=new AbortController(),t=setTimeout(()=>c.abort(),25000);
+  try{const r=await fetch(IA_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({audio:b64,mime:blob.type||"audio/webm"}),signal:c.signal});
+    if(!r.ok)throw new Error("HTTP "+r.status);return ((await r.json()).text||"").trim()}
+  finally{clearTimeout(t)}
+}
+
 // ---- voz del examinador
 const synth=window.speechSynthesis;let voice=null,keep=null,unlocked=false;
 const ANDROID=/Android/i.test(navigator.userAgent);let noEnVoice=false;
@@ -705,7 +715,36 @@ function mountConv(rootId,mode){
     }catch(e){}
   }
 
+  // Escucha por grabación: corta sola tras un silencio, o con «Listo»
+  function listenRec(){
+    return new Promise(async res=>{
+      let stream,ctx,mr,chunks=[],done=false,spoke=false,lastVoice=0,raf=0,cap=null;
+      const cleanup=()=>{cancelAnimationFrame(raf);clearTimeout(cap);finishNow=null;if(stream)stream.getTracks().forEach(t=>t.stop());if(ctx)ctx.close().catch(()=>{});el("lvl").style.width="0"};
+      const stopRec=()=>{if(mr&&mr.state==="recording")mr.stop()};
+      try{
+        stream=await navigator.mediaDevices.getUserMedia({audio:true});
+        if(typeof MediaRecorder==="undefined")throw new Error("sin MediaRecorder");
+        mr=new MediaRecorder(stream);
+        mr.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+        mr.onstop=async()=>{if(done)return;done=true;cleanup();micUI(true,"Entendiendo lo que dijiste…");
+          const blob=new Blob(chunks,{type:mr.mimeType||"audio/webm"});
+          if(!spoke||blob.size<2000){micUI(false);return res(null)}
+          try{const t=await iaTranscribir(blob);micUI(false);res(t||null)}catch(e){micUI(false);status("No pude transcribir lo que dijiste ("+esc(e.message)+"). Tocá <b>⌨️ Escribir</b>.");res(null)}};
+        ctx=new (window.AudioContext||window.webkitAudioContext)();const an=ctx.createAnalyser();an.fftSize=512;ctx.createMediaStreamSource(stream).connect(an);
+        const buf=new Uint8Array(an.fftSize),t0=performance.now();
+        const tick=()=>{an.getByteTimeDomainData(buf);let m=0;for(const v of buf)m=Math.max(m,Math.abs(v-128));el("lvl").style.width=Math.min(100,m*2.2)+"%";
+          const now=performance.now();if(m>9){spoke=true;lastVoice=now;el("heard").textContent="🎙️ te escucho…"}
+          if(spoke&&now-lastVoice>1800)return stopRec();
+          if(!spoke&&now-t0>12000)return stopRec();
+          raf=requestAnimationFrame(tick)};
+        micUI(true,"Grabando… hablá ahora");mr.start();tick();
+        finishNow=()=>stopRec();cap=setTimeout(stopRec,20000);
+      }catch(e){done=true;cleanup();micUI(false);status("No pude grabar el micrófono ("+esc(e.name||e.message)+"). Tocá <b>⌨️ Escribir</b>.");res(null)}
+    });
+  }
+
   function listen(){
+    if(!micBroken&&sttRec&&IA_URL)return listenRec();
     if(micBroken)return new Promise(res=>{typedResolve=res;micUI(true,"Escribí tu respuesta…");el("in").focus()});
     return (el("tap").checked?new Promise(r=>{
       // Se espera un toque antes de abrir el reconocimiento: así arranca igual que el probador (que anda) y con la voz del examinador ya terminada
@@ -725,6 +764,7 @@ function mountConv(rootId,mode){
         noSound=setTimeout(async()=>{if(text)return;el("type").hidden=false;
           // recién ahora se abre el medidor (abrirlo desde el principio compite con el reconocimiento en algunos micrófonos)
           status("Revisando el micrófono… <b>hablá ahora</b>");await lvlStart();await new Promise(r=>setTimeout(r,3000));const pk=lvlPeak;lvlStop();if(done||text)return;
+          if(IA_URL&&pk>=2&&!sttRec){sttRec=true;status("El dictado de Chrome no responde en tu equipo: <b>paso a modo grabación con IA</b>. Tocá 🎤 Hablar de nuevo.");return fin(null)}
           status(pk<2?"Casi no llega sonido del micrófono: hablá más cerca y más fuerte, o subí el volumen de entrada en Windows (Sistema → Sonido → Entrada). Mientras, tocá <b>⌨️ Escribir</b>.":"El micrófono sí capta tu voz, pero el servicio de voz de Chrome no devuelve texto"+(lastErr?" (error: <b>"+lastErr+"</b>)":"")+". Suele ser la red, una VPN, un antivirus o el navegador. Probá en <b>Microsoft Edge</b> o en el celular con Chrome. Mientras, tocá <b>⌨️ Escribir</b>.")},6000)};
       rec.onresult=e=>{let s="";for(let r=0;r<e.results.length;r++)s+=e.results[r][0].transcript+" ";text=(base+" "+s).replace(/\s+/g," ").trim();
         el("heard").textContent=text;status("");clearTimeout(noSound);clearTimeout(silence);

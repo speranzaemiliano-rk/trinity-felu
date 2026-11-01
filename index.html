@@ -655,6 +655,16 @@ async function _fbGenerar(o){
   }
   throw ultimo||new Error("sin respuesta");
 }
+function _iaMsg(e){
+  let m=String((e&&e.message)||e||"").replace(/^AI:\s*/,"").replace(/Error fetching from \S+?:(\s+|$)/,"").trim();
+  const d=e&&e.customErrorData;if(d&&d.status&&m.indexOf("["+d.status)<0)m="["+d.status+(d.statusText?" "+d.statusText:"")+"] "+m;
+  let pista="";
+  if(/failed to fetch|networkerror|load failed|network request/i.test(m)||!m)pista=" · El navegador no pudo llegar a Firebase: revisá la conexión y probá sin bloqueador de anuncios, antivirus o VPN.";
+  else if(/app ?check/i.test(m))pista=" · Firebase exige App Check: falta registrar la app con reCAPTCHA.";
+  else if(/referer|referrer|api key|api_key/i.test(m))pista=" · La clave de Firebase no permite este sitio.";
+  else if(/quota|429|resource.?exhausted/i.test(m))pista=" · Se acabó el cupo gratis por ahora.";
+  return (m||"sin detalle").slice(0,230)+pista;
+}
 function _jsonDe(t){t=String(t||"").trim().replace(/^```(?:json)?\s*/i,"").replace(/```\s*$/,"");const i=t.indexOf("{"),j=t.lastIndexOf("}");if(i<0||j<i)throw new Error("respuesta inválida");return JSON.parse(t.slice(i,j+1))}
 function _iaNorm(o){if(!o||!o.reply)throw new Error("respuesta vacía");return{reply:String(o.reply).slice(0,400),ok:!!o.ok,tip:String(o.tip||"").slice(0,200),model:String(o.model||"").slice(0,200),end:!!o.end}}
 function _iaContents(messages){
@@ -829,7 +839,7 @@ function mountConv(rootId,mode){
         if(!spoke){micUI(false);return res(null)}
         micUI(true,"Entendiendo lo que dijiste…");
         try{const t=await iaTranscribir(_aWav(chunks,_actx.sampleRate));micUI(false);res(t||null)}
-        catch(e){console.warn("[IA] transcribir:",e);micUI(false);status("No pude pasar tu voz a texto ("+esc(String(e&&e.message||e).slice(0,140))+"). Tocá <b>⌨️ Escribir</b>.");res(null)}
+        catch(e){console.warn("[IA] transcribir:",e);micUI(false);status("No pude pasar tu voz a texto ("+esc(_iaMsg(e))+"). Tocá <b>⌨️ Escribir</b>.");res(null)}
       };
       try{
         primeAudio();audioSesion("play-and-record");
@@ -934,7 +944,7 @@ function mountConv(rootId,mode){
       let r;
       try{r=await iaPedir(hist,k,max)}catch(e){
         if(run!==id)return false;
-        if(k===1){sttRec=false;status("No pude conectarme con la IA ("+esc(String(e&&e.message||e).slice(0,140))+"): sigo con las preguntas de siempre.");return null}
+        if(k===1){sttRec=false;status("No pude conectarme con la IA ("+esc(_iaMsg(e))+"). Sigo con las preguntas de siempre.");console.warn("[IA] sin conexión:",e);return null}
         status("Se cortó la conexión con la IA: cerramos la charla.");r={reply:"Thank you. That's the end of our conversation. Goodbye!",ok:true,tip:"",model:"",end:true}}
       if(run!==id)return false;
       if(prev){total++;

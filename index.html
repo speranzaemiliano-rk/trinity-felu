@@ -835,7 +835,7 @@ AGENDA (the real Grade 3 syllabus). "turn" is the number of this turn and "max" 
  2: his name (warm-up)
  3: HOME LIFE: his house, how many rooms, what is in his bedroom, or who he lives with (there is / there are)
  4: LOCAL AREA: is his house near his school, what can he see near his house (a park? shops?)
- 5: LOCATIONS and DIRECTIONS: where a place is (near, opposite, in front of, behind, next to) or how to get from his school to his house (go straight on, turn left/right, cross the street, along, up, down)
+ 5: LOCATIONS and DIRECTIONS in the NEIGHBOURHOOD (not about rooms of the house): ask where a place is, e.g. "Where is the supermarket? Is it near your house?" (near, opposite, in front of, behind, next to), or "How do I get from your school to your house?" (go straight on, turn left/right, cross the street, along, up, down)
  6: PLACE OF STUDY: school subjects, what is in his classroom, or what time school finishes
  7: DAILY ROUTINE and TIMES: what time he gets up / goes to bed, what he does after school (encourage "and" / "and then")
  8: FREE TIME and CAN / CAN'T: hobbies, the weekend, what he can and can't do
@@ -922,6 +922,14 @@ async function _iaWorker(body,ms){
   finally{clearTimeout(t)}
 }
 // La charla: devuelve {reply, ok, tip, model, end}
+async function iaPedirReintentos(h,k,max,nota){   // a mitad de la charla se reintenta una vez antes de darse por vencido
+  const intentos=k===1?1:2;let ult;
+  for(let i=0;i<intentos;i++){
+    try{return await iaPedir(h,k,max,nota)}
+    catch(e){ult=e;console.warn("[IA] intento "+(i+1)+" falló:",e);if(i<intentos-1)await new Promise(r=>setTimeout(r,900))}
+  }
+  throw ult;
+}
 async function iaPedir(messages,turn,max,nota){
   if(fbListo())return _iaNorm(_jsonDe(await _fbGenerar({system:SISTEMA_IA+"\nturn="+turn+" max="+max+(nota?"\nNOTE: "+nota:""),contents:_iaContents(messages),json:true,temp:.9,tokens:1200})));
   return _iaNorm(await _iaWorker({messages,turn,max},20000));
@@ -1336,10 +1344,10 @@ function mountConv(rootId,mode){
     for(let k=1;k<=max+1;k++){
       el("n").textContent=`${E?"Examen oral":"Charla con IA"} · ${Math.min(k,max)} de ${max}`;el("bar").style.width=(Math.min(k-1,max)/max*100)+"%";
       let r;
-      try{r=await iaPedir(hist,k,max)}catch(e){
+      try{r=await iaPedirReintentos(hist,k,max)}catch(e){
         if(run!==id)return false;
         if(k===1){if(/app ?check|not enabled|api key|referer|referrer|permission|40[13]/i.test(String(e&&e.message||e)))sttRec=false;status("No pude conectarme con la IA ("+esc(_iaMsg(e))+"). Sigo con las preguntas de siempre.");console.warn("[IA] sin conexión:",e);return null}
-        status("Se cortó la conexión con la IA: cerramos la charla.");r={reply:"Thank you. That's the end of our conversation. Goodbye!",ok:true,tip:"",model:"",end:true}}
+        console.warn("[IA] se cortó la charla:",e);status("Se cortó la conexión con la IA ("+esc(_iaMsg(e))+"): cerramos la charla.");r={reply:"Thank you. That's the end of our conversation. Goodbye!",ok:true,tip:"",model:"",end:true}}
       if(r.end&&k<max&&fbListo()){   // se despidió antes de tiempo: se le pide que siga con el próximo tema del plan
         try{const r2=await iaPedir(hist,k,max,"The exam is NOT over yet. Do not say goodbye and do not set end to true. React to the child's last answer in a few words and continue with the next topic of the agenda.");if(r2&&r2.reply&&!r2.end)r=r2}catch(e){}
       }
@@ -1683,7 +1691,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · programa 6";
+const BUILD="2026-11-01 · programa 7";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};

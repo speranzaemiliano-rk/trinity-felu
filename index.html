@@ -987,7 +987,7 @@ async function iaTranscribir(blob){
 }
 
 // --- grabación en WAV (funciona en Safari/iPhone, que no tiene dictado confiable)
-let _actx=null;
+let _actx=null,_cap=null;
 function primeAudio(){   // se llama DENTRO de un toque: en iPhone el audio sólo arranca así
   try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;if(!_actx||_actx.state==="closed")_actx=new AC();if(_actx.state==="suspended")_actx.resume()}catch(e){}
 }
@@ -1004,6 +1004,36 @@ async function abrirMic(constraints){
     }
     throw e;
   }
+}
+// Sesión de micrófono: se abre UNA vez al tocar «Empezar» (en iPhone eso exige un toque) y queda abierta toda la charla,
+// así cada turno escucha solo, sin tocar 🎤. Mientras el examinador habla, los datos del micrófono se descartan.
+async function capIniciar(){
+  if(_cap&&_cap.stream&&_cap.stream.getTracks().some(t=>t.readyState==="live"))return _cap;
+  capDetener();
+  primeAudio();
+  const stream=await abrirMic({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}});   // sin supresión de ruido: en varias notebooks "recorta" la voz suave
+  if(_actx.state!=="running")await Promise.race([_actx.resume(),new Promise(r=>setTimeout(r,1500))]);
+  const src=_actx.createMediaStreamSource(stream),proc=_actx.createScriptProcessor(4096,1,1);
+  const cap={stream,src,proc,rate:_actx.sampleRate,onFrame:null};
+  proc.onaudioprocess=e=>{if(cap.onFrame)cap.onFrame(e.inputBuffer.getChannelData(0))};
+  src.connect(proc);proc.connect(_actx.destination);
+  stream.getTracks().forEach(t=>{t.onended=()=>{if(_cap===cap)_cap=null}});
+  _cap=cap;return cap;
+}
+function capDetener(){
+  if(!_cap)return;const c=_cap;_cap=null;
+  try{c.proc.onaudioprocess=null;c.proc.disconnect()}catch(e){}try{c.src.disconnect()}catch(e){}
+  c.stream.getTracks().forEach(t=>t.stop());
+  if(_actx){const x=_actx;_actx=null;x.close().catch(()=>{})}
+  audioSesion("auto");
+}
+async function abrirSesionMic(){   // "ok" | "denied" | "nodev" | "error:X"
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){micPermState="nodev";return "nodev"}
+  try{await capIniciar();micPermState="ok";return "ok"}
+  catch(e){
+    audioSesion("auto");const n=e&&e.name;
+    micPermState=(n==="NotAllowedError"||n==="SecurityError")?"denied":(n==="NotFoundError"||n==="OverconstrainedError")?"nodev":"error:"+(n||"desconocido");
+    return micPermState}
 }
 function _aWav(chunks,rate){
   let n=0;chunks.forEach(c=>n+=c.length);
@@ -1155,10 +1185,10 @@ function sayLocal(t,status,op){
   return new Promise(res=>{
     const fallback=()=>setTimeout(res,Math.min(6000,600+t.length*55));
     if(!synth){return sayOnline(t).then(ok=>{if(!ok)status("Este navegador no puede leer en voz alta. Abrí el link en <b>Chrome</b> o <b>Edge</b>.");return !!ok})}
-    unlockVoice();audioSesion("playback");   // sólo mientras habla la voz del navegador
+    unlockVoice();if(!_cap)audioSesion("playback");   // sólo mientras habla la voz del navegador (con el micrófono abierto no se toca el modo)
     let started=false,ended=false,tries=0;
     const maxMs=Math.max(12000,t.length*160+6000);
-    const fin=()=>{if(ended)return;ended=true;ttsKeepAlive(false);audioSesion("auto");res(started)};
+    const fin=()=>{if(ended)return;ended=true;ttsKeepAlive(false);if(!_cap)audioSesion("auto");res(started)};
     const go=()=>{
       if(!voice)pickVoice();
       const u=new SpeechSynthesisUtterance(t);
@@ -1207,7 +1237,7 @@ function mountConv(rootId,mode){
     <label class="chk"><input type="checkbox" id="${P}help" ${E?"":"checked"}> 💡 Ayudas (cómo se dice)</label>
     <label class="chk">⏩ Velocidad <select id="${P}vel"><option value="normal">Normal</option><option value="rapida">Rápida</option></select></label>
     ${IS_IOS&&fbListo()?`<label class="chk">🔊 Voz <select id="${P}voz"><option value="celu">Del celular (rápida)</option><option value="ia">Natural (IA, 10 por día)</option></select></label>`:""}
-    <label class="chk"><input type="checkbox" id="${P}tap" ${IS_IOS?"checked":""}> Tocar 🎤 para hablar</label>
+    <label class="chk"><input type="checkbox" id="${P}tap"> Tocar 🎤 para hablar</label>
     ${IA_ON?`<label class="chk"><input type="checkbox" id="${P}ia" checked> 🤖 Examinador con IA</label>`:""}</div>
   <div class="bar"><i id="${P}bar"></i></div>
   <div class="chat" id="${P}chat" aria-live="polite"><div class="msg tip">${E
@@ -1254,11 +1284,8 @@ function mountConv(rootId,mode){
   // Escucha por grabación: graba en WAV, corta sola tras un silencio (o con «Listo») y la IA lo pasa a texto
   function listenRec(){
     return new Promise(async res=>{
-      let stream=null,src=null,proc=null,chunks=[],done=false,spoke=false,lastVoice=0,t0=0,cap=null,nf=0,th=0.02,rate=44100,pk=0,adelanto=null;
-      const cleanup=()=>{clearTimeout(cap);finishNow=null;recAbort=null;
-        try{if(proc){proc.onaudioprocess=null;proc.disconnect()}}catch(e){}try{if(src)src.disconnect()}catch(e){}
-        if(stream)stream.getTracks().forEach(t=>t.stop());el("lvl").style.width="0";audioSesion("auto");
-        if(_actx){const c=_actx;_actx=null;c.close().catch(()=>{})}};   // libera el audio: si no, en iPhone la voz del examinador queda muda
+      let chunks=[],done=false,spoke=false,lastVoice=0,t0=0,capT=null,nf=0,th=0.02,rate=44100,pk=0,adelanto=null;
+      const cleanup=()=>{clearTimeout(capT);finishNow=null;recAbort=null;if(_cap)_cap.onFrame=null;el("lvl").style.width="0"};
       recAbort=()=>{if(done)return;done=true;cleanup();micUI(false);res(null)};
       const terminar=async()=>{
         if(done)return;done=true;cleanup();
@@ -1275,17 +1302,13 @@ function mountConv(rootId,mode){
         catch(e){console.warn("[IA] transcribir:",e);micUI(false);status("No pude pasar tu voz a texto ("+esc(_iaMsg(e))+"). Tocá <b>⌨️ Escribir</b>.");res(null)}
       };
       try{
-        primeAudio();audioSesion("play-and-record");
         el("talk").hidden=true;el("done").hidden=false;
-        stream=await abrirMic({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}});   // sin supresión de ruido: en varias notebooks "recorta" la voz suave
-        if(done){stream.getTracks().forEach(t=>t.stop());return}
-        if(_actx.state!=="running")await Promise.race([_actx.resume(),new Promise(r=>setTimeout(r,1500))]);
-        rate=_actx.sampleRate;
-        src=_actx.createMediaStreamSource(stream);
-        proc=_actx.createScriptProcessor(4096,1,1);
-        proc.onaudioprocess=e=>{
+        const c=await capIniciar();      // normalmente ya está abierto desde «Empezar»; si no, se intenta abrir ahora
+        if(done)return;
+        rate=c.rate;t0=performance.now();
+        c.onFrame=d=>{
           if(done)return;
-          const d=e.inputBuffer.getChannelData(0);chunks.push(new Float32Array(d));
+          chunks.push(new Float32Array(d));
           let m=0;for(let i=0;i<d.length;i++){const a=Math.abs(d[i]);if(a>m)m=a}
           if(m>pk)pk=m;el("lvl").style.width=Math.min(100,m*260)+"%";
           const now=performance.now();
@@ -1296,12 +1319,14 @@ function mountConv(rootId,mode){
           if(spoke&&now-lastVoice>1250)terminar();
           else if(!spoke&&now-t0>12000)terminar();
         };
-        src.connect(proc);proc.connect(_actx.destination);
-        t0=performance.now();micUI(true,"Grabando… hablá ahora");
-        finishNow=()=>terminar();cap=setTimeout(terminar,20000);
+        micUI(true,"Te escucho… hablá ahora");
+        finishNow=()=>terminar();capT=setTimeout(terminar,20000);
       }catch(e){
         done=true;cleanup();micUI(false);
-        status("No pude abrir el micrófono ("+esc(e.name||e.message)+"). "+(e.name==="NotAllowedError"?"Permitile el micrófono a este sitio (en iPhone: Ajustes → Safari → Micrófono) y recargá. ":"")+"Mientras, tocá <b>⌨️ Escribir</b>.");res(null);
+        // el celular no dejó abrir el micrófono fuera de un toque: se pasa al modo «tocar 🎤» y se sigue con la misma pregunta
+        el("tap").checked=true;cambioDeModo=true;
+        status("No pude abrir el micrófono solo ("+esc(e.name||e.message)+"). Tocá <b>🎤 Hablar</b> cuando quieras contestar."+(e.name==="NotAllowedError"?" Si no te deja, en iPhone: Ajustes → Safari → Micrófono → Permitir.":""));
+        res(null);
       }
     });
   }
@@ -1497,14 +1522,15 @@ function mountConv(rootId,mode){
     bubble("tip",E?`<span class="grade">${grade}</span><br><b>${pct}%</b> — ${msg}${rv}`:`<b>¡Terminaste la conversación!</b><br>Respuestas completas: <b>${pct}%</b>${rv}`);
     endUI();el("start").textContent=E?"Hacer otro examen oral":"Otra conversación (preguntas nuevas)";activeStop=null;
   }
-  function endUI(){el("start").hidden=false;el("stop").hidden=true;el("rep").hidden=true;el("kb").hidden=true;micUI(false)}
-  function stopAll(){run++;lvlStop();if(recAbort){recAbort();recAbort=null}if(synth)synth.cancel();if(rec){try{rec.abort()}catch(e){}rec=null}finishNow=null;typedResolve=null;micUI(false)}
+  function endUI(){capDetener();el("start").hidden=false;el("stop").hidden=true;el("rep").hidden=true;el("kb").hidden=true;micUI(false)}
+  function stopAll(){run++;capDetener();lvlStop();if(recAbort){recAbort();recAbort=null}if(synth)synth.cancel();if(rec){try{rec.abort()}catch(e){}rec=null}finishNow=null;typedResolve=null;micUI(false)}
   function halt(){const was=!el("start").hidden?false:true;stopAll();if(was){endUI();el("start").textContent=E&&total>0?"Hacer otro examen oral":"Empezar de nuevo";bubble("tip","Conversación en pausa.")}activeStop=null}
   el("start").onclick=async()=>{
-    stopAll();unlockVoice();primeAudio();calentarIA();
+    stopAll();if(activeStop)activeStop();      // si hay otra charla andando se la frena ANTES de abrir el micrófono
+    unlockVoice();primeAudio();calentarIA();
     if(!micBroken){
       status("Permitile al navegador usar el micrófono (aparece un cartel arriba a la izquierda)…");
-      const m=await prepMic();status("");
+      const m=(sttRec&&IA_ON)?await abrirSesionMic():await prepMic();status("");
       if(m==="denied")typeMode(MSG_MIC_DENEGADO());
       else if(m==="nodev")typeMode("No se encontró micrófono. Escribí la respuesta:");
       else if(m.indexOf("error:")===0){micPermState="unknown";status("El micrófono no abrió ahora ("+esc(m.slice(6))+"). Probá tocar 🎤 Hablar igual; si no anda, cerrá otras apps que usen el micrófono y recargá, o usá ⌨️ Escribir.")}
@@ -1519,7 +1545,7 @@ function mountConv(rootId,mode){
     primeAudio();micPermState="unknown";
     const sinDictado=!SR&&!IA_ON;
     let m="ok";
-    if(!sinDictado){status("Probando el micrófono…");m=await prepMic();status("")}
+    if(!sinDictado){status("Probando el micrófono…");m=(sttRec&&IA_ON)?await abrirSesionMic():await prepMic();status("")}
     if(m==="denied"){typeMode(MSG_MIC_DENEGADO());return}
     if(m==="nodev"){typeMode("No se encontró micrófono. Escribí la respuesta:");return}
     if(m.indexOf("error:")===0){status("El micrófono no abrió ("+esc(m.slice(6))+"). Cerrá otras apps que lo usen, recargá la página y probá de nuevo.");return}
@@ -1790,7 +1816,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · voz 1";
+const BUILD="2026-11-01 · manos libres 1";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};

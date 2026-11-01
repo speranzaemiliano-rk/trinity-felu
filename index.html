@@ -239,7 +239,7 @@ td.say-td.pressed{background:color-mix(in srgb,var(--accent) 35%,transparent)}
 
 <details id="diagSonido" style="margin-bottom:14px;border-color:var(--accent)">
   <summary>🔧 ¿No suena? Diagnóstico de sonido</summary>
-  <p class="es">Tocá los botones <b>de a uno</b>, en orden, y fijate si suena. Abajo aparece qué pasó. Si algo falla, <b>sacá una captura de esta pantalla</b> y mandásela a quien te ayuda.</p>
+  <p class="es">En el iPhone, primero revisá que <b>no haya una campanita tachada 🔕</b> arriba junto a la hora (modo silencio) y que el volumen esté arriba. Después tocá los botones <b>de a uno</b>, en orden, y fijate si suena. Abajo aparece qué pasó. Si algo falla, <b>sacá una captura de esta pantalla</b> y mandásela a quien te ayuda.</p>
   <div class="sbtns"><button class="btn" id="dsA">1) Audio del sitio</button><button class="btn alt" id="dsB">2) Voz del navegador</button><button class="btn ghost" id="dsC">3) Voz de la IA</button></div>
   <ol id="dsLog" class="log"></ol>
 </details>
@@ -842,7 +842,7 @@ function sayLocal(t,status){
         sayOnline(t).then(ok=>{if(!ok)status("No se pudo reproducir la voz ("+e.error+").");fin()})};
       synth.speak(u);
       // si a los 2,5 s no arrancó, reintento una vez; si sigue mudo, aviso
-      setTimeout(()=>{if(started||ended)return;if(tries<1){tries++;try{synth.cancel()}catch(e){}setTimeout(go,150)}else{sayOnline(t).then(ok=>{if(ok)return fin();status((noEnVoice?"Tu celular no tiene voz en inglés instalada: Ajustes → Texto a voz → Google → Instalar datos de voz → English. ":"")+"No se escucha la voz. Subí el volumen multimedia o probá con <b>Chrome</b> / <b>Edge</b>. Podés activar <b>Ver lo que dice el examinador</b> para leer las preguntas.");fin()})}},1600);
+      setTimeout(()=>{if(started||ended)return;if(tries<1){tries++;try{synth.cancel()}catch(e){}setTimeout(go,150)}else{sayOnline(t).then(ok=>{if(ok)return fin();status((noEnVoice?"Tu celular no tiene voz en inglés instalada: Ajustes → Texto a voz → Google → Instalar datos de voz → English. ":"")+(IS_IOS?"No se escucha la voz. <b>En el iPhone casi siempre es el modo silencio</b>: fijate si hay una <b>campanita tachada 🔕</b> arriba junto a la hora y sacalo con el interruptor del costado (o desde el Centro de control), y subí el volumen con los botones. ":"No se escucha la voz. Subí el volumen multimedia o probá con <b>Chrome</b> / <b>Edge</b>. ")+"Podés activar <b>Ver lo que dice el examinador</b> para leer las preguntas.");fin()})}},1600);
     };
     // Si no hay nada sonando, se habla EN EL ACTO: los celulares sólo dejan hablar dentro del toque (con demora no suena)
     if(synth.speaking||synth.pending){try{synth.cancel()}catch(e){}setTimeout(()=>{try{synth.resume()}catch(e){}go()},ANDROID?450:120)}
@@ -1088,7 +1088,7 @@ function mountConv(rootId,mode){
     if(!micBroken){
       status("Permitile al navegador usar el micrófono (aparece un cartel arriba a la izquierda)…");
       const m=await prepMic();status("");
-      if(m==="denied")typeMode("No hay permiso para el micrófono. Tocá el candado junto a la dirección → Micrófono → Permitir, y recargá. Mientras tanto, escribí:");
+      if(m==="denied")typeMode(IS_IOS?"El iPhone no dejó usar el micrófono. Arreglalo así: en Safari tocá <b>aA</b> (a la izquierda de la dirección) → <b>Configuración del sitio web</b> → <b>Micrófono → Permitir</b>, y recargá la página. (Si abriste el link desde WhatsApp, Instagram o un mail, abrilo en <b>Safari</b>.) Mientras tanto, escribí:":"No hay permiso para el micrófono. Tocá el candado junto a la dirección → Micrófono → Permitir, y recargá. Mientras tanto, escribí:");
       else if(m==="nodev")typeMode("No se encontró micrófono. Escribí la respuesta:");
     }
     conversation()};
@@ -1341,7 +1341,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · sonido 5";
+const BUILD="2026-11-01 · sonido 6";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};

@@ -138,6 +138,11 @@ h3.sec{font-family:var(--display);font-weight:800;font-size:1.2rem;color:var(--m
 .msg .r{color:var(--good);font-weight:700}
 .grade{font-family:var(--display);font-weight:800;font-size:2rem;color:var(--blue)}
 .chat.fin{max-height:none;overflow:visible}
+#rkVer{position:fixed;left:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 4px);z-index:40;font:700 10px/1 var(--body);color:var(--muted);background:color-mix(in srgb,var(--paper) 82%,transparent);padding:3px 7px;border-radius:8px;opacity:.85;pointer-events:none}
+.rk-nuevo{position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:70;display:flex;align-items:center;gap:10px;background:var(--accent);color:var(--accent-ink);padding:10px 12px;border-radius:14px;font-weight:800;box-shadow:0 8px 24px var(--shadow)}
+.rk-nuevo span{flex:1;font-size:.95rem;line-height:1.25}
+.rk-nuevo button{font:800 .95rem var(--body);border:0;border-radius:10px;padding:8px 12px;background:var(--ink);color:var(--paper);cursor:pointer}
+.rk-nuevo button.x{background:transparent;color:inherit;padding:8px}
 .msg.nota{scroll-margin-top:90px;align-self:stretch;max-width:none;background:var(--paper);border:2px solid var(--blue);border-radius:18px;padding:16px;font-size:.98rem}
 .msg.nota p{margin:.55rem 0}
 .msg.nota h4{font-family:var(--display);font-weight:600;font-size:1.02rem;margin:.9rem 0 .25rem;color:var(--blue)}
@@ -583,6 +588,7 @@ ul.plano{margin:.3rem 0;padding-left:1.15rem}ul.plano li{margin:.4rem 0}
 </section>
 </div>
 <p id="buildInfo" class="es" style="text-align:center;margin:26px 0 40px;font-size:.78rem;opacity:.7"></p>
+<div id="rkVer" aria-hidden="true"></div>
 
 <script>
 // ---- ordinales
@@ -2021,7 +2027,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · voz arreglada 3";
+const BUILD="2026-11-01 · voz arreglada 4";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};
@@ -2119,6 +2125,42 @@ const BUILD="2026-11-01 · voz arreglada 3";
 
 // ---- instalar como app
 if("serviceWorker"in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
+// ---- ¿Hay una versión nueva? En el iPhone una app que vuelve del fondo NO se recarga sola: puede quedar horas o días con la versión vieja en memoria
+// («sigue igual» aunque ya esté arreglado). Al abrir se recarga sola si quedó una versión vieja; al volver del fondo sólo avisa, para no cortar lo que se estaba haciendo.
+$("rkVer").textContent=BUILD;
+(function(){
+  if(location.protocol!=="https:")return;
+  let avisado=false,ultimo=0;
+  const enCharla=()=>!!document.querySelector("#practice-chat .msg.kid,#oral-chat .msg.kid,#practice-chat .msg.nota,#oral-chat .msg.nota")||["practice-start","oral-start"].some(id=>{const b=document.getElementById(id);return b&&b.hidden});
+  function recargar(nueva){
+    try{sessionStorage.setItem("rk_recarga",nueva)}catch(e){}
+    (async()=>{try{if(window.caches){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}}catch(e){}
+      location.replace(location.pathname+"?v="+Date.now())})();   // una dirección nueva: no sale del caché del navegador
+  }
+  function aviso(nueva){
+    if(document.querySelector(".rk-nuevo"))return;
+    const d=document.createElement("div");d.className="rk-nuevo";d.setAttribute("role","status");
+    d.innerHTML='<span>🔄 Hay una versión nueva de la app.</span><button class="ok">Actualizar</button><button class="x" aria-label="Cerrar">✕</button>';
+    d.querySelector(".ok").onclick=()=>recargar(nueva);d.querySelector(".x").onclick=()=>d.remove();
+    document.body.appendChild(d);
+  }
+  async function revisar(alAbrir){
+    const ahora=Date.now();if(avisado||ahora-ultimo<8000)return;ultimo=ahora;   // (varios eventos seguidos no repiten la consulta)
+    try{
+      const r=await fetch("index.html?c="+ahora,{cache:"no-store"});if(!r.ok)return;
+      const m=/const BUILD="([^"]+)"/.exec(await r.text());
+      if(!m||m[1]===BUILD)return;
+      let yaProbo="";try{yaProbo=sessionStorage.getItem("rk_recarga")||""}catch(e){}
+      avisado=true;
+      if(alAbrir&&!enCharla()&&yaProbo!==m[1])recargar(m[1]);   // recién abierta y vieja: se recarga sola (una sola vez, para no entrar en un ciclo)
+      else aviso(m[1]);}
+    catch(e){}
+  }
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)revisar(false)});
+  window.addEventListener("pageshow",e=>{if(e.persisted)revisar(false)});
+  setTimeout(()=>revisar(true),2500);
+  if(/[?&]v=\d+/.test(location.search)){try{history.replaceState(null,"",location.pathname+location.hash)}catch(e){}}   // se limpia la dirección después de recargar
+})();
 let instPrompt=null;
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();instPrompt=e;$("instalar").hidden=false});
 $("instalar").onclick=async()=>{if(!instPrompt)return;instPrompt.prompt();await instPrompt.userChoice;instPrompt=null;$("instalar").hidden=true};

@@ -138,6 +138,14 @@ h3.sec{font-family:var(--display);font-weight:800;font-size:1.2rem;color:var(--m
 .msg .r{color:var(--good);font-weight:700}
 .grade{font-family:var(--display);font-weight:800;font-size:2rem;color:var(--blue)}
 .chat.fin{max-height:none;overflow:visible}
+.rk-modal{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(12,18,48,.6)}
+.rk-caja{background:var(--paper);color:var(--ink);border-radius:20px;max-width:420px;width:100%;max-height:90vh;overflow:auto;padding:18px 18px 16px;box-shadow:0 20px 60px var(--shadow)}
+.rk-caja h3{margin:.1rem 0 .5rem;font-size:1.25rem;color:var(--ink)}
+.rk-caja p{margin:.5rem 0}
+.rk-op{display:flex;gap:10px;margin:.7rem 0}
+.rk-chip{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font:800 1.05rem var(--body);padding:14px 8px;border-radius:14px;border:2px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.rk-chip small{font-weight:600;color:var(--muted);font-size:.75rem}
+.rk-chip[aria-pressed="true"]{border-color:var(--good);background:var(--good-bg)}
 #rkVer{position:fixed;left:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 4px);z-index:40;font:700 10px/1 var(--body);color:var(--muted);background:color-mix(in srgb,var(--paper) 82%,transparent);padding:3px 7px;border-radius:8px;opacity:.85;pointer-events:none}
 .rk-nuevo{position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:70;display:flex;align-items:center;gap:10px;background:var(--accent);color:var(--accent-ink);padding:10px 12px;border-radius:14px;font-weight:800;box-shadow:0 8px 24px var(--shadow)}
 .rk-nuevo span{flex:1;font-size:.95rem;line-height:1.25}
@@ -1163,10 +1171,14 @@ async function abrirMic(constraints){
 // Si el navegador no deja abrirlo sin un toque (Safari), listenRec pasa al modo «tocar 🎤» y avisa.
 async function capIniciar(){
   if(_cap&&_cap.stream&&_cap.stream.getTracks().some(t=>t.readyState==="live"))return _cap;
-  capDetener();
+  if(_cap)capDetener();
   primeAudio();
   const ctx=_actx;
-  const stream=await abrirMic({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}});   // sin supresión de ruido: en varias notebooks "recorta" la voz suave
+  let stream;
+  try{stream=await abrirMic({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}})}   // sin supresión de ruido: en varias notebooks "recorta" la voz suave
+  catch(e){   // rechazado (en iPhone: Safari sin un toque): no puede quedar nada abierto ni el modo «grabar y reproducir», que deja mudo al examinador
+    if(_actx===ctx){_actx=null;try{ctx.close().catch(()=>{})}catch(x){}}
+    audioSesion("auto");rklog("mic: no se pudo abrir ("+(e&&e.name||e)+")");throw e}
   const soltar=()=>{stream.getTracks().forEach(t=>t.stop());if(_actx===ctx)_actx=null;try{ctx.close().catch(()=>{})}catch(e){}audioSesion("auto")};
   if(_actx!==ctx){soltar();const e=new Error("cancelado");e.name="Cancelado";throw e}   // frenaron la charla mientras se abría
   if(ctx.state!=="running")await Promise.race([ctx.resume(),new Promise(r=>setTimeout(r,1500))]);
@@ -1178,11 +1190,12 @@ async function capIniciar(){
   stream.getTracks().forEach(t=>{t.onended=()=>{if(_cap===cap)_cap=null}});
   _cap=cap;rklog("mic abierto ("+Math.round(ctx.sampleRate)+" Hz, audioSession="+((navigator.audioSession&&navigator.audioSession.type)||"n/d")+")");return cap;
 }
-function capDetener(){   // suelta TODO: si queda algo abierto, en iPhone la voz del examinador queda muda
-  if(!_cap)return;const c=_cap;_cap=null;rklog("mic soltado");
-  try{c.proc.onaudioprocess=null;c.proc.disconnect()}catch(e){}try{c.src.disconnect()}catch(e){}
-  c.stream.getTracks().forEach(t=>t.stop());
-  if(_actx){const x=_actx;_actx=null;x.close().catch(()=>{})}
+function capDetener(){   // suelta TODO (pistas, AudioContext y modo de audio), aunque no hubiera captura: si queda algo abierto, en iPhone la voz del examinador queda muda
+  const c=_cap;_cap=null;
+  if(c){rklog("mic soltado");
+    try{c.proc.onaudioprocess=null;c.proc.disconnect()}catch(e){}try{c.src.disconnect()}catch(e){}
+    c.stream.getTracks().forEach(t=>t.stop())}
+  if(_actx){const x=_actx;_actx=null;try{x.close().catch(()=>{})}catch(e){}}
   audioSesion("auto");
 }
 function _aWav(chunks,rate){
@@ -1211,6 +1224,7 @@ if(synth){pickVoice();if(synth.addEventListener)synth.addEventListener("voicesch
 // iPhone: Safari sólo deja hablar a la voz del navegador si el PRIMER intento ocurre dentro de un toque que termina (click / touchend).
 // "touchstart" y "pointerdown" no cuentan. Por eso se reintenta en cada toque hasta que una voz arranque de verdad (_voiceOk).
 let _voiceOk=false,_unlockPend=false,_localMuda=false,_iaVozAgotada=false;
+let MP3_OK=true,SIN_VOZ=false;   // los pone la «Revisión de sonido» según lo que la persona dice que escucha (ver abrirSonido)
 function unlockVoice(){
   unlockAudioEl();
   if(!synth||_voiceOk||_unlockPend)return;
@@ -1310,8 +1324,9 @@ function sayOnline(t){
 }
 function say(t,status,op){   // op.ex = lo dice el examinador (velocidad configurable)
   const k=_audioKey(t);
-  rklog("say "+(_AUDIO_SET.has(k)?"[mp3] ":"[voz] ")+String(t).slice(0,44));
-  if(_AUDIO_SET.has(k)){unlockVoice();return _playUrl("audio/"+k+".mp3",op&&op.ex?velAudio():1).then(ok=>{if(ok)return true;if(status)status("⚠️ El audio no pudo sonar ("+_audErr+"). Probando otra voz…");return _sayResto(t,status,op)})}
+  if(SIN_VOZ){rklog("say [sin voz: en este equipo no se oye nada] "+String(t).slice(0,44));return Promise.resolve(false)}
+  rklog("say "+(_AUDIO_SET.has(k)&&MP3_OK?"[mp3] ":"[voz] ")+String(t).slice(0,44));
+  if(_AUDIO_SET.has(k)&&MP3_OK){unlockVoice();return _playUrl("audio/"+k+".mp3",op&&op.ex?velAudio():1).then(ok=>{if(ok)return true;if(status)status("⚠️ El audio no pudo sonar ("+_audErr+"). Probando otra voz…");return _sayResto(t,status,op)})}
   return _sayResto(t,status,op);
 }
 async function _sayResto(t,status,op){   // devuelve true si algo sonó
@@ -1323,7 +1338,7 @@ async function _sayResto(t,status,op){   // devuelve true si algo sonó
     if(r&&r.resto){if(status)status("");return await sayLocal(r.resto,status,op)}
   }
   if(IS_IOS)unlockVoice();
-  if(!(IS_IOS&&_localMuda)){
+  if(!_localMuda){
     const ok=await sayLocal(t,status,op);
     if(ok){if(status)status("");return true}
   }
@@ -1335,6 +1350,76 @@ async function _sayResto(t,status,op){   // devuelve true si algo sonó
     if(r&&r.resto){if(status)status("");return await sayLocal(r.resto,status,op)}
   }
   return false;
+}
+// ---- 🔊 Revisión de sonido. Nadie puede probar el audio de un iPhone desde afuera: quien lo usa dice QUÉ escucha y la app se acomoda sola.
+// Suenan dos cosas (la voz del celular dice «Monday», un audio grabado dice «Tuesday»); según lo que se oyó:
+//   las dos → todo bien · sólo el audio grabado → el examinador usa las preguntas de siempre (todas grabadas) · sólo la voz del celular → no se usan los grabados · ninguna → se leen las preguntas
+function leerSonido(){try{return JSON.parse(localStorage.getItem("trinity_sonido")||"null")}catch(e){return null}}
+function aplicarSonido(r){
+  if(!r)return;
+  MP3_OK=r.mp3!==0;_localMuda=r.tts===0;SIN_VOZ=r.tts===0&&r.mp3===0;
+  const soloGrabado=r.tts===0&&r.mp3===1;   // las preguntas de siempre tienen todas audio grabado
+  document.querySelectorAll('input[id$="-ia"]').forEach(x=>{x.checked=!soloGrabado});
+  if(SIN_VOZ)document.querySelectorAll('input[id$="-txt"]').forEach(x=>{if(!x.checked){x.checked=true;x.dispatchEvent(new Event("change"))}});
+}
+async function rkCopiar(msgEl){
+  const t=window.rkInforme?window.rkInforme():"";let ok=false;
+  try{await navigator.clipboard.writeText(t);ok=true}catch(e){}
+  if(!ok){const ta=document.createElement("textarea");ta.value=t;ta.style.cssText="position:fixed;left:-999px;top:0";document.body.appendChild(ta);ta.select();try{ok=document.execCommand("copy")}catch(e){}ta.remove()}
+  if(msgEl)msgEl.textContent=ok?"✅ Informe copiado: pegalo en el chat.":"No pude copiarlo solo: abrí 🔧 Diagnóstico de sonido y tocá «Copiar informe».";
+}
+function abrirSonido(alTerminar){
+  if(document.getElementById("rkSonido"))return;
+  if(activeStop)activeStop();   // si hay una charla andando, se pausa
+  const m=document.createElement("div");m.id="rkSonido";m.className="rk-modal";m.setAttribute("role","dialog");m.setAttribute("aria-modal","true");
+  m.innerHTML='<div class="rk-caja"></div>';document.body.appendChild(m);
+  const caja=()=>m.querySelector(".rk-caja"),cerrar=()=>m.remove();
+  function intro(){
+    caja().innerHTML=`<h3>🔊 Revisión de sonido</h3>
+      <p>Primero revisá que el <b>volumen esté arriba</b>, que <b>no haya una campanita tachada 🔕</b> junto a la hora (interruptor del costado) y que no haya <b>auriculares, Bluetooth o AirPlay</b> conectados.</p>
+      <p>Tocá <b>▶ Escuchar</b>: vas a oír dos voces. Primero la voz del celular dice «Monday» y después una voz grabada dice «Tuesday».</p>
+      <div class="sbtns"><button class="btn" id="rkSnPlay">▶ Escuchar</button><button class="btn ghost" id="rkSnCerrar">Cerrar</button></div>`;
+    caja().querySelector("#rkSnPlay").onclick=jugar;caja().querySelector("#rkSnCerrar").onclick=cerrar;
+  }
+  async function jugar(){
+    unlockVoice();unlockAudioEl();   // dentro del toque
+    const pTts=sayLocal("Monday",()=>{},{});   // la voz del celular tiene que EMPEZAR dentro del toque
+    caja().innerHTML='<h3>🔊 Escuchando…</h3><p>Prestá atención: primero «Monday», después «Tuesday».</p>';
+    rklog("prueba de sonido: empieza");
+    let tts=false,mp3=false;
+    try{tts=await pTts}catch(e){}
+    rklog("prueba de sonido: voz del celular → "+(tts?"empezó":"NO empezó"));
+    await new Promise(r=>setTimeout(r,450));
+    try{mp3=await _playUrl("audio/"+_audioKey("Tuesday")+".mp3",1)}catch(e){}
+    rklog("prueba de sonido: audio grabado → "+(mp3?"terminó":"FALLÓ ("+_audErr+")"));
+    preguntar(tts,mp3);
+  }
+  function preguntar(tts,mp3){
+    caja().innerHTML=`<h3>¿Qué escuchaste?</h3><p>Tocá lo que oíste (podés marcar las dos):</p>
+      <div class="rk-op"><button class="rk-chip" data-k="tts" aria-pressed="false">🗣️ «Monday»<small>voz del celular</small></button><button class="rk-chip" data-k="mp3" aria-pressed="false">🔈 «Tuesday»<small>audio grabado</small></button></div>
+      <div class="sbtns"><button class="btn" id="rkSnListo">Listo</button><button class="btn ghost" id="rkSnOtra">🔁 Escuchar de nuevo</button></div>`;
+    caja().querySelectorAll(".rk-chip").forEach(b=>b.onclick=()=>b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")==="true"?"false":"true"));
+    caja().querySelector("#rkSnOtra").onclick=jugar;
+    caja().querySelector("#rkSnListo").onclick=()=>{
+      const on=k=>caja().querySelector('[data-k="'+k+'"]').getAttribute("aria-pressed")==="true"?1:0;
+      const r={tts:on("tts"),mp3:on("mp3"),t:Date.now()};
+      rklog("prueba de sonido: se oyó "+(r.tts?"«Monday» (voz del celular) ":"")+(r.mp3?"«Tuesday» (audio grabado)":"")+(r.tts||r.mp3?"":"nada")+" · la app detectó celular="+(tts?"sí":"no")+" grabado="+(mp3?"sí":"no"));
+      try{localStorage.setItem("trinity_sonido",JSON.stringify(r))}catch(e){}
+      aplicarSonido(r);resultado(r)};
+  }
+  function resultado(r){
+    let ico,txt;
+    if(r.tts&&r.mp3){ico="✅";txt="Se oyen las dos voces. Todo listo para el examen."}
+    else if(r.mp3){ico="🔈";txt="Se oye el audio grabado pero <b>no la voz del celular</b>. En el iPhone casi siempre es el <b>modo silencio</b> 🔕: sacalo con el interruptor del costado y tocá «Escuchar de nuevo». Mientras tanto, el examinador va a usar las preguntas de siempre, que tienen todas audio grabado."}
+    else if(r.tts){ico="🗣️";txt="Se oye la voz del celular pero <b>no el audio grabado</b>: el examinador va a hablar sólo con la voz del celular."}
+    else{ico="😕";txt="No se oyó nada. Revisá el <b>volumen</b>, el <b>modo silencio</b> 🔕 y que no haya <b>auriculares, Bluetooth o AirPlay</b> conectados (Centro de control → ícono de audio) y probá de nuevo. Mientras tanto vas a poder <b>leer</b> las preguntas en pantalla."}
+    caja().innerHTML=`<h3>${ico} Resultado</h3><p>${txt}</p><p class="es" id="rkSnMsg"></p>
+      <div class="sbtns"><button class="btn" id="rkSnGo">${alTerminar?"Empezar":"Cerrar"}</button><button class="btn ghost" id="rkSnOtra">🔁 Escuchar de nuevo</button><button class="btn ghost" id="rkSnCopiar">📋 Copiar informe</button></div>`;
+    caja().querySelector("#rkSnGo").onclick=()=>{cerrar();if(alTerminar)alTerminar()};
+    caja().querySelector("#rkSnOtra").onclick=jugar;
+    caja().querySelector("#rkSnCopiar").onclick=()=>rkCopiar(caja().querySelector("#rkSnMsg"));
+  }
+  intro();
 }
 function sayLocal(t,status,op){
   return new Promise(res=>{
@@ -1420,6 +1505,7 @@ function mountConv(rootId,mode){
     <button class="btn ghost" id="${P}rep" hidden>Repetir pregunta</button>
     <button class="btn ghost" id="${P}kb" hidden>⌨️ Escribir</button>
     <button class="btn ghost" id="${P}stop" hidden>${E?"Terminar":"Pausa"}</button>
+    <button class="btn ghost" id="${P}snd">🔊 ¿No se oye? Probar el sonido</button>
   </div></div>`;
   const el=k=>$(P+k);
   const status=m=>{const s=el("st");s.hidden=!m;s.innerHTML=m||""};
@@ -1603,7 +1689,7 @@ function mountConv(rootId,mode){
     rklog("examinador: "+(sono===false?"NINGUNA voz sonó":"voz ok"));
     if(sono===false){   // ninguna voz funcionó: se muestra lo que dice para poder seguir
       el("txt").checked=true;el("chat").querySelectorAll(".msg.ex.hide").forEach(m=>m.classList.remove("hide"));
-      if(!avisoSinVoz){avisoSinVoz=true;bubble("tip","🔇 No pude reproducir la voz del examinador, así que te muestro lo que dice y podés seguir leyendo. Para arreglarla, abrí <b>🔧 ¿No suena? Diagnóstico de sonido</b> (arriba), tocá <b>📋 Copiar informe</b> y pegalo en el chat.")}
+      if(!avisoSinVoz){avisoSinVoz=true;bubble("tip","🔇 No pude reproducir la voz del examinador, así que te muestro lo que dice y podés seguir leyendo. <br><button class=\'btn\' style=\'margin-top:8px\' onclick=\'abrirSonido()\'>🔊 Probar el sonido</button>")}
     }
     await new Promise(r=>setTimeout(r,120))}
   const check=(step,t)=>{const low=t.toLowerCase().replace(/[.,!?]/g,"");const tips=step.need.filter(([re])=>!re.test(low)).map(m=>m[1]);
@@ -1737,6 +1823,7 @@ function mountConv(rootId,mode){
   function halt(){const was=!el("start").hidden?false:true;stopAll();if(was){endUI();el("start").textContent=E&&total>0?"Hacer otro examen oral":"Empezar de nuevo";bubble("tip","Conversación en pausa.")}activeStop=null}
   el("start").onclick=async()=>{
     stopAll();if(activeStop)activeStop();      // si hay otra charla andando se la frena ANTES de abrir el micrófono
+    if(IS_IOS&&!leerSonido()&&!window.__sonidoVisto){window.__sonidoVisto=true;abrirSonido(()=>el("start").click());return}   // iPhone: primero se confirma qué se escucha (una sola vez)
     unlockVoice();calentarIA();   // (sin primeAudio(): no debe quedar ningún audio abierto cuando habla el examinador)
     if(!micBroken){
       status("Permitile al navegador usar el micrófono (aparece un cartel arriba a la izquierda)…");
@@ -1748,6 +1835,7 @@ function mountConv(rootId,mode){
     conversation()};
   el("stop").onclick=()=>{stopAll();activeStop=null;if(E&&total>0){finish();return}endUI();el("start").textContent="Empezar de nuevo";bubble("tip","Conversación en pausa.")};
   el("rep").onclick=()=>{if(curQ)say(curQ,status,{ex:true})};
+  el("snd").onclick=()=>abrirSonido(()=>el("start").click());
   // alternar entre hablar y escribir en cualquier momento
   el("kb").onclick=async()=>{
     if(!micBroken){typeMode("Escribí tu respuesta (en el celu podés dictarla con el 🎤 del teclado):");el("kb").textContent="🎤 Volver al micrófono";if(finishNow){cambioDeModo=true;const f=finishNow;f()}return}
@@ -1769,6 +1857,7 @@ function mountConv(rootId,mode){
 }
 mountConv("practice","practice");
 mountConv("oral","exam");
+aplicarSonido(leerSonido());   // lo que la persona dijo que escucha la última vez
 
 // ---- vocabulario del documento (tocá una palabra para escucharla)
 const VOCAB=[
@@ -2027,7 +2116,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · voz arreglada 4";
+const BUILD="2026-11-01 · voz arreglada 5";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};
@@ -2048,11 +2137,12 @@ const BUILD="2026-11-01 · voz arreglada 4";
       "Dispositivo: "+(IS_IOS?"iPhone/iPad"+(ios?" · iOS "+ios.replace(/_/g,"."):""):/Android/i.test(ua)?"Android":"PC")+" · abierto en: "+modo()+" · pantalla "+innerWidth+"x"+innerHeight,
       "Navegador: "+ua,
       "audioSession: "+((navigator.audioSession&&navigator.audioSession.type)||"no disponible")+" · IA conectada: "+(fbListo()?"sí":"no")+" · tocar 🎤: "+tap+" · velocidad: "+VEL_EX+" · voz iPhone: "+VOZ_IOS,
-      "Voz del navegador desbloqueada: "+(_voiceOk?"sí":"no")+" · voz del celular descartada: "+(_localMuda?"sí":"no")+" · voz de la IA agotada: "+(_iaVozAgotada?"sí":"no")+" · permiso de micrófono: "+micPermState,
+      "Voz del navegador desbloqueada: "+(_voiceOk?"sí":"no")+" · voz del celular descartada: "+(_localMuda?"sí":"no")+" · voz de la IA agotada: "+(_iaVozAgotada?"sí":"no")+" · permiso de micrófono: "+micPermState+" · revisión de sonido: "+(localStorage.getItem("trinity_sonido")||"(sin hacer)")+" · audio grabado usado: "+(MP3_OK?"sí":"no")+" · sin voz: "+(SIN_VOZ?"sí":"no"),
       "--- registro (lo último, abajo) ---"].concat(_RK.length?_RK:["(todavía no pasó nada: hacé una charla y volvé a copiar)"]);
     if(log.children.length){l.push("--- diagnóstico ---");[...log.children].forEach(li=>l.push((li.className==="ok"?"[OK] ":li.className==="no"?"[FALLA] ":"")+li.textContent))}
     return l.join("\n");
   }
+  window.rkInforme=informe;
   $("dsCopy").onclick=async()=>{
     const t=informe();let ok=false;
     try{await navigator.clipboard.writeText(t);ok=true}catch(e){}

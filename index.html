@@ -866,6 +866,7 @@ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 let activeStop=null; // para frenar la otra conversación si se empieza una nueva
 // Pide el permiso del micrófono UNA vez al empezar (el cartel del navegador tarda y antes se confundía con "no anda")
 let micPermState="unknown";
+const MSG_MIC_DENEGADO=()=>IS_IOS?"El iPhone no dejó usar el micrófono. Arreglalo así: en Safari tocá <b>aA</b> (a la izquierda de la dirección) → <b>Configuración del sitio web</b> → <b>Micrófono → Permitir</b>. Después tocá <b>🎤 Probar el micrófono otra vez</b>, acá abajo. (Si abriste el link desde WhatsApp, Instagram o un mail, abrilo en <b>Safari</b>.) Mientras tanto, escribí o dictá con el 🎤 del teclado:":"No hay permiso para el micrófono. Tocá el candado junto a la dirección → Micrófono → Permitir. Después tocá <b>🎤 Probar el micrófono otra vez</b>, acá abajo. Mientras tanto, escribí:";
 async function prepMic(){
   if(micPermState==="ok")return "ok";
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){micPermState="nodev";return "nodev"}
@@ -905,7 +906,7 @@ function mountConv(rootId,mode){
   const el=k=>$(P+k);
   const status=m=>{const s=el("st");s.hidden=!m;s.innerHTML=m||""};
   let micBroken=!SR&&!IA_ON,typedResolve=null,rec=null,finishNow=null,run=0,curQ="";
-  const typeMode=m=>{micBroken=true;el("type").hidden=false;if(m)el("tmsg").innerHTML=m;el("done").hidden=true};
+  const typeMode=m=>{micBroken=true;el("type").hidden=false;if(m)el("tmsg").innerHTML=m;el("done").hidden=true;el("kb").textContent="🎤 Probar el micrófono otra vez"};
   if(!SR&&!IA_ON)typeMode();
   const micUI=(on,txt)=>{el("mic").hidden=!on;if(txt)el("mict").textContent=txt;if(!on)el("heard").textContent=""};
 
@@ -1104,7 +1105,7 @@ function mountConv(rootId,mode){
     if(!micBroken){
       status("Permitile al navegador usar el micrófono (aparece un cartel arriba a la izquierda)…");
       const m=await prepMic();status("");
-      if(m==="denied")typeMode(IS_IOS?"El iPhone no dejó usar el micrófono. Arreglalo así: en Safari tocá <b>aA</b> (a la izquierda de la dirección) → <b>Configuración del sitio web</b> → <b>Micrófono → Permitir</b>, y recargá la página. (Si abriste el link desde WhatsApp, Instagram o un mail, abrilo en <b>Safari</b>.) Mientras tanto, escribí:":"No hay permiso para el micrófono. Tocá el candado junto a la dirección → Micrófono → Permitir, y recargá. Mientras tanto, escribí:");
+      if(m==="denied")typeMode(MSG_MIC_DENEGADO());
       else if(m==="nodev")typeMode("No se encontró micrófono. Escribí la respuesta:");
       else if(m.indexOf("error:")===0){micPermState="unknown";status("El micrófono no abrió ahora ("+esc(m.slice(6))+"). Probá tocar 🎤 Hablar igual; si no anda, cerrá otras apps que usen el micrófono y recargá, o usá ⌨️ Escribir.")}
     }
@@ -1112,9 +1113,21 @@ function mountConv(rootId,mode){
   el("stop").onclick=()=>{stopAll();activeStop=null;if(E&&total>0){finish();return}endUI();el("start").textContent="Empezar de nuevo";bubble("tip","Conversación en pausa.")};
   el("rep").onclick=()=>{if(curQ)say(curQ,status)};
   // alternar entre hablar y escribir en cualquier momento
-  el("kb").onclick=()=>{
-    if(!micBroken){typeMode("Escribí tu respuesta:");el("kb").textContent="🎤 Hablar";if(finishNow){const f=finishNow;f()}}
-    else{micBroken=!SR;el("type").hidden=!micBroken;el("done").hidden=micBroken;el("kb").textContent="⌨️ Escribir"}};
+  el("kb").onclick=async()=>{
+    if(!micBroken){typeMode("Escribí tu respuesta (en el celu podés dictarla con el 🎤 del teclado):");el("kb").textContent="🎤 Volver al micrófono";if(finishNow){const f=finishNow;f()}return}
+    // volver al micrófono: se pide el permiso de nuevo DENTRO del toque (así el iPhone vuelve a preguntar)
+    primeAudio();micPermState="unknown";
+    const sinDictado=!SR&&!IA_ON;
+    let m="ok";
+    if(!sinDictado){status("Probando el micrófono…");m=await prepMic();status("")}
+    if(m==="denied"){typeMode(MSG_MIC_DENEGADO());return}
+    if(m==="nodev"){typeMode("No se encontró micrófono. Escribí la respuesta:");return}
+    if(m.indexOf("error:")===0){status("El micrófono no abrió ("+esc(m.slice(6))+"). Cerrá otras apps que lo usen, recargá la página y probá de nuevo.");return}
+    micBroken=sinDictado;el("type").hidden=!micBroken;el("done").hidden=micBroken;
+    el("kb").textContent="⌨️ Escribir";el("tmsg").innerHTML="Escribí tu respuesta:";
+    if(!micBroken)status("✅ Micrófono listo. Cuando el examinador pregunte, tocá <b>🎤 Hablar</b>.");
+    if(typedResolve){const r=typedResolve;typedResolve=null;micUI(false);r(null)}   // retoma la pregunta ahora con el micrófono
+  };
   el("txt").onchange=e=>el("chat").querySelectorAll(".msg.ex").forEach(m=>m.classList.toggle("hide",!e.target.checked));
 }
 mountConv("practice","practice");
@@ -1358,7 +1371,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · sonido 8";
+const BUILD="2026-11-01 · sonido 9";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};

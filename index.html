@@ -143,6 +143,7 @@ h3.sec{font-family:var(--display);font-weight:800;font-size:1.2rem;color:var(--m
 .rk-caja h3{margin:.1rem 0 .5rem;font-size:1.25rem;color:var(--ink)}
 .rk-caja p{margin:.5rem 0}
 .rk-op{display:flex;gap:10px;margin:.7rem 0}
+.rk-inf{width:100%;box-sizing:border-box;font:11px/1.35 ui-monospace,Menlo,monospace;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);resize:none}
 .rk-chip{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font:800 1.05rem var(--body);padding:14px 8px;border-radius:14px;border:2px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
 .rk-chip small{font-weight:600;color:var(--muted);font-size:.75rem}
 .rk-chip[aria-pressed="true"]{border-color:var(--good);background:var(--good-bg)}
@@ -1354,12 +1355,19 @@ async function _sayResto(t,status,op){   // devuelve true si algo sonó
 // ---- 🔊 Revisión de sonido. Nadie puede probar el audio de un iPhone desde afuera: quien lo usa dice QUÉ escucha y la app se acomoda sola.
 // Suenan dos cosas (la voz del celular dice «Monday», un audio grabado dice «Tuesday»); según lo que se oyó:
 //   las dos → todo bien · sólo el audio grabado → el examinador usa las preguntas de siempre (todas grabadas) · sólo la voz del celular → no se usan los grabados · ninguna → se leen las preguntas
+function pastilla(){   // rincón de la pantalla: versión + qué se oyó en la revisión de sonido (una captura cualquiera ya dice todo)
+  const r=leerSonido(),e=document.getElementById("rkVer");if(!e)return;
+  e.textContent=BUILD+" · sonido: "+(r?(r.tts&&r.mp3?"ok":r.mp3?"sólo grabado":r.tts?"sólo celular":"no se oye"):"sin revisar");
+}
 function leerSonido(){try{return JSON.parse(localStorage.getItem("trinity_sonido")||"null")}catch(e){return null}}
 function aplicarSonido(r){
   if(!r)return;
   MP3_OK=r.mp3!==0;_localMuda=r.tts===0;SIN_VOZ=r.tts===0&&r.mp3===0;
   const soloGrabado=r.tts===0&&r.mp3===1;   // las preguntas de siempre tienen todas audio grabado
   document.querySelectorAll('input[id$="-ia"]').forEach(x=>{x.checked=!soloGrabado});
+  try{const guardado=localStorage.getItem("trinity_tap")==="1";
+    if(r.tts&&r.mp3){if(!guardado)document.querySelectorAll('input[id$="-tap"]').forEach(x=>x.checked=false)}
+    else if(IS_IOS)document.querySelectorAll('input[id$="-tap"]').forEach(x=>x.checked=true)}catch(e){}
   if(SIN_VOZ)document.querySelectorAll('input[id$="-txt"]').forEach(x=>{if(!x.checked){x.checked=true;x.dispatchEvent(new Event("change"))}});
 }
 async function rkCopiar(msgEl){
@@ -1413,7 +1421,10 @@ function abrirSonido(alTerminar){
     else if(r.mp3){ico="🔈";txt="Se oye el audio grabado pero <b>no la voz del celular</b>. En el iPhone casi siempre es el <b>modo silencio</b> 🔕: sacalo con el interruptor del costado y tocá «Escuchar de nuevo». Mientras tanto, el examinador va a usar las preguntas de siempre, que tienen todas audio grabado."}
     else if(r.tts){ico="🗣️";txt="Se oye la voz del celular pero <b>no el audio grabado</b>: el examinador va a hablar sólo con la voz del celular."}
     else{ico="😕";txt="No se oyó nada. Revisá el <b>volumen</b>, el <b>modo silencio</b> 🔕 y que no haya <b>auriculares, Bluetooth o AirPlay</b> conectados (Centro de control → ícono de audio) y probá de nuevo. Mientras tanto vas a poder <b>leer</b> las preguntas en pantalla."}
-    caja().innerHTML=`<h3>${ico} Resultado</h3><p>${txt}</p><p class="es" id="rkSnMsg"></p>
+    pastilla();
+    caja().innerHTML=`<h3>${ico} Resultado</h3><p>${txt}</p>
+      <p class="es">Si seguís sin oír al examinador, sacá una captura de esta pantalla: acá abajo está el informe.</p>
+      <textarea class="rk-inf" readonly rows="8" aria-label="Informe">${esc(window.rkInforme?window.rkInforme(12):"")}</textarea><p class="es" id="rkSnMsg"></p>
       <div class="sbtns"><button class="btn" id="rkSnGo">${alTerminar?"Empezar":"Cerrar"}</button><button class="btn ghost" id="rkSnOtra">🔁 Escuchar de nuevo</button><button class="btn ghost" id="rkSnCopiar">📋 Copiar informe</button></div>`;
     caja().querySelector("#rkSnGo").onclick=()=>{cerrar();if(alTerminar)alTerminar()};
     caja().querySelector("#rkSnOtra").onclick=jugar;
@@ -1460,6 +1471,7 @@ let micPermState="unknown";
 // «Tocar 🎤 para hablar»: se recuerda en el equipo (en un iPhone donde Safari no deja abrir el micrófono solo, queda activado)
 const TAP_GUARDADO=(function(){try{return localStorage.getItem("trinity_tap")==="1"}catch(e){return false}})();
 function recordarTap(on){try{localStorage.setItem("trinity_tap",on?"1":"0")}catch(e){}document.querySelectorAll('input[id$="-tap"]').forEach(x=>x.checked=!!on)}
+const SONIDO_OK=(function(){try{const r=JSON.parse(localStorage.getItem("trinity_sonido")||"null");return !!(r&&r.tts&&r.mp3)}catch(e){return false}})();   // ya se confirmó que se oyen las dos voces
 const MSG_MIC_DENEGADO=()=>IS_IOS?"El iPhone no dejó usar el micrófono. Arreglalo así: en Safari tocá <b>aA</b> (a la izquierda de la dirección) → <b>Configuración del sitio web</b> → <b>Micrófono → Permitir</b>. Después tocá <b>🎤 Probar el micrófono otra vez</b>, acá abajo. (Si abriste el link desde WhatsApp, Instagram o un mail, abrilo en <b>Safari</b>.) Mientras tanto, escribí o dictá con el 🎤 del teclado:":"No hay permiso para el micrófono. Tocá el candado junto a la dirección → Micrófono → Permitir. Después tocá <b>🎤 Probar el micrófono otra vez</b>, acá abajo. Mientras tanto, escribí:";
 async function prepMic(){
   if(micPermState==="ok")return "ok";
@@ -1479,11 +1491,11 @@ function mountConv(rootId,mode){
   const root=$(rootId);
   root.innerHTML=`<div class="card">
   <div class="row" style="margin:0"><span class="tag" id="${P}n">${E?"Examen oral":"Conversación"}</span>
-    <label class="chk"><input type="checkbox" id="${P}txt" ${E?"":"checked"}> Ver lo que dice el examinador</label>
+    <label class="chk"><input type="checkbox" id="${P}txt" ${(!E||(IS_IOS&&!SONIDO_OK))?"checked":""}> Ver lo que dice el examinador</label>
     <label class="chk"><input type="checkbox" id="${P}help" ${E?"":"checked"}> 💡 Ayudas (cómo se dice)</label>
     <label class="chk">⏩ Velocidad <select id="${P}vel"><option value="normal">Normal</option><option value="rapida">Rápida</option></select></label>
     ${IS_IOS&&fbListo()?`<label class="chk">🔊 Voz <select id="${P}voz"><option value="celu">Del celular (rápida)</option><option value="ia">Natural (IA, 10 por día)</option></select></label>`:""}
-    <label class="chk"><input type="checkbox" id="${P}tap" ${TAP_GUARDADO?"checked":""}> Tocar 🎤 para hablar</label>
+    <label class="chk"><input type="checkbox" id="${P}tap" ${(TAP_GUARDADO||(IS_IOS&&!SONIDO_OK))?"checked":""}> Tocar 🎤 para hablar</label>
     ${IA_ON?`<label class="chk"><input type="checkbox" id="${P}ia" checked> 🤖 Examinador con IA</label>`:""}</div>
   <div class="bar"><i id="${P}bar"></i></div>
   <div class="chat" id="${P}chat" aria-live="polite"><div class="msg tip">${E
@@ -1835,7 +1847,7 @@ function mountConv(rootId,mode){
     conversation()};
   el("stop").onclick=()=>{stopAll();activeStop=null;if(E&&total>0){finish();return}endUI();el("start").textContent="Empezar de nuevo";bubble("tip","Conversación en pausa.")};
   el("rep").onclick=()=>{if(curQ)say(curQ,status,{ex:true})};
-  el("snd").onclick=()=>abrirSonido(()=>el("start").click());
+  el("snd").onclick=()=>{if(el("start").hidden)recordarTap(true);abrirSonido(()=>el("start").click())};   // si se apretó en plena charla: vuelve a «tocar 🎤», el modo que andaba
   // alternar entre hablar y escribir en cualquier momento
   el("kb").onclick=async()=>{
     if(!micBroken){typeMode("Escribí tu respuesta (en el celu podés dictarla con el 🎤 del teclado):");el("kb").textContent="🎤 Volver al micrófono";if(finishNow){cambioDeModo=true;const f=finishNow;f()}return}
@@ -2116,7 +2128,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · voz arreglada 5";
+const BUILD="2026-11-01 · voz arreglada 7";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};
@@ -2130,7 +2142,7 @@ const BUILD="2026-11-01 · voz arreglada 5";
     L(null,"Voz del navegador desbloqueada: "+(_voiceOk?"sí":"todavía no")+" · voz del celular descartada en esta sesión: "+(_localMuda?"sí":"no")+" · voz de la IA agotada hoy: "+(_iaVozAgotada?"sí":"no"));
   }
   // informe completo (dispositivo, ajustes, registro de lo que pasó con la voz y el micrófono) para pegarlo en el chat
-  function informe(){
+  function informe(n){
     const ua=navigator.userAgent,ios=(/OS (\d+[_\d]*) like Mac OS X/.exec(ua)||[])[1];
     let tap="(sin guardar)";try{tap=localStorage.getItem("trinity_tap")||tap}catch(e){}
     const l=["Informe Trinity · "+BUILD+" · "+new Date().toLocaleString("es-AR"),
@@ -2138,8 +2150,8 @@ const BUILD="2026-11-01 · voz arreglada 5";
       "Navegador: "+ua,
       "audioSession: "+((navigator.audioSession&&navigator.audioSession.type)||"no disponible")+" · IA conectada: "+(fbListo()?"sí":"no")+" · tocar 🎤: "+tap+" · velocidad: "+VEL_EX+" · voz iPhone: "+VOZ_IOS,
       "Voz del navegador desbloqueada: "+(_voiceOk?"sí":"no")+" · voz del celular descartada: "+(_localMuda?"sí":"no")+" · voz de la IA agotada: "+(_iaVozAgotada?"sí":"no")+" · permiso de micrófono: "+micPermState+" · revisión de sonido: "+(localStorage.getItem("trinity_sonido")||"(sin hacer)")+" · audio grabado usado: "+(MP3_OK?"sí":"no")+" · sin voz: "+(SIN_VOZ?"sí":"no"),
-      "--- registro (lo último, abajo) ---"].concat(_RK.length?_RK:["(todavía no pasó nada: hacé una charla y volvé a copiar)"]);
-    if(log.children.length){l.push("--- diagnóstico ---");[...log.children].forEach(li=>l.push((li.className==="ok"?"[OK] ":li.className==="no"?"[FALLA] ":"")+li.textContent))}
+      "--- registro (lo último, abajo) ---"].concat(_RK.length?_RK.slice(-(n||80)):["(todavía no pasó nada: hacé una charla y volvé a copiar)"]);
+    if(!n&&log.children.length){l.push("--- diagnóstico ---");[...log.children].forEach(li=>l.push((li.className==="ok"?"[OK] ":li.className==="no"?"[FALLA] ":"")+li.textContent))}
     return l.join("\n");
   }
   window.rkInforme=informe;
@@ -2217,7 +2229,7 @@ const BUILD="2026-11-01 · voz arreglada 5";
 if("serviceWorker"in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
 // ---- ¿Hay una versión nueva? En el iPhone una app que vuelve del fondo NO se recarga sola: puede quedar horas o días con la versión vieja en memoria
 // («sigue igual» aunque ya esté arreglado). Al abrir se recarga sola si quedó una versión vieja; al volver del fondo sólo avisa, para no cortar lo que se estaba haciendo.
-$("rkVer").textContent=BUILD;
+pastilla();
 (function(){
   if(location.protocol!=="https:")return;
   let avisado=false,ultimo=0;

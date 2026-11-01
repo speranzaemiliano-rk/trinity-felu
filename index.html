@@ -476,14 +476,14 @@ const $=id=>document.getElementById(id);
     log(location.protocol==="https:",location.protocol==="https:"?"Página segura (https)":"La página no es https: el micrófono no va a funcionar. Abrí el link de github.io.");
     // 1) nivel de sonido
     try{
-      stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      stream=await abrirMic({audio:true});
       const tr=stream.getAudioTracks()[0];log(true,"Permiso de micrófono OK. Usando: <b>"+esc(tr.label||"micrófono")+"</b>");
       ctx=new (window.AudioContext||window.webkitAudioContext)();const an=ctx.createAnalyser();an.fftSize=512;ctx.createMediaStreamSource(stream).connect(an);
       const buf=new Uint8Array(an.fftSize);let peak=0,t0=performance.now(),told=false;
       const tick=()=>{an.getByteTimeDomainData(buf);let m=0;for(const v of buf)m=Math.max(m,Math.abs(v-128));peak=Math.max(peak,m);$("dgLvl").style.width=Math.min(100,m*1.6)+"%";
         if(!told&&performance.now()-t0>4000){told=true;log(peak>8,peak>8?"El micrófono capta sonido.":"El micrófono no capta sonido. Probablemente Chrome está usando otro micrófono: entrá a <b>chrome://settings/content/microphone</b> y elegí el correcto en la lista de arriba. Revisá también que no esté silenciado en Windows.")}
         raf=requestAnimationFrame(tick)};tick();
-    }catch(e){log(false,"No se pudo abrir el micrófono ("+esc(e.name)+"). "+(e.name==="NotAllowedError"?"Tocá el ícono del candado junto a la dirección → Micrófono → Permitir, y recargá.":e.name==="NotFoundError"?"La PC no tiene micrófono conectado.":""));return}
+    }catch(e){log(false,"No se pudo abrir el micrófono ("+esc(e.name)+"). "+(e.name==="InvalidStateError"?"El iPhone no pudo abrir el micrófono en este momento: cerrá otras apps que lo usen (llamada, Siri, grabador), recargá la página y probá de nuevo. ":"")+(e.name==="NotAllowedError"?"Tocá el ícono del candado junto a la dirección → Micrófono → Permitir, y recargá.":e.name==="NotFoundError"?"La PC no tiene micrófono conectado.":""));return}
     // 2) reconocimiento de voz
     const SRc=window.SpeechRecognition||window.webkitSpeechRecognition;
     if(!SRc){log(false,"Este navegador no tiene reconocimiento de voz. Usá <b>Chrome</b> o <b>Edge</b>.");return}
@@ -714,6 +714,19 @@ function primeAudio(){   // se llama DENTRO de un toque: en iPhone el audio sól
   try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;if(!_actx||_actx.state==="closed")_actx=new AC();if(_actx.state==="suspended")_actx.resume()}catch(e){}
 }
 function audioSesion(tipo){try{if(navigator.audioSession)navigator.audioSession.type=tipo}catch(e){}}
+// Abrir el micrófono. En iPhone, si el audio quedó en modo "solo reproducir", Safari lo rechaza con InvalidStateError:
+// por eso se pasa a "grabar" antes de pedirlo y, si igual falla, se suelta y se reintenta una vez.
+async function abrirMic(constraints){
+  audioSesion("play-and-record");
+  try{return await navigator.mediaDevices.getUserMedia(constraints)}
+  catch(e){
+    if(e&&e.name==="InvalidStateError"){
+      audioSesion("auto");await new Promise(r=>setTimeout(r,400));audioSesion("play-and-record");
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    }
+    throw e;
+  }
+}
 function _aWav(chunks,rate){
   let n=0;chunks.forEach(c=>n+=c.length);
   const all=new Float32Array(n);let o=0;chunks.forEach(c=>{all.set(c,o);o+=c.length});
@@ -806,7 +819,6 @@ function sayOnline(t){
   return trozos.reduce((pr,tr)=>pr.then(ok=>ok===false?false:_playUrl("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en-GB&q="+encodeURIComponent(tr.trim()))),Promise.resolve(true));
 }
 function say(t,status){
-  audioSesion("playback");
   const k=_audioKey(t);
   if(_AUDIO_SET.has(k)){unlockVoice();return _playUrl("audio/"+k+".mp3").then(ok=>{if(ok)return;if(status)status("⚠️ El audio no pudo sonar ("+_audErr+"). Probando otra voz…");return _sayResto(t,status)})}
   return _sayResto(t,status);
@@ -824,10 +836,10 @@ function sayLocal(t,status){
   return new Promise(res=>{
     const fallback=()=>setTimeout(res,Math.min(6000,600+t.length*55));
     if(!synth){return sayOnline(t).then(ok=>{if(!ok)status("Este navegador no puede leer en voz alta. Abrí el link en <b>Chrome</b> o <b>Edge</b>.")})}
-    unlockVoice();audioSesion("playback");
+    unlockVoice();audioSesion("playback");   // sólo mientras habla la voz del navegador
     let started=false,ended=false,tries=0;
     const maxMs=Math.max(12000,t.length*160+6000);
-    const fin=()=>{if(ended)return;ended=true;ttsKeepAlive(false);res()};
+    const fin=()=>{if(ended)return;ended=true;ttsKeepAlive(false);audioSesion("auto");res()};
     const go=()=>{
       if(!voice)pickVoice();
       const u=new SpeechSynthesisUtterance(t);
@@ -857,8 +869,12 @@ let micPermState="unknown";
 async function prepMic(){
   if(micPermState==="ok")return "ok";
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){micPermState="nodev";return "nodev"}
-  try{const st=await navigator.mediaDevices.getUserMedia({audio:true});st.getTracks().forEach(t=>t.stop());micPermState="ok";return "ok"}
-  catch(e){micPermState=e.name==="NotFoundError"?"nodev":"denied";return micPermState}
+  try{const st=await abrirMic({audio:true});st.getTracks().forEach(t=>t.stop());audioSesion("auto");micPermState="ok";return "ok"}
+  catch(e){
+    audioSesion("auto");
+    const n=e&&e.name;
+    micPermState=(n==="NotAllowedError"||n==="SecurityError")?"denied":(n==="NotFoundError"||n==="OverconstrainedError")?"nodev":"error:"+(n||"desconocido");
+    return micPermState}
 }
 
 // ---- crea una conversación dentro de un contenedor. mode: "practice" | "exam"
@@ -899,7 +915,7 @@ function mountConv(rootId,mode){
   async function lvlStart(){
     lvlStop();lvlPeak=0;
     try{
-      lvlStream=await navigator.mediaDevices.getUserMedia({audio:true});
+      lvlStream=await abrirMic({audio:true});
       lvlCtx=new (window.AudioContext||window.webkitAudioContext)();if(lvlCtx.state==="suspended")lvlCtx.resume();
       const an=lvlCtx.createAnalyser();an.fftSize=512;lvlCtx.createMediaStreamSource(lvlStream).connect(an);
       const buf=new Uint8Array(an.fftSize);
@@ -913,7 +929,7 @@ function mountConv(rootId,mode){
       let stream=null,src=null,proc=null,chunks=[],done=false,spoke=false,lastVoice=0,t0=0,cap=null,nf=0,th=0.02,rate=44100,pk=0;
       const cleanup=()=>{clearTimeout(cap);finishNow=null;recAbort=null;
         try{if(proc){proc.onaudioprocess=null;proc.disconnect()}}catch(e){}try{if(src)src.disconnect()}catch(e){}
-        if(stream)stream.getTracks().forEach(t=>t.stop());el("lvl").style.width="0";audioSesion("playback");
+        if(stream)stream.getTracks().forEach(t=>t.stop());el("lvl").style.width="0";audioSesion("auto");
         if(_actx){const c=_actx;_actx=null;c.close().catch(()=>{})}};   // libera el audio: si no, en iPhone la voz del examinador queda muda
       recAbort=()=>{if(done)return;done=true;cleanup();micUI(false);res(null)};
       const terminar=async()=>{
@@ -930,7 +946,7 @@ function mountConv(rootId,mode){
       try{
         primeAudio();audioSesion("play-and-record");
         el("talk").hidden=true;el("done").hidden=false;
-        stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}});   // sin supresión de ruido: en varias notebooks "recorta" la voz suave
+        stream=await abrirMic({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}});   // sin supresión de ruido: en varias notebooks "recorta" la voz suave
         if(done){stream.getTracks().forEach(t=>t.stop());return}
         if(_actx.state!=="running")await Promise.race([_actx.resume(),new Promise(r=>setTimeout(r,1500))]);
         rate=_actx.sampleRate;
@@ -1090,6 +1106,7 @@ function mountConv(rootId,mode){
       const m=await prepMic();status("");
       if(m==="denied")typeMode(IS_IOS?"El iPhone no dejó usar el micrófono. Arreglalo así: en Safari tocá <b>aA</b> (a la izquierda de la dirección) → <b>Configuración del sitio web</b> → <b>Micrófono → Permitir</b>, y recargá la página. (Si abriste el link desde WhatsApp, Instagram o un mail, abrilo en <b>Safari</b>.) Mientras tanto, escribí:":"No hay permiso para el micrófono. Tocá el candado junto a la dirección → Micrófono → Permitir, y recargá. Mientras tanto, escribí:");
       else if(m==="nodev")typeMode("No se encontró micrófono. Escribí la respuesta:");
+      else if(m.indexOf("error:")===0){micPermState="unknown";status("El micrófono no abrió ahora ("+esc(m.slice(6))+"). Probá tocar 🎤 Hablar igual; si no anda, cerrá otras apps que usen el micrófono y recargá, o usá ⌨️ Escribir.")}
     }
     conversation()};
   el("stop").onclick=()=>{stopAll();activeStop=null;if(E&&total>0){finish();return}endUI();el("start").textContent="Empezar de nuevo";bubble("tip","Conversación en pausa.")};
@@ -1341,7 +1358,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · sonido 7";
+const BUILD="2026-11-01 · sonido 8";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};
@@ -1390,7 +1407,7 @@ const BUILD="2026-11-01 · sonido 7";
     if(!md||!md.getUserMedia){L(false,"Este navegador o ventana no permite usar el micrófono. Abrí el link en Safari.");return}
     L(null,"Pidiendo permiso del micrófono… (si aparece un cartel, tocá Permitir)");
     let stream,tr;
-    try{stream=await md.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}})}
+    try{stream=await abrirMic({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}})}
     catch(e){L(false,"Permiso del micrófono: "+e.name+(e.message?" · "+e.message:"")+(e.name==="NotAllowedError"?" → en Safari tocá aA → Configuración del sitio web → Micrófono → Permitir":""));return}
     tr=stream.getAudioTracks()[0];
     L(true,"Permiso OK · micrófono: "+((tr&&tr.label)||"(sin nombre)")+" · estado: "+(tr?tr.readyState:"?")+(tr&&tr.muted?" · SILENCIADO por el sistema":""));
@@ -1404,7 +1421,7 @@ const BUILD="2026-11-01 · sonido 7";
     L(null,"🎙️ HABLÁ AHORA en inglés durante 4 segundos…");
     await new Promise(r=>setTimeout(r,4000));
     try{proc.onaudioprocess=null;proc.disconnect();src.disconnect()}catch(e){}
-    stream.getTracks().forEach(t=>t.stop());audioSesion("playback");
+    stream.getTracks().forEach(t=>t.stop());audioSesion("auto");
     const rate=ctx.sampleRate;try{ctx.close()}catch(e){}_actx=null;
     L(frames>0,"Bloques de audio recibidos: "+frames+(frames?"":" → el iPhone no está entregando audio"));
     L(peak>0.01,"Volumen máximo captado: "+Math.round(peak*100)+" %"+(peak>0.01?"":" → muy bajo o nada: acercate y hablá más fuerte"));

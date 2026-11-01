@@ -599,8 +599,8 @@ function fbListo(){const c=_FB.config;return !!(c&&c.apiKey&&c.projectId&&c.appI
 const IA_URL=(function(){try{const q=new URLSearchParams(location.search).get("ia");if(q&&/^https:\/\//.test(q))localStorage.setItem("trinity_ia_url",q);return localStorage.getItem("trinity_ia_url")||""}catch(e){return ""}})();
 const IA_ON=fbListo()||!!IA_URL;
 const IS_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
-// En iPhone el dictado de Safari casi no anda (y no existe en la app instalada): con IA se graba la voz y se transcribe.
-let sttRec=IA_ON&&(!(window.SpeechRecognition||window.webkitSpeechRecognition)||IS_IOS);
+// Con IA, la voz se graba y se transcribe: anda igual en PC, Android e iPhone (el dictado del navegador falla en muchos equipos).
+let sttRec=IA_ON;
 
 const SISTEMA_IA=`You are a kind, patient examiner for the Trinity GESE Grade 3 oral exam (CEFR A1-A2).
 You are talking with Felu, a 10-year-old child from Argentina learning English.
@@ -617,7 +617,7 @@ Answer ONLY with JSON: {"reply": string, "ok": boolean, "tip": string, "model": 
 - "tip": if ok is false, one short helpful tip in SPANISH (max 20 words); otherwise "".
 - "model": if ok is false, a short correct example answer in English; otherwise "".
 - "end": true only for the goodbye.`;
-const PROMPT_TRANSCRIBIR="Transcribe exactly what the speaker says. The speaker is a child learning English (Argentine Spanish accent) and the speech is meant to be in English. Output ONLY the transcription: no quotes, no comments, no translation. If there is no intelligible speech, output nothing.";
+const PROMPT_TRANSCRIBIR="Transcribe exactly what the speaker says. The speaker is a child called Felu (short for Felipe) learning English (Argentine Spanish accent) and the speech is meant to be in English. If you hear his name, write it as Felu. Output ONLY the transcription: no quotes, no comments, no translation. If there is no intelligible speech, output nothing.";
 
 // --- Firebase AI Logic (se carga recién cuando hace falta)
 let _fbP=null,_fbBueno="";
@@ -819,7 +819,7 @@ function mountConv(rootId,mode){
   // Escucha por grabación: graba en WAV, corta sola tras un silencio (o con «Listo») y la IA lo pasa a texto
   function listenRec(){
     return new Promise(async res=>{
-      let stream=null,src=null,proc=null,chunks=[],done=false,spoke=false,lastVoice=0,t0=0,cap=null;
+      let stream=null,src=null,proc=null,chunks=[],done=false,spoke=false,lastVoice=0,t0=0,cap=null,nf=0,th=0.02;
       const cleanup=()=>{clearTimeout(cap);finishNow=null;recAbort=null;
         try{if(proc){proc.onaudioprocess=null;proc.disconnect()}}catch(e){}try{if(src)src.disconnect()}catch(e){}
         if(stream)stream.getTracks().forEach(t=>t.stop());el("lvl").style.width="0";audioSesion("playback")};
@@ -845,7 +845,8 @@ function mountConv(rootId,mode){
           let m=0;for(let i=0;i<d.length;i++){const a=Math.abs(d[i]);if(a>m)m=a}
           el("lvl").style.width=Math.min(100,m*260)+"%";
           const now=performance.now();
-          if(m>0.05){if(!spoke)el("heard").textContent="🎙️ te escucho…";spoke=true;lastVoice=now}
+          if(now-t0<500){if(m>nf)nf=m;th=Math.min(0.05,Math.max(0.012,nf*2.5))}   // los primeros 0,5 s miden el ruido de fondo
+          else if(m>th){if(!spoke)el("heard").textContent="🎙️ te escucho…";spoke=true;lastVoice=now}
           if(spoke&&now-lastVoice>2000)terminar();
           else if(!spoke&&now-t0>12000)terminar();
         };

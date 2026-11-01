@@ -828,6 +828,8 @@ STYLE
 - Ask ONE question at a time. Never repeat a question that was already asked.
 - First react to the child's last answer in a few words (e.g. "Oh, that sounds nice!"), then link to the next question naturally ("Now, let's talk about your school."). The conversation must feel fluid, not like a list of questions.
 - If the child did not understand or asks you to repeat, repeat more slowly with simpler words.
+- NEVER say goodbye and NEVER set "end" to true before turn = max+1, even if his answer is short or is a question. If he asks you something earlier, answer in one short sentence and then continue with the next topic of the agenda. Do not skip topics.
+- All Spanish text you write ("tip", "help", the "es" of hints) must be Argentine Spanish with "vos" (decí, probá, podés), never "puedes" or "di".
 TOPICS (the real Grade 3 syllabus). Follow this order, one topic per turn, linking each one naturally. "turn" is the number of the turn and "max" is the last question turn:
  1: greeting, "How are you today?" (warm-up, not assessed)
  2: his name (warm-up)
@@ -917,8 +919,8 @@ async function _iaWorker(body,ms){
   finally{clearTimeout(t)}
 }
 // La charla: devuelve {reply, ok, tip, model, end}
-async function iaPedir(messages,turn,max){
-  if(fbListo())return _iaNorm(_jsonDe(await _fbGenerar({system:SISTEMA_IA+"\nturn="+turn+" max="+max,contents:_iaContents(messages),json:true,temp:.9,tokens:1200})));
+async function iaPedir(messages,turn,max,nota){
+  if(fbListo())return _iaNorm(_jsonDe(await _fbGenerar({system:SISTEMA_IA+"\nturn="+turn+" max="+max+(nota?"\nNOTE: "+nota:""),contents:_iaContents(messages),json:true,temp:.9,tokens:1200})));
   return _iaNorm(await _iaWorker({messages,turn,max},20000));
 }
 // La voz grabada (WAV) pasa a texto
@@ -1206,6 +1208,9 @@ function mountConv(rootId,mode){
     });
   }
 
+  // Cambiar de modo (hablar ↔ escribir) a mitad de una pregunta no es "no te escuché": se vuelve a escuchar sin avisar a la IA
+  let cambioDeModo=false;
+  async function escuchar(){let t;do{cambioDeModo=false;t=await listen()}while(t===null&&cambioDeModo&&run>=0);return t}
   function listen(){
     if(micBroken)return new Promise(res=>{typedResolve=res;micUI(true,"Escribí tu respuesta…");el("in").focus()});
     return (el("tap").checked?new Promise(r=>{
@@ -1306,7 +1311,7 @@ function mountConv(rootId,mode){
   async function turn(step,id){
     total++;
     for(let attempt=0;attempt<2;attempt++){
-      const t=await listen();if(run!==id)return null;
+      const t=await escuchar();if(run!==id)return null;
       if(t===null){
         if(attempt===0){await examiner("Sorry, I can't hear you. Can you say that again?");if(run!==id)return null;continue}
         await examiner("That's OK. Let's go on.");review.push(step);return "";
@@ -1332,6 +1337,9 @@ function mountConv(rootId,mode){
         if(run!==id)return false;
         if(k===1){if(/app ?check|not enabled|api key|referer|referrer|permission|40[13]/i.test(String(e&&e.message||e)))sttRec=false;status("No pude conectarme con la IA ("+esc(_iaMsg(e))+"). Sigo con las preguntas de siempre.");console.warn("[IA] sin conexión:",e);return null}
         status("Se cortó la conexión con la IA: cerramos la charla.");r={reply:"Thank you. That's the end of our conversation. Goodbye!",ok:true,tip:"",model:"",end:true}}
+      if(r.end&&k<max&&fbListo()){   // se despidió antes de tiempo: se le pide que siga con el próximo tema del plan
+        try{const r2=await iaPedir(hist,k,max,"The exam is NOT over yet. Do not say goodbye and do not set end to true. React to the child's last answer in a few words and continue with the next topic of the agenda.");if(r2&&r2.reply&&!r2.end)r=r2}catch(e){}
+      }
       if(run!==id)return false;
       if(prev){total++;
         if(r.ok)pts+=1;
@@ -1341,7 +1349,7 @@ function mountConv(rootId,mode){
       if(r.help)bubble("tip",`💡 ${esc(r.help)}`);
       await examiner(r.reply,{picture:r.picture,hints:r.hints});if(run!==id)return false;
       if(r.end||k>max)break;
-      const t=await listen();if(run!==id)return false;
+      const t=await escuchar();if(run!==id)return false;
       if(t===null){hist.push({role:"child",text:"(silence)"});prev=r.reply;continue}
       bubble("kid",esc(t));hist.push({role:"child",text:t});prev=r.reply;
     }
@@ -1397,7 +1405,7 @@ function mountConv(rootId,mode){
   el("rep").onclick=()=>{if(curQ)say(curQ,status)};
   // alternar entre hablar y escribir en cualquier momento
   el("kb").onclick=async()=>{
-    if(!micBroken){typeMode("Escribí tu respuesta (en el celu podés dictarla con el 🎤 del teclado):");el("kb").textContent="🎤 Volver al micrófono";if(finishNow){const f=finishNow;f()}return}
+    if(!micBroken){typeMode("Escribí tu respuesta (en el celu podés dictarla con el 🎤 del teclado):");el("kb").textContent="🎤 Volver al micrófono";if(finishNow){cambioDeModo=true;const f=finishNow;f()}return}
     // volver al micrófono: se pide el permiso de nuevo DENTRO del toque (así el iPhone vuelve a preguntar)
     primeAudio();micPermState="unknown";
     const sinDictado=!SR&&!IA_ON;
@@ -1409,7 +1417,7 @@ function mountConv(rootId,mode){
     micBroken=sinDictado;el("type").hidden=!micBroken;el("done").hidden=micBroken;
     el("kb").textContent="⌨️ Escribir";el("tmsg").innerHTML="Escribí tu respuesta:";
     if(!micBroken)status("✅ Micrófono listo. Cuando el examinador pregunte, tocá <b>🎤 Hablar</b>.");
-    if(typedResolve){const r=typedResolve;typedResolve=null;micUI(false);r(null)}   // retoma la pregunta ahora con el micrófono
+    if(typedResolve){cambioDeModo=true;const r=typedResolve;typedResolve=null;micUI(false);r(null)}   // retoma la pregunta ahora con el micrófono
   };
   el("txt").onchange=e=>el("chat").querySelectorAll(".msg.ex").forEach(m=>m.classList.toggle("hide",!e.target.checked));
 }
@@ -1672,7 +1680,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · programa 4";
+const BUILD="2026-11-01 · programa 5";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};

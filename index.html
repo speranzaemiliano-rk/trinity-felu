@@ -1462,7 +1462,7 @@ function mountConv(rootId,mode){
         rklog("mic: pasa a «tocar 🎤» → "+(e.name||e.message));
         el("tap").checked=true;cambioDeModo=true;
         if(IS_IOS)recordarTap(true);   // en este iPhone ya se sabe que no anda solo: la próxima vez arranca en «tocar 🎤»
-        status((IS_IOS?"Safari no me deja abrir el micrófono solo en este iPhone. ":"No pude abrir el micrófono solo ("+esc(e.name||e.message)+"). ")+"Tocá <b>🎤 Hablar</b> cuando quieras contestar."+(IS_IOS?" (Queda así; para volver a probar sin tocar, destildá «Tocar 🎤 para hablar».)":"")+(e.name==="NotAllowedError"?" Si no te deja, en iPhone: Ajustes → Safari → Micrófono → Permitir.":""));
+        status((IS_IOS?"Safari no me deja abrir el micrófono solo en este iPhone ("+esc(e.name||e.message)+"). ":"No pude abrir el micrófono solo ("+esc(e.name||e.message)+"). ")+"Tocá <b>🎤 Hablar</b> cuando quieras contestar."+(IS_IOS?" (Queda así; para volver a probar sin tocar, destildá «Tocar 🎤 para hablar».)":"")+(e.name==="NotAllowedError"?" Si no te deja, en iPhone: Ajustes → Safari → Micrófono → Permitir.":""));
         res(null)};
       try{
         el("talk").hidden=true;el("done").hidden=false;
@@ -2021,7 +2021,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · voz arreglada 2";
+const BUILD="2026-11-01 · voz arreglada 3";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};

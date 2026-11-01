@@ -225,6 +225,7 @@ td.say-td.pressed{background:color-mix(in srgb,var(--accent) 35%,transparent)}
   <h1>Trinity GESE <span>Grade 3</span></h1>
   <p>Guía de estudio, práctica oral y examen de práctica.</p>
   <button id="instalar" class="btn alt" hidden style="grid-column:1/3;margin-top:10px">⬇️ Instalar en esta PC</button>
+  <p id="instalarIos" hidden style="grid-column:1/3;margin:10px 0 0;font-size:.92rem">📲 Para instalarla en el iPhone: tocá <b>Compartir</b> (el cuadrado con la flecha hacia arriba) y elegí <b>«Añadir a pantalla de inicio»</b>.</p>
 </header>
 
 <nav role="tablist">
@@ -1278,6 +1279,8 @@ let instPrompt=null;
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();instPrompt=e;$("instalar").hidden=false});
 $("instalar").onclick=async()=>{if(!instPrompt)return;instPrompt.prompt();await instPrompt.userChoice;instPrompt=null;$("instalar").hidden=true};
 window.addEventListener("appinstalled",()=>{$("instalar").hidden=true});
+// iPhone/iPad: Safari no ofrece botón de instalar; se explica el camino manual (sólo si todavía no está instalada)
+try{if(IS_IOS&&!navigator.standalone&&!(window.matchMedia&&matchMedia("(display-mode: standalone)").matches))$("instalarIos").hidden=false}catch(e){}
 </script>
 </body>
 </html>

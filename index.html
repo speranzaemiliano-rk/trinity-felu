@@ -1190,7 +1190,7 @@ function mountConv(rootId,mode){
     <label class="chk"><input type="checkbox" id="${P}help" ${E?"":"checked"}> 💡 Ayudas (cómo se dice)</label>
     <label class="chk">⏩ Velocidad <select id="${P}vel"><option value="normal">Normal</option><option value="rapida">Rápida</option></select></label>
     ${IS_IOS&&fbListo()?`<label class="chk">🔊 Voz <select id="${P}voz"><option value="ia">Natural (IA)</option><option value="celu">Rápida (del celular)</option></select></label>`:""}
-    <label class="chk"><input type="checkbox" id="${P}tap" checked> Tocar 🎤 para hablar</label>
+    <label class="chk"><input type="checkbox" id="${P}tap" ${IS_IOS?"checked":""}> Tocar 🎤 para hablar</label>
     ${IA_ON?`<label class="chk"><input type="checkbox" id="${P}ia" checked> 🤖 Examinador con IA</label>`:""}</div>
   <div class="bar"><i id="${P}bar"></i></div>
   <div class="chat" id="${P}chat" aria-live="polite"><div class="msg tip">${E
@@ -1237,7 +1237,7 @@ function mountConv(rootId,mode){
   // Escucha por grabación: graba en WAV, corta sola tras un silencio (o con «Listo») y la IA lo pasa a texto
   function listenRec(){
     return new Promise(async res=>{
-      let stream=null,src=null,proc=null,chunks=[],done=false,spoke=false,lastVoice=0,t0=0,cap=null,nf=0,th=0.02,rate=44100,pk=0;
+      let stream=null,src=null,proc=null,chunks=[],done=false,spoke=false,lastVoice=0,t0=0,cap=null,nf=0,th=0.02,rate=44100,pk=0,adelanto=null;
       const cleanup=()=>{clearTimeout(cap);finishNow=null;recAbort=null;
         try{if(proc){proc.onaudioprocess=null;proc.disconnect()}}catch(e){}try{if(src)src.disconnect()}catch(e){}
         if(stream)stream.getTracks().forEach(t=>t.stop());el("lvl").style.width="0";audioSesion("auto");
@@ -1249,7 +1249,10 @@ function mountConv(rootId,mode){
         // si el volumen nunca pasó el umbral pero hubo señal, igual se manda a la IA (hay micrófonos que graban muy bajito)
         if(!spoke&&pk<0.008){micUI(false);status("No llegó sonido del micrófono (volumen máx. "+Math.round(pk*100)+" %). Acercate más, hablá más fuerte o subí el volumen de entrada en Windows (Sistema → Sonido → Entrada). También podés usar <b>⌨️ Escribir</b>.");return res(null)}
         micUI(true,"Entendiendo lo que dijiste…");
-        try{const t=await iaTranscribir(_aWav(chunks,rate));micUI(false);
+        try{let t;
+          try{t=adelanto?await adelanto.p:await iaTranscribir(_aWav(chunks,rate))}
+          catch(e0){if(!adelanto)throw e0;t=await iaTranscribir(_aWav(chunks,rate))}   // si la transcripción adelantada falló, se hace de nuevo
+          micUI(false);
           if(!t)status("Grabé "+seg.toFixed(1).replace(".",",")+" s (volumen máx. "+Math.round(pk*100)+" %) pero la IA no entendió palabras. Probá hablar más cerca y más fuerte, o usá <b>⌨️ Escribir</b>.");
           res(t||null)}
         catch(e){console.warn("[IA] transcribir:",e);micUI(false);status("No pude pasar tu voz a texto ("+esc(_iaMsg(e))+"). Tocá <b>⌨️ Escribir</b>.");res(null)}
@@ -1271,6 +1274,8 @@ function mountConv(rootId,mode){
           const now=performance.now();
           if(now-t0<500){if(m>nf)nf=m;th=Math.min(0.04,Math.max(0.008,nf*3))}   // los primeros 0,5 s miden el ruido de fondo
           else if(m>th){if(!spoke)el("heard").textContent="🎙️ te escucho…";spoke=true;lastVoice=now}
+          if(spoke&&m>th&&adelanto)adelanto=null;   // volvió a hablar: se descarta la transcripción adelantada
+          if(spoke&&!adelanto&&now-lastVoice>650){const lote=chunks.slice();adelanto={p:iaTranscribir(_aWav(lote,rate))};adelanto.p.catch(()=>{})}   // 0,65 s de silencio: se empieza ya
           if(spoke&&now-lastVoice>1250)terminar();
           else if(!spoke&&now-t0>12000)terminar();
         };
@@ -1762,7 +1767,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · rapidez 1";
+const BUILD="2026-11-01 · rapidez 2";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};

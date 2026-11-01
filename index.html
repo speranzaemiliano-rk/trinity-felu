@@ -594,7 +594,7 @@ const CLOSE={q:"Thank you. That's the end of our conversation. Goodbye!",a:"Good
 //  2) Un worker propio (carpeta ia-worker/): se guarda al abrir el sitio con ?ia=URL.
 const _FB=window.TRINITY_FB||{};
 const FB_VERSION="13.1.0";
-const FB_MODELOS=["gemini-3.8-flash","gemini-3.5-flash-lite"];
+const FB_MODELOS=["gemini-3.5-flash-lite","gemini-3.8-flash"];
 function fbListo(){const c=_FB.config;return !!(c&&c.apiKey&&c.projectId&&c.appId)}
 const IA_URL=(function(){try{const q=new URLSearchParams(location.search).get("ia");if(q&&/^https:\/\//.test(q))localStorage.setItem("trinity_ia_url",q);return localStorage.getItem("trinity_ia_url")||""}catch(e){return ""}})();
 const IA_ON=fbListo()||!!IA_URL;
@@ -649,9 +649,9 @@ async function _fbGenerar(o){
       const gc={temperature:o.temp,maxOutputTokens:o.tokens};if(o.json)gc.responseMimeType="application/json";
       const params={model:nombre,generationConfig:gc};if(o.system)params.systemInstruction=o.system;
       const m=getGenerativeModel(ai,params);
-      const r=await Promise.race([m.generateContent(o.partes?o.partes:{contents:o.contents}),new Promise((_,ko)=>setTimeout(()=>ko(new Error("tiempo agotado")),25000))]);
+      const r=await Promise.race([m.generateContent(o.partes?o.partes:{contents:o.contents}),new Promise((_,ko)=>setTimeout(()=>ko(new Error("tiempo agotado")),o.ms||12000))]);
       _fbBueno=nombre;return r.response.text();
-    }catch(e){ultimo=e;console.warn("[IA] "+nombre+":",e);if(!/404|not found|not_found|not supported|unsupported|not available/i.test(String(e&&e.message||e)))break}
+    }catch(e){ultimo=e;console.warn("[IA] "+nombre+":",e);if(!/404|not found|not_found|not supported|unsupported|not available|429|500|502|503|504|overload|high demand|unavailable|resource.?exhausted|tiempo agotado|internal/i.test(String(e&&e.message||e)))break}
   }
   throw ultimo||new Error("sin respuesta");
 }
@@ -678,7 +678,7 @@ const _blobB64=blob=>new Promise((ok,ko)=>{const f=new FileReader();f.onload=()=
 async function iaTranscribir(blob){
   let t;
   if(fbListo()){
-    t=await _fbGenerar({partes:[PROMPT_TRANSCRIBIR,{inlineData:{mimeType:"audio/wav",data:await _blobB64(blob)}}],temp:0,tokens:400});
+    t=await _fbGenerar({partes:[PROMPT_TRANSCRIBIR,{inlineData:{mimeType:"audio/wav",data:await _blobB64(blob)}}],temp:0,tokens:400,ms:15000});
   }else{
     t=(await _iaWorker({audio:await _blobB64(blob),mime:"audio/wav"},25000)).text;
   }

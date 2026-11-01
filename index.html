@@ -480,7 +480,7 @@ const $=id=>document.getElementById(id);
     r.onstart=()=>log(true,"Reconocimiento de voz iniciado. Decí <b>\"hello, my name is…\"</b>");
     r.onspeechstart=()=>log(true,"Detectó que estás hablando…");
     r.onresult=e=>{got=true;const t=[...e.results].map(x=>x[0].transcript).join(" ");$("dgHeard").hidden=false;$("dgHeard").innerHTML="Entendió: <b>"+esc(t)+"</b>"};
-    r.onerror=e=>log(false,"Error del reconocimiento: <b>"+e.error+"</b>. "+({network:"No se puede conectar con el servicio de voz (lo bloquea la red, un antivirus o el navegador). Probá con <b>Edge</b> (PC) o Chrome (Android); en iPhone ningún navegador trae dictado confiable.","not-allowed":"Falta permiso de micrófono.","service-not-allowed":"El navegador no permite el dictado. Usá Chrome o Edge.","no-speech":"No escuchó voz: revisá qué micrófono usa Chrome (paso de arriba).","audio-capture":"No encuentra el micrófono."}[e.error]||""));
+    r.onerror=e=>log(false,"Error del reconocimiento: <b>"+e.error+"</b>. "+({network:"No se puede conectar con el servicio de voz (lo bloquea la red, un antivirus o el navegador). Probá con <b>Edge</b> (PC) o Chrome (Android); en iPhone ningún navegador trae dictado confiable.","not-allowed":"Falta permiso de micrófono.","service-not-allowed":"El navegador no permite el dictado. Usá Chrome o Edge.","no-speech":"No escuchó voz: revisá qué micrófono usa Chrome (paso de arriba).","aborted":(IA_ON?"El dictado de Chrome se cortó solo: pasa con algunos micrófonos de notebook (Intel Smart Sound). No es grave: la conversación usa la grabación con IA y no necesita el dictado. Probala en Speaking.":"El dictado de Chrome se cortó solo. Probá con Edge o escribí con ⌨️."),"audio-capture":"No encuentra el micrófono."}[e.error]||""));
     r.onend=()=>{log(got,got?"¡Funciona! Ya podés usar la conversación.":"Terminó sin entender nada.");r=null;setTimeout(stop,1500)};
     try{r.start()}catch(e){log(false,"No se pudo iniciar: "+esc(e.message))}
   };
@@ -594,7 +594,7 @@ const CLOSE={q:"Thank you. That's the end of our conversation. Goodbye!",a:"Good
 //  2) Un worker propio (carpeta ia-worker/): se guarda al abrir el sitio con ?ia=URL.
 const _FB=window.TRINITY_FB||{};
 const FB_VERSION="13.1.0";
-const FB_MODELOS=["gemini-3.5-flash-lite","gemini-3.8-flash"];
+const FB_MODELOS=["gemini-3.1-flash-lite","gemini-3.5-flash-lite","gemini-3.5-flash"];
 function fbListo(){const c=_FB.config;return !!(c&&c.apiKey&&c.projectId&&c.appId)}
 const IA_URL=(function(){try{const q=new URLSearchParams(location.search).get("ia");if(q&&/^https:\/\//.test(q))localStorage.setItem("trinity_ia_url",q);return localStorage.getItem("trinity_ia_url")||""}catch(e){return ""}})();
 const IA_ON=fbListo()||!!IA_URL;
@@ -966,7 +966,7 @@ function mountConv(rootId,mode){
       let r;
       try{r=await iaPedir(hist,k,max)}catch(e){
         if(run!==id)return false;
-        if(k===1){sttRec=false;status("No pude conectarme con la IA ("+esc(_iaMsg(e))+"). Sigo con las preguntas de siempre.");console.warn("[IA] sin conexión:",e);return null}
+        if(k===1){if(/app ?check|not enabled|api key|referer|referrer|permission|40[13]/i.test(String(e&&e.message||e)))sttRec=false;status("No pude conectarme con la IA ("+esc(_iaMsg(e))+"). Sigo con las preguntas de siempre.");console.warn("[IA] sin conexión:",e);return null}
         status("Se cortó la conexión con la IA: cerramos la charla.");r={reply:"Thank you. That's the end of our conversation. Goodbye!",ok:true,tip:"",model:"",end:true}}
       if(run!==id)return false;
       if(prev){total++;

@@ -15,5 +15,5 @@ window.TRINITY_FB = {
   appCheckSiteKey: "6LduhAsuAAAAAO3XpUX7CTvd29T45kG0VzZd7nRm",
   appCheckEnterprise: true,   // true sólo si se eligió reCAPTCHA Enterprise en vez de reCAPTCHA v3
   // Modelos a probar en orden (si uno no está disponible pasa al siguiente)
-  models: ["gemini-3.5-flash-lite", "gemini-3.8-flash"]
+  models: ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-3.5-flash"]
 };

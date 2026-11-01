@@ -1028,8 +1028,16 @@ function pickVoice(){if(!synth)return;const v=synth.getVoices();if(!v.length)ret
   voice=en.find(x=>/en[-_]GB/i.test(x.lang)&&/google|natural|premium|enhanced/i.test(x.name))||en.find(x=>/en[-_]GB/i.test(x.lang))||en.find(x=>/google|natural/i.test(x.name))||en[0]||null}
 if(synth){pickVoice();if(synth.addEventListener)synth.addEventListener("voiceschanged",pickVoice);else synth.onvoiceschanged=pickVoice}
 // En celulares y Safari la voz solo arranca si se "desbloquea" con un toque: se hace en el primer clic de la página
-function unlockVoice(){unlockAudioEl();if(unlocked||!synth)return;unlocked=true;try{const u=new SpeechSynthesisUtterance(" ");u.volume=0;synth.speak(u)}catch(e){}}
-["pointerdown","keydown","touchstart"].forEach(ev=>document.addEventListener(ev,unlockVoice,{once:true,passive:true}));
+// iPhone: Safari sólo deja hablar a la voz del navegador si el PRIMER intento ocurre dentro de un toque que termina (click / touchend).
+// "touchstart" y "pointerdown" no cuentan. Por eso se reintenta en cada toque hasta que una voz arranque de verdad (_voiceOk).
+let _voiceOk=false,_unlockPend=false,_localMuda=false,_iaVozAgotada=false;
+function unlockVoice(){
+  unlockAudioEl();
+  if(!synth||_voiceOk||_unlockPend)return;
+  _unlockPend=true;setTimeout(()=>{_unlockPend=false},2500);
+  try{const u=new SpeechSynthesisUtterance("ok");u.volume=0;u.lang="en-GB";u.onstart=()=>{_voiceOk=true};u.onend=()=>{_voiceOk=true};synth.speak(u)}catch(e){}
+}
+["click","touchend","keydown"].forEach(ev=>document.addEventListener(ev,unlockVoice,{capture:true,passive:true}));
 // Chrome corta la voz a los ~15 s si no se la "despierta"
 let ttsTimer=null;
 function ttsKeepAlive(on){clearInterval(ttsTimer);if(on)ttsTimer=setInterval(()=>{if(synth.speaking&&!synth.paused){synth.pause();synth.resume()}},9000)}
@@ -1046,7 +1054,7 @@ function _audioKey(t){
 const _AUDIO_SET=new Set(window.TRINITY_AUDIO||[]);
 // Velocidad de la voz del examinador (se guarda en el equipo). Los estudios (palabras sueltas) siguen a velocidad normal.
 let VEL_EX=(function(){try{return localStorage.getItem("trinity_vel")||"rapida"}catch(e){return "rapida"}})();
-let VOZ_IOS=(function(){try{return localStorage.getItem("trinity_voz")||"ia"}catch(e){return "ia"}})();
+let VOZ_IOS=(function(){try{return localStorage.getItem("trinity_voz2")||"celu"}catch(e){return "celu"}})();
 const velAudio=()=>VEL_EX==="rapida"?1.2:1;     // audios guardados y de Gemini
 const velVoz=()=>VEL_EX==="rapida"?1.12:.95;    // voz del navegador
 let _aud=null,_audOk=false,_playCorta=null;
@@ -1091,7 +1099,7 @@ async function _vozGenerar(x){   // devuelve la URL del audio de una frase (o nu
       const rate=+((/rate=(\d+)/.exec(pt.inlineData.mimeType)||[])[1])||24000;
       const url=URL.createObjectURL(_pcmAWav(pt.inlineData.data,rate));
       _vozCache.set(x,url);return url;
-    }catch(e){console.warn("[IA] voz "+nombre+":",e)}
+    }catch(e){console.warn("[IA] voz "+nombre+":",e);if(/429|quota|resource.?exhausted/i.test(String(e&&e.message||e)))_iaVozAgotada=_iaVozAgotada||nombres.indexOf(nombre)===nombres.length-1}
   }
   return null;
 }
@@ -1099,7 +1107,7 @@ async function iaVoz(t,op){   // true si sonó · {resto} si falló a mitad · f
   if(!fbListo())return false;
   const vel=(op&&op.ex)?velAudio():1;
   // la frase se parte en oraciones y todas se generan A LA VEZ: la primera suena apenas está lista
-  let partes=(String(t).match(/[^.!?]+[.!?]*/g)||[t]).map(x=>x.trim()).filter(Boolean);
+  let partes=String(t).length<=110?[String(t)]:(String(t).match(/[^.!?]+[.!?]*/g)||[t]).map(x=>x.trim()).filter(Boolean);
   const juntas=[];partes.forEach(x=>{if(juntas.length&&juntas[juntas.length-1].length<22)juntas[juntas.length-1]+=" "+x;else juntas.push(x)});
   partes=juntas.length?juntas:[String(t)];
   const gen=partes.map(x=>_vozGenerar(x));
@@ -1118,48 +1126,57 @@ function sayOnline(t){
 }
 function say(t,status,op){   // op.ex = lo dice el examinador (velocidad configurable)
   const k=_audioKey(t);
-  if(_AUDIO_SET.has(k)){unlockVoice();return _playUrl("audio/"+k+".mp3",op&&op.ex?velAudio():1).then(ok=>{if(ok)return;if(status)status("⚠️ El audio no pudo sonar ("+_audErr+"). Probando otra voz…");return _sayResto(t,status,op)})}
+  if(_AUDIO_SET.has(k)){unlockVoice();return _playUrl("audio/"+k+".mp3",op&&op.ex?velAudio():1).then(ok=>{if(ok)return true;if(status)status("⚠️ El audio no pudo sonar ("+_audErr+"). Probando otra voz…");return _sayResto(t,status,op)})}
   return _sayResto(t,status,op);
 }
-function _sayResto(t,status,op){
-  if(IS_IOS&&fbListo()&&VOZ_IOS==="ia"){
-    unlockVoice();
-    if(status)status("🔊 Preparando la voz del examinador…");
-    return iaVoz(t,op).then(r=>{
-      if(r===true){if(status)status("");return}
-      if(r&&r.resto)return sayLocal(r.resto,status,op);     // una parte falló: lo que falta lo dice la voz del navegador
-      return sayLocal(t,status,op)});
+async function _sayResto(t,status,op){   // devuelve true si algo sonó
+  // La voz de Gemini tiene un tope de 10 pedidos por día en el plan gratis: sólo va primera si el usuario la elige.
+  if(IS_IOS&&fbListo()&&VOZ_IOS==="ia"&&!_iaVozAgotada){
+    unlockVoice();if(status)status("🔊 Preparando la voz del examinador…");
+    const r=await iaVoz(t,op);
+    if(r===true){if(status)status("");return true}
+    if(r&&r.resto){if(status)status("");return await sayLocal(r.resto,status,op)}
   }
-  if(IS_IOS&&VOZ_IOS==="ia"){unlockVoice();return sayOnline(t).then(ok=>ok?undefined:sayLocal(t,status,op))}
   if(IS_IOS)unlockVoice();
-  return sayLocal(t,status,op);
+  if(!(IS_IOS&&_localMuda)){
+    const ok=await sayLocal(t,status,op);
+    if(ok){if(status)status("");return true}
+  }
+  // la voz del navegador no arrancó: última carta, la voz de Gemini
+  if(fbListo()&&!_iaVozAgotada){
+    if(status)status("🔊 Probando la voz de la IA…");
+    const r=await iaVoz(t,op);
+    if(r===true){if(status)status("");return true}
+    if(r&&r.resto){if(status)status("");return await sayLocal(r.resto,status,op)}
+  }
+  return false;
 }
 function sayLocal(t,status,op){
   return new Promise(res=>{
     const fallback=()=>setTimeout(res,Math.min(6000,600+t.length*55));
-    if(!synth){return sayOnline(t).then(ok=>{if(!ok)status("Este navegador no puede leer en voz alta. Abrí el link en <b>Chrome</b> o <b>Edge</b>.")})}
+    if(!synth){return sayOnline(t).then(ok=>{if(!ok)status("Este navegador no puede leer en voz alta. Abrí el link en <b>Chrome</b> o <b>Edge</b>.");return !!ok})}
     unlockVoice();audioSesion("playback");   // sólo mientras habla la voz del navegador
     let started=false,ended=false,tries=0;
     const maxMs=Math.max(12000,t.length*160+6000);
-    const fin=()=>{if(ended)return;ended=true;ttsKeepAlive(false);audioSesion("auto");res()};
+    const fin=()=>{if(ended)return;ended=true;ttsKeepAlive(false);audioSesion("auto");res(started)};
     const go=()=>{
       if(!voice)pickVoice();
       const u=new SpeechSynthesisUtterance(t);
       // 1er intento: voz inglesa elegida (en Android solo el idioma). 2º intento: voz por defecto del celu, para que al menos suene
       if(tries===0){u.lang=(voice&&voice.lang.replace('_','-'))||"en-GB";if(voice&&!ANDROID)u.voice=voice}
       u.rate=(op&&op.ex)?velVoz():.88;u.pitch=1;u.volume=1;keep=u;
-      u.onstart=()=>{started=true;ttsKeepAlive(true)};
+      u.onstart=()=>{started=true;_voiceOk=true;ttsKeepAlive(true)};
       u.onend=fin;
       u.onerror=e=>{
         if(e.error==="interrupted"||e.error==="canceled"){if(!started&&tries<2&&!ended){tries++;setTimeout(go,150);return}return fin()}
         if(e.error==="not-allowed"){status("El navegador bloqueó la voz. Tocá la pantalla una vez y probá de nuevo.");return fin()}
-        sayOnline(t).then(ok=>{if(!ok)status("No se pudo reproducir la voz ("+e.error+").");fin()})};
+        (IS_IOS?Promise.resolve(false):sayOnline(t)).then(ok=>{if(ok)started=true;else status("No se pudo reproducir la voz ("+e.error+").");fin()})};
       synth.speak(u);
       // si a los 2,5 s no arrancó, reintento una vez; si sigue mudo, aviso
-      setTimeout(()=>{if(started||ended)return;if(tries<1){tries++;try{synth.cancel()}catch(e){}setTimeout(go,150)}else{sayOnline(t).then(ok=>{if(ok)return fin();status((noEnVoice?"Tu celular no tiene voz en inglés instalada: Ajustes → Texto a voz → Google → Instalar datos de voz → English. ":"")+(IS_IOS?"No se escucha la voz. <b>En el iPhone casi siempre es el modo silencio</b>: fijate si hay una <b>campanita tachada 🔕</b> arriba junto a la hora y sacalo con el interruptor del costado (o desde el Centro de control), y subí el volumen con los botones. ":"No se escucha la voz. Subí el volumen multimedia o probá con <b>Chrome</b> / <b>Edge</b>. ")+"Podés activar <b>Ver lo que dice el examinador</b> para leer las preguntas.");fin()})}},1600);
+      setTimeout(()=>{if(started||ended)return;if(tries<1){tries++;try{synth.cancel()}catch(e){}setTimeout(go,150)}else{(IS_IOS?Promise.resolve(false):sayOnline(t)).then(ok=>{if(ok){started=true;return fin()}if(IS_IOS)_localMuda=true;status((noEnVoice?"Tu celular no tiene voz en inglés instalada: Ajustes → Texto a voz → Google → Instalar datos de voz → English. ":"")+(IS_IOS?"No se escucha la voz. <b>En el iPhone casi siempre es el modo silencio</b>: fijate si hay una <b>campanita tachada 🔕</b> arriba junto a la hora y sacalo con el interruptor del costado (o desde el Centro de control), y subí el volumen con los botones. ":"No se escucha la voz. Subí el volumen multimedia o probá con <b>Chrome</b> / <b>Edge</b>. ")+"Podés activar <b>Ver lo que dice el examinador</b> para leer las preguntas.");fin()})}},1600);
     };
     // Si no hay nada sonando, se habla EN EL ACTO: los celulares sólo dejan hablar dentro del toque (con demora no suena)
-    if(synth.speaking||synth.pending){try{synth.cancel()}catch(e){}setTimeout(()=>{try{synth.resume()}catch(e){}go()},ANDROID?450:120)}
+    if(synth.speaking||synth.pending){try{synth.cancel()}catch(e){}setTimeout(()=>{try{synth.resume()}catch(e){}go()},(ANDROID||IS_IOS)?450:120)}
     else{try{synth.resume()}catch(e){}go()}
     setTimeout(fin,maxMs);
   });
@@ -1189,7 +1206,7 @@ function mountConv(rootId,mode){
     <label class="chk"><input type="checkbox" id="${P}txt" ${E?"":"checked"}> Ver lo que dice el examinador</label>
     <label class="chk"><input type="checkbox" id="${P}help" ${E?"":"checked"}> 💡 Ayudas (cómo se dice)</label>
     <label class="chk">⏩ Velocidad <select id="${P}vel"><option value="normal">Normal</option><option value="rapida">Rápida</option></select></label>
-    ${IS_IOS&&fbListo()?`<label class="chk">🔊 Voz <select id="${P}voz"><option value="ia">Natural (IA)</option><option value="celu">Rápida (del celular)</option></select></label>`:""}
+    ${IS_IOS&&fbListo()?`<label class="chk">🔊 Voz <select id="${P}voz"><option value="celu">Del celular (rápida)</option><option value="ia">Natural (IA, 10 por día)</option></select></label>`:""}
     <label class="chk"><input type="checkbox" id="${P}tap" ${IS_IOS?"checked":""}> Tocar 🎤 para hablar</label>
     ${IA_ON?`<label class="chk"><input type="checkbox" id="${P}ia" checked> 🤖 Examinador con IA</label>`:""}</div>
   <div class="bar"><i id="${P}bar"></i></div>
@@ -1372,7 +1389,7 @@ function mountConv(rootId,mode){
   }
   const sincronizarAjustes=()=>{document.querySelectorAll('select[id$="-vel"]').forEach(x=>x.value=VEL_EX);document.querySelectorAll('select[id$="-voz"]').forEach(x=>x.value=VOZ_IOS)};
   el("vel").onchange=()=>{VEL_EX=el("vel").value;try{localStorage.setItem("trinity_vel",VEL_EX)}catch(e){}sincronizarAjustes()};
-  if(el("voz"))el("voz").onchange=()=>{VOZ_IOS=el("voz").value;try{localStorage.setItem("trinity_voz",VOZ_IOS)}catch(e){}sincronizarAjustes()};
+  if(el("voz"))el("voz").onchange=()=>{VOZ_IOS=el("voz").value;try{localStorage.setItem("trinity_voz2",VOZ_IOS)}catch(e){}sincronizarAjustes()};
   sincronizarAjustes();
   el("how").onclick=()=>{const b=el("howbox");b.hidden=!b.hidden;if(!b.hidden)el("howin").focus()};
   el("howgo").onclick=comoSeDice;
@@ -1388,10 +1405,16 @@ function mountConv(rootId,mode){
     const pic=extra.picture?`<span class="bigpic" aria-hidden="true">${esc(extra.picture)}</span>`:"";
     bubble("ex"+(el("txt").checked?"":" hide"),`<span class="who">Examinador</span>${pic}${esc(text)}`);
     mostrarAyudas(extra.hints);
-    await say(text,status,{ex:true});await new Promise(r=>setTimeout(r,120))}
+    const sono=await say(text,status,{ex:true});
+    if(sono===false){   // ninguna voz funcionó: se muestra lo que dice para poder seguir
+      el("txt").checked=true;el("chat").querySelectorAll(".msg.ex.hide").forEach(m=>m.classList.remove("hide"));
+      if(!avisoSinVoz){avisoSinVoz=true;bubble("tip","🔇 No pude reproducir la voz del examinador, así que te muestro lo que dice y podés seguir leyendo. Para arreglarla, abrí <b>🔧 ¿No suena? Diagnóstico de sonido</b> (arriba) y mandá la captura.")}
+    }
+    await new Promise(r=>setTimeout(r,120))}
   const check=(step,t)=>{const low=t.toLowerCase().replace(/[.,!?]/g,"");const tips=step.need.filter(([re])=>!re.test(low)).map(m=>m[1]);
     if(!step.last&&low.split(/\s+/).filter(Boolean).length<3&&!tips.length)tips.push("Contestá con una oración completa.");return{low,tips}};
 
+  let avisoSinVoz=false;
   let pts=0,total=0,review=[];
   async function turn(step,id){
     total++;
@@ -1767,7 +1790,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · rapidez 2";
+const BUILD="2026-11-01 · voz 1";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};
@@ -1778,6 +1801,7 @@ const BUILD="2026-11-01 · rapidez 2";
     L(null,"Dispositivo: "+(IS_IOS?"iPhone/iPad":/Android/i.test(navigator.userAgent)?"Android":"PC")+" · abierto en: "+modo());
     L(null,"Modo silencio de Safari (audioSession): "+(navigator.audioSession?navigator.audioSession.type:"no disponible en este iPhone"));
     L(null,"Audios guardados en el sitio: "+_AUDIO_SET.size+" · IA conectada: "+(fbListo()?"sí":"no"));
+    L(null,"Voz del navegador desbloqueada: "+(_voiceOk?"sí":"todavía no")+" · voz del celular descartada en esta sesión: "+(_localMuda?"sí":"no")+" · voz de la IA agotada hoy: "+(_iaVozAgotada?"sí":"no"));
   }
   $("dsA").onclick=()=>{
     cabecera();

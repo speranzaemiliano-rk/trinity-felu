@@ -157,6 +157,7 @@ h3.sec{font-family:var(--display);font-weight:800;font-size:1.2rem;color:var(--m
 .nrep{display:flex;flex-wrap:wrap;gap:6px}
 .nrep span{background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:.88rem}
 .nota-pie{font-size:.8rem;margin-bottom:0}
+.nota-aj{font-size:.86rem}
 @media (max-width:480px){.nc{grid-template-columns:minmax(0,8.2rem) 1fr 1.4rem;font-size:.84rem}.nota-num{font-size:2.6rem;min-width:3.6rem}}
 .mic{animation:pop .28s cubic-bezier(.2,.9,.3,1) both;display:flex;align-items:center;gap:12px;margin-top:10px;padding:12px 14px;border-radius:14px;background:var(--bad-bg);border:2px solid var(--bad)}
 .mic .dot{width:16px;height:16px;border-radius:50%;background:var(--bad);flex:none;animation:pulse2 1s ease-in-out infinite}
@@ -1037,6 +1038,7 @@ MARK these four criteria with a whole number from 0 to 10:
 - vocabulario: the right words for the Grade 3 topics (jobs, places in town, school, home, weather, free time, dates and times) and some variety.
 - fluidez: how much he says: full sentences instead of one word, link words (and, and then, because), tries to say more than the minimum.
 SCALE: 0-3 very weak; 4-5 weak; 6 pass; 7 good; 8 very good; 9-10 excellent for his level. Be honest, fair and consistent: not harsh and not flattering. Never give 8 or more if most answers were one word or in Spanish. Never give less than 5 if he answered most questions with correct simple sentences.
+The message starts with FACTS counted by the app (they are exact, trust them). If most of his answers were a single word, silence, Spanish or "I don't know", "comprension" and "fluidez" must be 4 or less.
 "pregunto": true ONLY if Felu asked the examiner at least one real question of his own (for example "Do you like pizza?" or "What is your favourite colour?").
 TEXT FOR THE CHILD: write it in Argentine Spanish with "vos" (decí, probá, podés), warm and short, as if talking to a 10-year-old. English only inside quotes.
 - "resumen": 2 short sentences: the overall impression and the single most important thing to improve.
@@ -1053,18 +1055,50 @@ function notaLetra(n){
    :{l:"D",en:"Todavía no",msg:"Seguí practicando: con lo de abajo vas a mejorar rápido."};
 }
 const fmtNota=n=>(Math.round(n*10)/10).toString().replace(".",",");
-// lo que se le manda a la IA para corregir: la charla completa, con lo que mostraba cada dibujo
+// Datos objetivos de la charla, contados por la página (no por la IA): sirven para avisarle a la IA y para poner topes si se pone generosa.
+function _evalHechos(reg){
+  const resp=reg.filter(x=>x.r==="K"),dijo=resp.filter(x=>x.t!=="(no answer)");
+  const pal=x=>x.t.trim().split(/\s+/).filter(Boolean).length;
+  const esp=x=>/[ñáéíóúü¿¡]|\b(yo|tengo|vivo|soy|estoy|casa|colegio|escuela|mam[aá]|pap[aá]|hermano|hermana|gracias|hola|perro|gato|muy|tambi[eé]n|porque|cuando|donde|qu[eé]|c[oó]mo|mi|mis|por|para|los|las|una|el|que|es)\b/i.test(x.t);
+  const noSe=x=>/\b(i don'?t know|dont know|no idea|i don'?t understand|no s[eé])\b/i.test(x.t);
+  const pareceP=x=>/\?/.test(x.t)||/^\s*(what|where|when|who|why|how|which|do you|does|did|are you|is |can you|have you|will you|would you|were you|was )/i.test(x.t);
+  return {n:resp.length,callado:resp.length-dijo.length,suelta:dijo.filter(x=>pal(x)<=1).length,espanol:dijo.filter(esp).length,nose:dijo.filter(noSe).length,
+    prom:dijo.length?Math.round(dijo.reduce((a,x)=>a+pal(x),0)/dijo.length*10)/10:0,parecePregunta:dijo.some(pareceP)};
+}
+// Topes: si la IA se pone generosa con una charla floja, la nota no puede pasar de lo que muestran los números. Cada tope se explica en la tarjeta.
+function _evalTopes(c,h,pct){
+  const aj=[],n=Math.max(1,h.n);
+  const nom={comprension:"Entender y responder",gramatica:"Gramática",vocabulario:"Vocabulario",fluidez:"Fluidez"};
+  const regla=(motivo,caps)=>{   // caps: {criterio: máximo}; sólo se avisa de los que realmente bajaron
+    const bajaron=[];
+    Object.keys(caps).forEach(k=>{if(c[k]>caps[k]){c[k]=caps[k];bajaron.push(nom[k]+" (máx. "+caps[k]+")")}});
+    if(bajaron.length)aj.push(motivo+": "+bajaron.join(", ")+".");
+  };
+  const poco=(h.suelta+h.callado)/n,esp=h.espanol/n,nose=h.nose/n;
+  if(poco>=.5)regla("La mayoría de las respuestas fueron una sola palabra o silencio",{fluidez:3,gramatica:5,comprension:5,vocabulario:5});
+  else if(poco>=.3)regla("Varias respuestas fueron una sola palabra o silencio",{fluidez:5});
+  if(esp>=.5)regla("Contestaste en español la mayoría de las veces",{comprension:4,vocabulario:4,gramatica:4,fluidez:4});
+  else if(esp>=.3)regla("Varias respuestas fueron en español",{comprension:5,vocabulario:5,gramatica:6,fluidez:6});
+  if(nose>=.3)regla("Dijiste «I don't know» o «no sé» varias veces",{comprension:5,fluidez:5});
+  if(pct!==null&&pct!==undefined&&pct<.45)regla("En la charla muchas respuestas no coincidían con lo que se preguntaba",{comprension:pct<.3?4:5});
+  return aj;
+}
+// lo que se le manda a la IA para corregir: los datos contados + la charla completa, con lo que mostraba cada dibujo
 function transcripcion(reg){
-  return reg.map(x=>x.r==="E"?"EXAMINER: "+x.t+(x.pic?" [picture shown to the child: "+x.pic+"]":"")+(x.coach?" [the examiner helped the child here]":""):"FELU: "+x.t).join("\n").slice(0,7000);
+  const h=_evalHechos(reg);
+  const hechos="FACTS COUNTED BY THE APP: Felu answered "+h.n+" times; "+h.suelta+" answers were a single word; he stayed silent "+h.callado+" times; "+h.espanol+" answers had Spanish words; he said \"I don't know\" "+h.nose+" times; the average answer has "+h.prom+" words.\n\nTRANSCRIPT:\n";
+  return hechos+reg.map(x=>x.r==="E"?"EXAMINER: "+x.t+(x.pic?" [picture shown to the child: "+x.pic+"]":"")+(x.coach?" [the examiner helped the child here]":""):"FELU: "+x.t).join("\n").slice(0,7000);
 }
 // La nota la calcula la página (promedio de los 4 criterios), no la IA: así es siempre coherente con las barras que se ven.
 // Las frases que la IA dice que el chico dijo se comprueban contra lo que dijo de verdad (si inventó una, se descarta).
-function _evalNorm(o,reg){
+function _evalNorm(o,reg,pct){
   const ent=v=>{v=Math.round(Number(v));return isFinite(v)?Math.max(0,Math.min(10,v)):null};
   const c={};
   EVAL_CRIT.forEach(([k])=>{c[k]=ent(o&&o[k]);if(c[k]===null)throw new Error("la corrección vino incompleta")});
-  const pregunto=!!o.pregunto;
+  const h=_evalHechos(reg);
+  const pregunto=!!o.pregunto&&h.parecePregunta;   // la IA lo afirma Y hay alguna frase del chico que parece pregunta (si no, se lo inventó)
   if(!pregunto)c.comprension=Math.min(c.comprension,6);   // en el Grade 3 el candidato tiene que hacerle al menos una pregunta al examinador
+  const ajustes=_evalTopes(c,h,pct);
   const nota=Math.round(EVAL_CRIT.reduce((a,[k])=>a+c[k],0)/EVAL_CRIT.length*10)/10;
   const nrm=x=>String(x||"").toLowerCase().replace(/[^a-z0-9' ]+/g," ").replace(/\s+/g," ").trim();
   const kid=reg.filter(x=>x.r==="K").map(x=>nrm(x.t));
@@ -1074,9 +1108,9 @@ function _evalNorm(o,reg){
   const lista=(a,n,m)=>(Array.isArray(a)?a:[]).map(x=>txt(x,m)).filter(Boolean).slice(0,n);
   const mejorar=(Array.isArray(o.mejorar)?o.mejorar:[]).map(x=>({dijo:txt(x&&x.dijo,160),mejor:txt(x&&x.mejor,160),porque:txt(x&&x.porque,200)}))
     .filter(x=>x.dijo&&x.mejor&&nrm(x.dijo)!==nrm(x.mejor)&&real(x.dijo)).slice(0,4);
-  return {c,nota,letra:notaLetra(nota),pregunto,resumen:txt(o.resumen,320),bien:lista(o.bien,3,200),mejorar,repasar:lista(o.repasar,4,90)};
+  return {c,nota,letra:notaLetra(nota),pregunto,ajustes,resumen:txt(o.resumen,320),bien:lista(o.bien,3,200),mejorar,repasar:lista(o.repasar,4,90)};
 }
-async function iaEvaluar(reg){
+async function iaEvaluar(reg,pct){
   let ult;
   for(let i=0;i<2;i++){
     const t0=Date.now();
@@ -1086,7 +1120,7 @@ async function iaEvaluar(reg){
           return S.object({properties:{comprension:I(),gramatica:I(),vocabulario:I(),fluidez:I(),pregunto:S.boolean(),resumen:S.string(),
             bien:S.array({items:S.string()}),mejorar:S.array({items:S.object({properties:{dijo:S.string(),mejor:S.string(),porque:S.string()}})}),repasar:S.array({items:S.string()})}})}});
       let o;try{o=_jsonDe(out)}catch(e){throw new Error("la corrección vino en un formato que no entiendo")}
-      return _evalNorm(o,reg);
+      return _evalNorm(o,reg,pct);
     }catch(e){ult=e;console.warn("[IA] corrección, intento "+(i+1)+":",e);
       if(/app ?check|401|403|api key|permission/i.test(String(e&&e.message||e)))break;   // reintentar no lo arregla
       if(Date.now()-t0>20000)break;   // ya esperó mucho: mejor mostrar el resumen simple que hacerlo esperar otra vez
@@ -1636,7 +1670,7 @@ function mountConv(rootId,mode){
     if(hablo<3)return finishViejo("Hablaste muy poco como para ponerte una nota. Probá de nuevo contestando cada pregunta con una oración.");
     const espera=bubble("tip","⏳ <b>La IA está corrigiendo tu examen…</b> (unos segundos)");
     let ev=null,err=null;
-    try{ev=await iaEvaluar(registro)}catch(e){err=e}
+    try{ev=await iaEvaluar(registro,total>=6?pts/total:null)}catch(e){err=e}
     if(run!==id)return;   // tocó «Empezar» otra vez mientras corregía
     espera.remove();
     if(ev){guardarNota(ev,id);mostrarNota(ev);return}
@@ -1650,13 +1684,14 @@ function mountConv(rootId,mode){
     const col=v=>v>=7?"var(--good)":v>=5.5?"var(--accent)":"var(--bad)";
     const crit=EVAL_CRIT.map(([k,ic,nom])=>`<div class="nc"><span>${ic} ${nom}</span><span class="nb"><i style="width:${ev.c[k]*10}%;background:${col(ev.c[k])}"></i></span><b>${ev.c[k]}</b></div>`).join("");
     const preg=ev.pregunto?"✅ Le hiciste una pregunta al examinador.":"❗ No le hiciste ninguna pregunta al examinador (en el examen se pide al menos una), por eso «Entender y responder» no pasa de 6.";
+    const aj=ev.ajustes&&ev.ajustes.length?`<p class="es nota-aj">ℹ️ ${ev.ajustes.map(esc).join(" ")}</p>`:"";
     const bien=ev.bien.length?`<h4>👍 Lo que hiciste bien</h4><ul>${ev.bien.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:"";
     const mej=ev.mejorar.length?`<h4>🛠️ Para mejorar</h4><ul class="mej">${ev.mejorar.map(x=>`<li>Dijiste: <i>«${esc(x.dijo)}»</i><br>Mejor: <button class="hchip" data-say="${attr(x.mejor)}"><b>${esc(x.mejor)}</b> 🔊</button>${x.porque?`<br><span class="es">${esc(x.porque)}</span>`:""}</li>`).join("")}</ul>`:"";
     const rep=ev.repasar.length?`<h4>📖 Para repasar en «Estudiar»</h4><div class="nrep">${ev.repasar.map(x=>`<span>${esc(x)}</span>`).join("")}</div>`:"";
     const ult=prev.length?`<p class="es">Tus últimas notas: ${prev.map(x=>fmtNota(x.n)).join(" → ")} → <b>${fmtNota(ev.nota)}</b> ${ev.nota-prev[prev.length-1].n>=.5?"· ▲ ¡subiste!":ev.nota-prev[prev.length-1].n<=-.5?"· ▼ bajaste un poco":"· parecida"}</p>`:"";
     el("chat").classList.add("fin");
     const tarjeta=bubble("nota",`<div class="nota-top"><div class="nota-num">${fmtNota(ev.nota)}<small>de 10</small></div><div><div class="nota-tit">${E?"Nota del examen oral":"Nota de la charla"}</div><div class="nota-let"><b>${ev.letra.l}</b> · ${ev.letra.en}</div><div>${ev.letra.msg}</div></div></div>`
-      +(ev.resumen?`<p>${esc(ev.resumen)}</p>`:"")+`<div class="ncs">${crit}</div><p>${preg}</p>`+bien+mej+rep+ult
+      +(ev.resumen?`<p>${esc(ev.resumen)}</p>`:"")+`<div class="ncs">${crit}</div><p>${preg}</p>`+aj+bien+mej+rep+ult
       +`<p class="es nota-pie">Es una estimación de la IA para practicar, no la nota oficial. Se calcula con lo que dijiste (en texto): la pronunciación así no se puede medir, pedile a un adulto que te escuche.</p>`);
     tarjeta.scrollIntoView({block:"start",behavior:"smooth"});   // se ve primero la nota, no el final de la tarjeta
   }
@@ -1965,7 +2000,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · nota de la IA 1";
+const BUILD="2026-11-01 · nota de la IA 2";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};

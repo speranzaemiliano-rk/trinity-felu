@@ -217,6 +217,8 @@ td.say-td:hover{background:color-mix(in srgb,var(--accent) 16%,transparent)}
 td.say-td::after{content:" 🔊";font-size:.75em;opacity:.45}
 td.say-td.pressed{background:color-mix(in srgb,var(--accent) 35%,transparent)}
 .qsay{margin:-6px 0 12px}
+#dsLog{list-style:none;padding-left:0}
+#dsLog li{padding:4px 0;border-bottom:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -234,6 +236,13 @@ td.say-td.pressed{background:color-mix(in srgb,var(--accent) 35%,transparent)}
   <button role="tab" id="t-speak" aria-selected="false" data-v="speak">Speaking</button>
   <button role="tab" id="t-exam" aria-selected="false" data-v="exam">Examen</button>
 </nav>
+
+<details id="diagSonido" style="margin-bottom:14px;border-color:var(--accent)">
+  <summary>🔧 ¿No suena? Diagnóstico de sonido</summary>
+  <p class="es">Tocá los botones <b>de a uno</b>, en orden, y fijate si suena. Abajo aparece qué pasó. Si algo falla, <b>sacá una captura de esta pantalla</b> y mandásela a quien te ayuda.</p>
+  <div class="sbtns"><button class="btn" id="dsA">1) Audio del sitio</button><button class="btn alt" id="dsB">2) Voz del navegador</button><button class="btn ghost" id="dsC">3) Voz de la IA</button></div>
+  <ol id="dsLog" class="log"></ol>
+</details>
 
 <!-- ESTUDIAR -->
 <section id="v-study">
@@ -435,6 +444,7 @@ td.say-td.pressed{background:color-mix(in srgb,var(--accent) 35%,transparent)}
 <div id="exam"></div>
 </section>
 </div>
+<p id="buildInfo" class="es" style="text-align:center;margin:26px 0 40px;font-size:.78rem;opacity:.7"></p>
 
 <script>
 // ---- ordinales
@@ -749,14 +759,15 @@ function unlockAudioEl(){   // iPhone: el primer play() tiene que ocurrir dentro
   if(_audOk)return;_audOk=true;
   try{_aud=_aud||new Audio();_aud.src=_SILENCIO;const p=_aud.play();if(p&&p.catch)p.catch(()=>{_audOk=false})}catch(e){_audOk=false}
 }
+let _audErr="";
 function _playUrl(url){
   return new Promise(r=>{
     if(_playCorta){_playCorta();_playCorta=null}   // un audio nuevo corta el anterior (sin que el anterior pase a "falló")
     let fin=false,t=null;const ok=v=>{if(!fin){fin=true;clearTimeout(t);if(_playCorta===cortar)_playCorta=null;r(v)}};
     const cortar=()=>ok(true);_playCorta=cortar;
-    const a=_aud||(_aud=new Audio());a.onended=()=>ok(true);a.onerror=()=>ok(false);
+    const a=_aud||(_aud=new Audio());a.onended=()=>ok(true);a.onerror=()=>{_audErr="error del reproductor "+(a.error?a.error.code:"?");ok(false)};
     t=setTimeout(()=>ok(false),20000);
-    a.src=url;const pl=a.play();if(pl&&pl.catch)pl.catch(()=>ok(false));
+    a.src=url;const pl=a.play();if(pl&&pl.catch)pl.catch(e=>{_audErr=e&&e.name?e.name:"no se pudo reproducir";ok(false)});
   });
 }
 const TTS_MODELOS=["gemini-2.5-flash-preview-tts","gemini-3.1-flash-tts-preview"];
@@ -797,7 +808,7 @@ function sayOnline(t){
 function say(t,status){
   audioSesion("playback");
   const k=_audioKey(t);
-  if(_AUDIO_SET.has(k)){unlockVoice();return _playUrl("audio/"+k+".mp3").then(ok=>ok?undefined:_sayResto(t,status))}
+  if(_AUDIO_SET.has(k)){unlockVoice();return _playUrl("audio/"+k+".mp3").then(ok=>{if(ok)return;if(status)status("⚠️ El audio no pudo sonar ("+_audErr+"). Probando otra voz…");return _sayResto(t,status)})}
   return _sayResto(t,status);
 }
 function _sayResto(t,status){
@@ -1328,6 +1339,52 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
   if(activeStop)activeStop();
   window.scrollTo({top:0});
 }));
+
+// ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
+const BUILD="2026-11-01 · sonido 5";
+(function(){
+  const log=$("dsLog");
+  const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};
+  const modo=()=>((navigator.standalone||(window.matchMedia&&matchMedia("(display-mode: standalone)").matches))?"app instalada":"navegador");
+  function cabecera(){
+    log.innerHTML="";
+    L(null,"Versión del sitio: "+BUILD);
+    L(null,"Dispositivo: "+(IS_IOS?"iPhone/iPad":/Android/i.test(navigator.userAgent)?"Android":"PC")+" · abierto en: "+modo());
+    L(null,"Modo silencio de Safari (audioSession): "+(navigator.audioSession?navigator.audioSession.type:"no disponible en este iPhone"));
+    L(null,"Audios guardados en el sitio: "+_AUDIO_SET.size+" · IA conectada: "+(fbListo()?"sí":"no"));
+  }
+  $("dsA").onclick=()=>{
+    cabecera();
+    const k=_audioKey("Monday"),url="audio/"+k+".mp3";
+    const a=new Audio();a.src=url;                         // play() es lo PRIMERO que se hace, dentro del toque
+    const pr=a.play();
+    a.onended=()=>L(true,"Audio del sitio: terminó. Si escuchaste «Monday», el audio del sitio anda.");
+    a.onerror=()=>L(false,"Audio del sitio: error del reproductor (código "+(a.error?a.error.code:"?")+(a.error&&a.error.message?" · "+a.error.message:"")+")");
+    if(pr&&pr.then)pr.then(()=>L(true,"Audio del sitio: empezó a reproducirse (¿lo escuchaste?)")).catch(e=>L(false,"Audio del sitio: el celular NO lo dejó sonar → "+e.name+": "+e.message));
+    fetch(url,{headers:{Range:"bytes=0-1"}}).then(r=>L(r.status===206,"Descarga del audio por partes: "+r.status+(r.status===206?" (correcto)":" (el iPhone necesita 206)"))).catch(e=>L(false,"No se pudo bajar el audio ("+e.message+"): revisá la conexión"));
+  };
+  $("dsB").onclick=()=>{
+    cabecera();
+    if(!window.speechSynthesis){L(false,"Este navegador no tiene voz propia.");return}
+    const v=speechSynthesis.getVoices();L(null,"Voces del navegador: "+v.length+" · en inglés: "+v.filter(x=>/^en/i.test(x.lang)).length);
+    try{speechSynthesis.cancel()}catch(e){}
+    const u=new SpeechSynthesisUtterance("Hello, can you hear me?");u.lang="en-GB";u.volume=1;
+    u.onstart=()=>L(true,"Voz del navegador: empezó a hablar (¿la escuchaste?)");u.onend=()=>L(true,"Voz del navegador: terminó");
+    u.onerror=e=>L(false,"Voz del navegador: error → "+e.error);
+    speechSynthesis.speak(u);
+    setTimeout(()=>{if(!speechSynthesis.speaking)L(false,"Voz del navegador: no llegó a empezar (el iPhone la bloquea o no hay voz en inglés)")},2500);
+  };
+  $("dsC").onclick=async()=>{
+    cabecera();unlockAudioEl();
+    if(!fbListo()){L(false,"La IA no está conectada.");return}
+    L(null,"Pidiendo la voz a Gemini… (tarda unos segundos)");
+    const t0=performance.now();
+    try{const ok=await iaVoz("Hello, can you hear me? This is the voice of the examiner.");
+      L(ok,"Voz de la IA: "+(ok?"sonó (":"no pudo generarse (")+((performance.now()-t0)/1000).toFixed(1).replace(".",",")+" s)")}
+    catch(e){L(false,"Voz de la IA: error → "+_iaMsg(e))}
+  };
+  $("buildInfo").textContent="Versión "+BUILD;
+})();
 
 // ---- instalar como app
 if("serviceWorker"in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});

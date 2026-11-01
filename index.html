@@ -725,21 +725,37 @@ function pickVoice(){if(!synth)return;const v=synth.getVoices();if(!v.length)ret
   voice=en.find(x=>/en[-_]GB/i.test(x.lang)&&/google|natural|premium|enhanced/i.test(x.name))||en.find(x=>/en[-_]GB/i.test(x.lang))||en.find(x=>/google|natural/i.test(x.name))||en[0]||null}
 if(synth){pickVoice();if(synth.addEventListener)synth.addEventListener("voiceschanged",pickVoice);else synth.onvoiceschanged=pickVoice}
 // En celulares y Safari la voz solo arranca si se "desbloquea" con un toque: se hace en el primer clic de la página
-function unlockVoice(){if(unlocked||!synth)return;unlocked=true;try{const u=new SpeechSynthesisUtterance(" ");u.volume=0;synth.speak(u)}catch(e){}}
+function unlockVoice(){unlockAudioEl();if(unlocked||!synth)return;unlocked=true;try{const u=new SpeechSynthesisUtterance(" ");u.volume=0;synth.speak(u)}catch(e){}}
 ["pointerdown","keydown","touchstart"].forEach(ev=>document.addEventListener(ev,unlockVoice,{once:true,passive:true}));
 // Chrome corta la voz a los ~15 s si no se la "despierta"
 let ttsTimer=null;
 function ttsKeepAlive(on){clearInterval(ttsTimer);if(on)ttsTimer=setInterval(()=>{if(synth.speaking&&!synth.paused){synth.pause();synth.resume()}},9000)}
 // Plan B: si la PC/el celu no tiene voz en inglés instalada, se reproduce desde un servicio en línea (no depende de las voces del sistema)
+let _aud=null,_audOk=false;
+const _SILENCIO="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+function unlockAudioEl(){   // iPhone: el primer play() tiene que ocurrir dentro de un toque; después el mismo elemento puede sonar solo
+  if(_audOk)return;_audOk=true;
+  try{_aud=_aud||new Audio();_aud.src=_SILENCIO;const p=_aud.play();if(p&&p.catch)p.catch(()=>{_audOk=false})}catch(e){_audOk=false}
+}
+function _playUrl(url){
+  return new Promise(r=>{
+    let fin=false,t=null;const ok=v=>{if(!fin){fin=true;clearTimeout(t);r(v)}};
+    const a=_aud||(_aud=new Audio());a.onended=()=>ok(true);a.onerror=()=>ok(false);
+    t=setTimeout(()=>ok(false),20000);
+    a.src=url;const pl=a.play();if(pl&&pl.catch)pl.catch(()=>ok(false));
+  });
+}
 function sayOnline(t){
   const partes=t.match(/[^.!?]+[.!?]*/g)||[t];const trozos=[];let cur="";
   partes.forEach(x=>{if((cur+x).length>180&&cur){trozos.push(cur);cur=x}else cur+=x});if(cur.trim())trozos.push(cur);
-  return trozos.reduce((pr,tr)=>pr.then(ok=>ok===false?false:new Promise(r=>{
-    const a=new Audio("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en-GB&q="+encodeURIComponent(tr.trim()));
-    a.onended=()=>r(true);a.onerror=()=>r(false);
-    const pl=a.play();if(pl&&pl.catch)pl.catch(()=>r(false))})),Promise.resolve(true));
+  return trozos.reduce((pr,tr)=>pr.then(ok=>ok===false?false:_playUrl("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en-GB&q="+encodeURIComponent(tr.trim()))),Promise.resolve(true));
 }
 function say(t,status){
+  audioSesion("playback");
+  if(IS_IOS){unlockVoice();return sayOnline(t).then(ok=>ok?undefined:sayLocal(t,status))}
+  return sayLocal(t,status);
+}
+function sayLocal(t,status){
   return new Promise(res=>{
     const fallback=()=>setTimeout(res,Math.min(6000,600+t.length*55));
     if(!synth){return sayOnline(t).then(ok=>{if(!ok)status("Este navegador no puede leer en voz alta. Abrí el link en <b>Chrome</b> o <b>Edge</b>.")})}
@@ -829,33 +845,39 @@ function mountConv(rootId,mode){
   // Escucha por grabación: graba en WAV, corta sola tras un silencio (o con «Listo») y la IA lo pasa a texto
   function listenRec(){
     return new Promise(async res=>{
-      let stream=null,src=null,proc=null,chunks=[],done=false,spoke=false,lastVoice=0,t0=0,cap=null,nf=0,th=0.02;
+      let stream=null,src=null,proc=null,chunks=[],done=false,spoke=false,lastVoice=0,t0=0,cap=null,nf=0,th=0.02,rate=44100,pk=0;
       const cleanup=()=>{clearTimeout(cap);finishNow=null;recAbort=null;
         try{if(proc){proc.onaudioprocess=null;proc.disconnect()}}catch(e){}try{if(src)src.disconnect()}catch(e){}
-        if(stream)stream.getTracks().forEach(t=>t.stop());el("lvl").style.width="0";audioSesion("playback")};
+        if(stream)stream.getTracks().forEach(t=>t.stop());el("lvl").style.width="0";audioSesion("playback");
+        if(_actx){const c=_actx;_actx=null;c.close().catch(()=>{})}};   // libera el audio: si no, en iPhone la voz del examinador queda muda
       recAbort=()=>{if(done)return;done=true;cleanup();micUI(false);res(null)};
       const terminar=async()=>{
         if(done)return;done=true;cleanup();
-        if(!spoke){micUI(false);return res(null)}
+        const seg=chunks.reduce((n,c)=>n+c.length,0)/rate;
+        // si el volumen nunca pasó el umbral pero hubo señal, igual se manda a la IA (hay micrófonos que graban muy bajito)
+        if(!spoke&&pk<0.008){micUI(false);status("No llegó sonido del micrófono (volumen máx. "+Math.round(pk*100)+" %). Acercate más, hablá más fuerte o subí el volumen de entrada en Windows (Sistema → Sonido → Entrada). También podés usar <b>⌨️ Escribir</b>.");return res(null)}
         micUI(true,"Entendiendo lo que dijiste…");
-        try{const t=await iaTranscribir(_aWav(chunks,_actx.sampleRate));micUI(false);res(t||null)}
+        try{const t=await iaTranscribir(_aWav(chunks,rate));micUI(false);
+          if(!t)status("Grabé "+seg.toFixed(1).replace(".",",")+" s (volumen máx. "+Math.round(pk*100)+" %) pero la IA no entendió palabras. Probá hablar más cerca y más fuerte, o usá <b>⌨️ Escribir</b>.");
+          res(t||null)}
         catch(e){console.warn("[IA] transcribir:",e);micUI(false);status("No pude pasar tu voz a texto ("+esc(_iaMsg(e))+"). Tocá <b>⌨️ Escribir</b>.");res(null)}
       };
       try{
         primeAudio();audioSesion("play-and-record");
         el("talk").hidden=true;el("done").hidden=false;
-        stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+        stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}});   // sin supresión de ruido: en varias notebooks "recorta" la voz suave
         if(done){stream.getTracks().forEach(t=>t.stop());return}
-        if(_actx.state==="suspended")await _actx.resume();
+        if(_actx.state==="suspended")await Promise.race([_actx.resume(),new Promise(r=>setTimeout(r,1500))]);
+        rate=_actx.sampleRate;
         src=_actx.createMediaStreamSource(stream);
         proc=_actx.createScriptProcessor(4096,1,1);
         proc.onaudioprocess=e=>{
           if(done)return;
           const d=e.inputBuffer.getChannelData(0);chunks.push(new Float32Array(d));
           let m=0;for(let i=0;i<d.length;i++){const a=Math.abs(d[i]);if(a>m)m=a}
-          el("lvl").style.width=Math.min(100,m*260)+"%";
+          if(m>pk)pk=m;el("lvl").style.width=Math.min(100,m*260)+"%";
           const now=performance.now();
-          if(now-t0<500){if(m>nf)nf=m;th=Math.min(0.05,Math.max(0.012,nf*2.5))}   // los primeros 0,5 s miden el ruido de fondo
+          if(now-t0<500){if(m>nf)nf=m;th=Math.min(0.04,Math.max(0.008,nf*3))}   // los primeros 0,5 s miden el ruido de fondo
           else if(m>th){if(!spoke)el("heard").textContent="🎙️ te escucho…";spoke=true;lastVoice=now}
           if(spoke&&now-lastVoice>2000)terminar();
           else if(!spoke&&now-t0>12000)terminar();

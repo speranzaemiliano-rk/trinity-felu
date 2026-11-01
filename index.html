@@ -220,6 +220,13 @@ td.say-td.pressed{background:color-mix(in srgb,var(--accent) 35%,transparent)}
 #dsLog{list-style:none;padding-left:0}
 #dsLog li{padding:4px 0;border-bottom:1px solid var(--line)}
 ul.plano{margin:.3rem 0;padding-left:1.15rem}ul.plano li{margin:.4rem 0}
+.msg.hint{align-self:stretch;max-width:none;background:color-mix(in srgb,var(--accent) 22%,var(--paper));border:1px dashed color-mix(in srgb,var(--accent) 70%,var(--ink));border-radius:14px;font-size:.95rem}
+.msg.hint .who{display:block;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);font-weight:800;margin-bottom:4px}
+.hchips{display:flex;flex-wrap:wrap;gap:6px}
+.hchip{font:inherit;cursor:pointer;border:2px solid var(--line);background:var(--paper);color:var(--ink);border-radius:999px;padding:5px 11px;line-height:1.25}
+.hchip .es{color:var(--muted)}
+.hchip:active,.hchip.pressed{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 30%,var(--paper))}
+.bigpic{display:block;font-size:3.4rem;line-height:1.15;margin:2px 0 6px}
 </style>
 </head>
 <body>
@@ -618,85 +625,185 @@ const OPEN=[
   need:[[/my name is|i'm \w|i am \w/,"Empezá con \"My name is…\"."]],
   react:t=>{const m=t.match(/(?:my name is|i'm|i am)\s+([a-z]+)/);if(m)kidName=cap(m[1]);return kidName?`Nice to meet you, ${kidName}!`:"Nice to meet you!"}}
 ];
+// ---- Pasos de la charla, ordenados por los temas oficiales del Trinity GESE Grade 3 (A2.1):
+// vida en casa · lugares del barrio y direcciones · lugar de estudio · rutina y horas · tiempo libre y can/can't ·
+// familia y trabajos · clima y fechas · pasado (was/were) · describir dibujos (presente continuo) · pregunta del candidato.
+// Cada paso: intro (frase de enlace), q (pregunta), a (respuesta modelo), need (qué tiene que tener la respuesta),
+// hints (cómo se dice en inglés lo que probablemente necesite), picture (dibujo en emojis), follow (repregunta).
+const ORD=/\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|thirteenth|fourteenth|fifteenth|sixteenth|seventeenth|eighteenth|nineteenth|twentieth|twenty[- ](first|second|third|fourth|fifth|sixth|seventh|eighth|ninth)|thirtieth|thirty[- ]first|\d{1,2}(st|nd|rd|th))\b/;
+const MONTHS=/january|february|march|april|may|june|july|august|september|october|november|december/;
+const HORA=/o'?clock|half past|quarter (past|to)|\b\d{1,2}(:\d\d)?\b|\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/;
+const H=(es,en)=>({es,en});
 const MIDDLE=[
- {q:"How old are you?",a:"I am nine years old.",
-  need:[[NUM,"Decí tu edad con un número."],[/years? old/,"Terminá con \"years old\": \"I am nine years old\"."]],
-  react:t=>{const m=t.match(NUM);return m?`${cap(m[0])}! That's a great age.`:"That's a great age."}},
- {q:"Where are you from?",a:"I am from Argentina.",
-  need:[[/(i am|i'm) from/,"Usá \"I am from…\"."]],
-  react:t=>/argentin/.test(t)?"Argentina! What a beautiful country.":"How interesting!",
-  follow:()=>({q:"And where do you live?",a:"I live in Buenos Aires.",need:[[/i live/,"Usá \"I live in…\"."]],react:()=>"Oh, I see. That sounds nice."})},
- {q:"Let's talk about your family. How many people are there in your family?",a:"There are four people in my family.",
-  need:[[NUM,"Decí el número."],[/there are/,"Empezá con \"There are…\"."]],
-  react:()=>"That's a lovely family.",
-  follow:()=>({q:"Who are they?",a:"My mum, my dad, my brother and me.",need:[[/mum|mom|dad|mother|father|brother|sister|grand/,"Nombrá a tu familia: my mum, my dad…"]],react:()=>"Very good."})},
- {q:"Have you got any pets?",a:"Yes, I have got a dog.",
-  need:[[/yes|no|i have|i've got|i haven't|i don't/,"Contestá \"Yes, I have got a…\" o \"No, I haven't\"."]],
-  react:t=>{const p=find(t,ANIMALS);return NO.test(t)?"OK, no pets. That's fine.":p?`A ${p}! How lovely.`:"How lovely!"},
-  follow:t=>NO.test(t)?null:{q:"What's your pet's name?",a:"His name is Toby.",need:[[/name is|is called|it's|its|he's|she's/,"Usá \"His name is…\" o \"Her name is…\"."]],react:()=>"What a nice name!"}},
- {q:"What's your favourite colour?",a:"My favourite colour is green.",
-  need:[[/colou?r is/,"Usá \"My favourite colour is…\"."]],
-  react:t=>{const c=find(t,COLOURS);return c?`${cap(c)}! I like ${c} too.`:"That's a nice colour."}},
- {q:"What's your favourite animal?",a:"My favourite animal is the lion.",
-  need:[[/animal is|i like/,"Usá \"My favourite animal is…\"."]],
-  react:t=>{const p=find(t,ANIMALS);return p?`Oh, the ${p}!`:"Oh, nice!"},
-  follow:t=>/because/.test(t)?null:{q:"Why do you like it?",a:"Because it is strong and beautiful.",need:[[/because/,"Contestá con \"Because…\"."]],react:()=>"Good answer!"}},
- {q:"When is your birthday?",a:"My birthday is on the fourteenth of March.",
-  need:[[/birthday is|it'?s|it is/,"Usá \"My birthday is…\"."],[/\bon\b|\bin\b/,"Con fechas va \"on\": \"on the 14th of March\"."]],
-  react:()=>"Great!",
-  follow:()=>({q:"What do you do on your birthday?",a:"I have a party with my friends and I eat cake.",need:[[/\bi (have|eat|play|go|open|get|invite|see)/,"Contá qué hacés: \"I have a party…\"."]],react:()=>"That sounds like fun!"})},
- {q:"Tell me about your day. What do you do every morning?",a:"I get up at seven o'clock and I go to school.",
-  need:[[/\bi (get|go|have|wake|eat|brush|wash|take|drink)/,"Contá tu rutina: \"I get up…, I go to school…\"."]],
-  react:()=>"Very busy!",
-  follow:()=>({q:"What time do you go to school?",a:"I go to school at eight o'clock.",need:[[/\bat\b/,"Con horas va \"at\": \"at eight o'clock\"."]],react:()=>"OK, thank you."})},
- {q:"What do you like doing at the weekend?",a:"I like playing football in the park.",
-  need:[[/\bi (like|play|go|watch|visit|ride|read|love|swim)/,"Usá \"I like…\" o \"I play…\"."]],
-  react:()=>pick(["That sounds fun!","Oh, I like that too!"])},
- {q:"Can you swim?",a:"Yes, I can.",
-  need:[[/\bcan\b|\bcan't\b|cannot/,"Contestá \"Yes, I can\" o \"No, I can't\"."]],
-  react:t=>/can't|cannot|^no/.test(t)?"That's OK!":"Well done!",
-  follow:()=>({q:"What else can you do?",a:"I can ride a bike and I can dance.",need:[[/\bcan\b/,"Usá \"I can…\"."]],react:()=>"Wow, very good!"})},
- {q:"Where were you yesterday?",a:"I was at home with my family.",
-  need:[[/\bwas\b/,"Es pasado: \"I was at…\"."]],
-  react:()=>"I see."},
- {q:"Where is your school bag now?",a:"My school bag is in my bedroom, next to my bed.",
-  need:[[/\b(under|on|in|next to|behind|between|in front of)\b/,"Usá una preposición: in, on, under, next to…"]],
-  react:()=>"OK, good."},
- {q:"Who is your best friend?",a:"My best friend is Mateo.",
-  need:[[/friend is|it's|it is/,"Usá \"My best friend is…\"."]],
-  react:()=>"That's nice.",
-  follow:()=>({q:"What do you do together?",a:"We play football together.",need:[[/\bwe\b/,"Usá \"We…\": \"We play football\"."]],react:()=>"That sounds great!"})},
- {q:"What's the weather like today?",a:"It's sunny and hot.",
-  need:[[/it'?s|it is/,"Empezá con \"It's…\"."],[/sun|hot|cold|rain|wind|cloud|storm|snow|warm|nice/,"Usá una palabra del clima: sunny, cloudy, rainy, cold…"]],
-  react:t=>/rain|storm/.test(t)?"Oh no! Don't forget your umbrella.":/sun|hot|warm|nice/.test(t)?"Lovely! A good day for the park.":"I see.",
-  follow:()=>({q:"What's your favourite season? Why?",a:"My favourite season is summer because it is hot.",need:[[/summer|winter|spring|autumn|fall/,"Nombrá una estación: summer, winter, spring, autumn."],[/because/,"Explicá con \"because…\"."]],react:()=>"Good answer!"})},
- {q:"What day is it today?",a:"It's Saturday.",
-  need:[[/monday|tuesday|wednesday|thursday|friday|saturday|sunday/,"Decí el día: \"It's Saturday\"."]],
-  react:()=>"That's right.",
-  follow:()=>({q:"What's your favourite day of the week?",a:"My favourite day is Saturday because I don't go to school.",need:[[/monday|tuesday|wednesday|thursday|friday|saturday|sunday/,"Nombrá un día."]],react:()=>"Me too!"})},
- {q:"Tell me about your home. How many bedrooms are there in your house?",a:"There are three bedrooms in my house.",
-  need:[[/there (is|are)/,"Usá \"There are… bedrooms\"."],[NUM,"Decí el número."]],
-  react:()=>"Very nice.",
-  follow:()=>({q:"What is there in your bedroom?",a:"There is a bed, a desk and a wardrobe.",need:[[/bed|desk|wardrobe|lamp|chair|table|toy|tv|bookcase|carpet|curtain|nightstand/,"Nombrá cosas: a bed, a desk, a wardrobe…"]],react:()=>"That sounds like a nice bedroom."})},
- {q:"What is your favourite room in your house?",a:"My favourite room is the living room because I watch TV there.",
-  need:[[/kitchen|bedroom|bathroom|living|dining|garage|garden|attic|basement|office|room/,"Nombrá una habitación: kitchen, bedroom, living room…"]],
+ // ---- casa (vida en casa)
+ {g:"casa",intro:"Now, let's talk about your home. ",q:"How many rooms are there in your house?",a:"There are five rooms in my house.",
+  need:[[NUM,"Decí cuántas habitaciones hay: un número."],[/there (is|are)/,"Empezá con \"There are… rooms\"."]],
+  hints:[H("hay","there are"),H("habitaciones","rooms"),H("mi casa","my house")],
+  react:()=>pick(["That sounds like a nice house!","Oh, that's a good size."]),
+  follow:()=>({q:"And what is in your bedroom?",a:"There is a bed, a desk and a wardrobe.",hints:[H("cama","bed"),H("escritorio","desk"),H("ropero","wardrobe")],
+    need:[[/bed|desk|wardrobe|lamp|chair|table|toy|tv|bookcase|carpet|curtain|nightstand/,"Nombrá cosas: a bed, a desk, a wardrobe…"]],react:()=>"Very nice."})},
+ {g:"casa",intro:"Now, let's talk about your home. ",q:"What is your favourite room in your house? Why?",a:"My favourite room is the living room because I watch TV there.",
+  need:[[/kitchen|bedroom|bathroom|living|dining|garage|garden|attic|room/,"Nombrá una habitación: kitchen, bedroom, living room…"],[/because/,"Explicá con \"because…\"."]],
+  hints:[H("mi habitación favorita","my favourite room"),H("porque","because"),H("living","living room")],
   react:()=>"Nice choice!"},
- {q:"What places are there near your house?",a:"There is a supermarket and a bakery near my house.",
-  need:[[/there (is|are)/,"Usá \"There is a… near my house\"."],[/shop|supermarket|bakery|park|school|square|library|church|cinema|playground|station|chemist|pharmacy|café|cafe|butcher|greengrocer|street|bus stop|club|museum|hospital/,"Nombrá lugares: a bakery, a park, a supermarket…"]],
-  react:()=>"Great!",
-  follow:()=>({q:"Where do you buy bread?",a:"I buy bread at the bakery.",need:[[/bakery|supermarket|shop/,"Decí dónde: \"at the bakery\"."]],react:()=>"Mmm, fresh bread. Lovely!"})},
- {q:"Do you like sports? What sports do you play?",a:"Yes, I do. I play football and tennis.",
-  need:[[/i play|i like|i go|i love|i don't|swimming|football|tennis|basketball|rugby|hockey|volleyball/,"Usá \"I play…\"."]],
-  react:t=>/football|soccer/.test(t)?"Football! That's very popular in Argentina.":"Great!",
-  follow:t=>/don't|^no/.test(t)?null:{q:"When do you play?",a:"I play on Saturdays.",need:[[/\bon\b|\bat\b|\bin\b|every|after/,"Decí cuándo: \"on Saturdays\", \"after school\"."]],react:()=>"Very good."}},
- {q:"What does your mum or dad do?",a:"My dad is an architect.",
-  need:[[/is a|is an|works|is the/,"Usá \"My dad is a…\" o \"My mum is a…\"."]],
+ {g:"casa",intro:"Now, let's talk about your home. ",q:"Who do you live with?",a:"I live with my mum, my dad and my brother.",
+  need:[[/i live with|with my/,"Usá \"I live with…\"."],[/mum|mom|dad|mother|father|brother|sister|grand|aunt|uncle|cousin|friend|dog|cat/,"Nombrá a quién: my mum, my dad…"]],
+  hints:[H("vivo con","I live with"),H("mi mamá","my mum"),H("mi hermano","my brother")],
+  react:()=>"That's a lovely family."},
+ // ---- barrio (lugares del barrio, ubicación y direcciones)
+ {g:"barrio",intro:"Let's talk about where you live. ",q:"Is your house near your school?",a:"Yes, it is. It's near my school.",
+  need:[[/yes|no|near|far|\bis\b|isn't/,"Contestá \"Yes, it is\" o \"No, it isn't\"."]],
+  hints:[H("cerca de","near"),H("lejos de","far from"),H("mi escuela","my school")],
+  react:t=>NO.test(t)||/isn't|far/.test(t)?"I see. It's a little far.":"Oh, that's very handy!",
+  follow:()=>({q:"What can you see near your house? A park? Some shops?",a:"There is a park and a supermarket near my house.",hints:[H("parque","park"),H("supermercado","supermarket"),H("negocios","shops")],
+    need:[[/there (is|are)|i can see/,"Usá \"There is a… near my house\"."],[/park|shop|supermarket|bakery|school|square|library|church|cinema|playground|station|chemist|pharmacy|caf|butcher|greengrocer|museum|bank|street/,"Nombrá un lugar: a park, a supermarket…"]],react:()=>"Lovely!"})},
+ {g:"barrio",intro:"Let's talk about where you live. ",q:"Where is the supermarket? Is it near your house?",a:"It's opposite the bank, near my house.",
+  need:[[/near|opposite|next to|in front of|behind|between|on the (left|right)|far/,"Decí dónde está: near, opposite, next to, in front of, behind…"]],
+  hints:[H("enfrente de","opposite"),H("al lado de","next to"),H("detrás de","behind")],
+  react:()=>"Thank you. That's very clear."},
+ {g:"barrio",intro:"Now imagine I am at your school. ",q:"How do I get to your house from your school?",a:"Go straight on and then turn left. My house is on the right.",
+  need:[[/straight|left|right|turn|cross|along|up|down/,"Usá: go straight on, turn left, turn right, cross the street…"]],
+  hints:[H("seguí derecho","go straight on"),H("doblá a la izquierda","turn left"),H("y después","and then")],
+  react:()=>"Great! Thank you for the directions."},
+ // ---- escuela (lugar de estudio)
+ {g:"escuela",intro:"Let's talk about your school. ",q:"What subjects do you study at school?",a:"I study maths, English and science.",
+  need:[[/\bi (study|have|like)|we (study|have)|maths|math|english|science|history|geography|art|music|pe\b|spanish/,"Nombrá materias: maths, English, science…"]],
+  hints:[H("estudio","I study"),H("matemática","maths"),H("ciencias","science")],
+  react:()=>pick(["That's a lot of subjects!","Interesting!"]),
+  follow:()=>({q:"What time does school finish?",a:"School finishes at one o'clock.",hints:[H("la escuela termina","school finishes"),H("a la una","at one o'clock"),H("y media","half past")],
+    need:[[HORA,"Decí la hora: at one o'clock, at half past four…"],[/\bat\b/,"Con la hora va \"at\": \"at one o'clock\"."]],react:()=>"OK, thank you."})},
+ {g:"escuela",intro:"Let's talk about your school. ",q:"What is your favourite subject? Why?",a:"My favourite subject is English because it's fun.",
+  need:[[/favou?rite subject is|i like|my favou?rite/,"Usá \"My favourite subject is…\"."],[/because/,"Explicá con \"because…\"."]],
+  hints:[H("mi materia favorita","my favourite subject"),H("porque","because"),H("es divertida","it's fun")],
+  react:()=>"That's a good choice!"},
+ {g:"escuela",intro:"Let's talk about your school. ",q:"What is in your classroom?",a:"There is a board, a teacher's desk and thirty chairs.",
+  need:[[/there (is|are)/,"Empezá con \"There is… / There are…\"."],[/board|desk|chair|table|teacher|window|door|book|map|computer|clock|bag/,"Nombrá cosas: a board, a desk, chairs…"]],
+  hints:[H("hay","there is / there are"),H("pizarrón","board"),H("sillas","chairs")],
+  react:()=>"That sounds like a nice classroom."},
+ // ---- rutina (rutina diaria y horas)
+ {g:"rutina",intro:"Now tell me about your daily routine. ",q:"What time do you get up?",a:"I get up at seven o'clock.",
+  need:[[/\bat\b/,"Con la hora va \"at\": \"at seven o'clock\"."],[HORA,"Decí la hora: seven o'clock, half past seven…"]],
+  hints:[H("me levanto","I get up"),H("a las siete","at seven o'clock"),H("y media","half past")],
+  react:()=>"That's early!",
+  follow:()=>({q:"And what do you do after school?",a:"I do my homework and then I play with my friends.",hints:[H("hago la tarea","I do my homework"),H("y después","and then"),H("juego con mis amigos","I play with my friends")],
+    need:[[/\bi (do|play|watch|have|go|read|eat|help|visit|draw)/,"Contá qué hacés: \"I do my homework…\"."],[/\band\b|\bthen\b/,"Unilo con \"and\" o \"and then\": \"…and then I play\"."]],react:()=>"That sounds like a busy afternoon!"})},
+ {g:"rutina",intro:"Now tell me about your day. ",q:"What time do you go to bed?",a:"I go to bed at ten o'clock.",
+  need:[[/\bat\b/,"Con la hora va \"at\": \"at ten o'clock\"."],[HORA,"Decí la hora: ten o'clock, half past nine…"]],
+  hints:[H("me voy a dormir","I go to bed"),H("a las diez","at ten o'clock"),H("temprano","early")],
+  react:()=>"Good! Sleep is important.",
+  follow:()=>({q:"What do you do before you go to bed?",a:"I brush my teeth and then I read a book.",hints:[H("me lavo los dientes","I brush my teeth"),H("leo un libro","I read a book"),H("y después","and then")],
+    need:[[/\bi (brush|read|watch|wash|have|listen|play|say)/,"Contá qué hacés: \"I brush my teeth…\"."]],react:()=>"Very good."})},
+ {g:"rutina",intro:"Now tell me about your day. ",q:"What do you do in the morning before school?",a:"I get up, and then I have breakfast. I go to school at eight.",
+  need:[[/\bi (get|wake|have|wash|brush|go|eat|drink)/,"Contá tu mañana: \"I get up…, I have breakfast…\"."],[/\band\b|\bthen\b/,"Unilo con \"and then\": \"I get up, and then I have breakfast\"."]],
+  hints:[H("desayuno","I have breakfast"),H("me lavo los dientes","I brush my teeth"),H("y después","and then")],
+  react:()=>"Thank you, that's a good routine."},
+ // ---- libre (tiempo libre, can / can't)
+ {g:"libre",intro:"Let's talk about your free time. ",q:"What do you do in your free time?",a:"I play football and I watch TV.",
+  need:[[/\bi (play|watch|read|listen|go|like|draw|paint|ride|swim|dance|love|visit|help|cook)/,"Usá \"I play…\", \"I like…\", \"I watch…\"."]],
+  hints:[H("juego al fútbol","I play football"),H("miro tele","I watch TV"),H("escucho música","I listen to music")],
+  react:()=>pick(["That sounds fun!","Oh, I like that too!"]),
+  follow:()=>({q:"Can you swim?",a:"Yes, I can. I can swim very well.",hints:[H("puedo","I can"),H("no puedo","I can't"),H("nadar","swim")],
+    need:[[/\bcan\b|\bcan't\b|cannot/,"Contestá \"Yes, I can\" o \"No, I can't\"."]],react:t=>/can't|cannot|^no/.test(t)?"That's OK!":"Well done!"})},
+ {g:"libre",intro:"Let's talk about your free time. ",q:"What do you do at the weekend?",a:"I play football with my friends and then I watch TV.",
+  need:[[/\bi (play|watch|go|visit|help|read|ride|eat|see|meet|stay)|we (play|go|watch)/,"Contá qué hacés: \"I play…\", \"I go…\"."],[/\band\b|\bthen\b/,"Sumá otra idea con \"and\" o \"and then\"."]],
+  hints:[H("el fin de semana","at the weekend"),H("con mis amigos","with my friends"),H("y después","and then")],
+  react:()=>"That sounds great!"},
+ {g:"libre",intro:"Let's talk about your free time. ",q:"What can you do well? Can you ride a bike?",a:"Yes, I can ride a bike and I can swim.",
+  need:[[/\bcan\b|\bcan't\b|cannot/,"Usá \"I can…\" o \"I can't…\"."]],
+  hints:[H("puedo","I can"),H("no puedo","I can't"),H("andar en bici","ride a bike")],
+  react:t=>/can't|cannot/.test(t)?"Don't worry, you can learn!":"Wow, very good!",
+  follow:()=>({q:"What can't you do?",a:"I can't play the guitar.",hints:[H("no puedo","I can't"),H("tocar la guitarra","play the guitar"),H("cocinar","cook")],
+    need:[[/can't|cannot|can not/,"Usá \"I can't…\"."]],react:()=>"Never mind. Thank you."})},
+ // ---- familia (familia y trabajos)
+ {g:"familia",intro:"Let's talk about your family. ",q:"What jobs do the people in your family have?",a:"My mum is a teacher and my dad is an architect.",
+  need:[[/is a|is an|works|is the/,"Usá \"My mum is a…\" o \"My dad is an…\"."],[/mum|mom|dad|mother|father|brother|sister|grand|aunt|uncle/,"Nombrá a tu familia: my mum, my dad…"]],
+  hints:[H("mi mamá es","my mum is"),H("maestra","a teacher"),H("arquitecto","an architect")],
   react:()=>"That's an interesting job.",
-  follow:()=>({q:"And what do you want to be?",a:"I want to be a vet because I love animals.",need:[[/want to be|would like to be|i'd like|be a|be an/,"Usá \"I want to be a…\"."]],react:t=>/vet|doctor|nurse|teacher|pilot|astronaut|scientist|firefighter|police|singer|footballer|artist|cook/.test(t)?"What a great job!":"That sounds great!"})},
- {q:"And what are you doing now?",a:"I am talking to you.",
-  need:[[/(am|'m) \w+ing/,"Usá \"I am …ing\": \"I am talking to you\"."]],
-  react:()=>"Yes, you are! And you are doing very well."}
+  follow:()=>({q:"And what do you want to be?",a:"I want to be a vet because I love animals.",hints:[H("quiero ser","I want to be"),H("veterinario","a vet"),H("porque","because")],
+    need:[[/want to be|would like to be|i'd like|be a|be an/,"Usá \"I want to be a…\"."]],react:()=>"That's a wonderful idea!"})},
+ // ---- clima y fechas
+ {g:"clima",intro:"Now, a question about the weather. ",q:"What's the weather like today?",a:"It's sunny and hot.",
+  need:[[/it'?s|it is/,"Empezá con \"It's…\"."],[/sun|hot|cold|rain|wind|cloud|storm|snow|warm|nice|cool/,"Usá una palabra del clima: sunny, cloudy, rainy, cold…"]],
+  hints:[H("soleado","sunny"),H("nublado","cloudy"),H("llueve","it's raining")],
+  react:t=>/rain|storm/.test(t)?"Oh no! Don't forget your umbrella.":/sun|hot|warm|nice/.test(t)?"Lovely! A good day for the park.":"I see.",
+  follow:()=>({q:"What's your favourite season? Why?",a:"My favourite season is summer because it is hot.",hints:[H("estación","season"),H("verano","summer"),H("invierno","winter")],
+    need:[[/summer|winter|spring|autumn|fall/,"Nombrá una estación: summer, winter, spring, autumn."]],react:()=>"Good choice!"})},
+ {g:"fecha",intro:"Now, let's talk about dates. ",q:"What's the date today?",a:"It's the first of November.",
+  need:[[ORD,"Usá un ordinal: the first, the second, the fifth…"],[MONTHS,"Decí también el mes: November, March…"]],
+  hints:[H("el primero","the first"),H("de noviembre","of November"),H("hoy es","it's")],
+  react:()=>"That's right. Thank you.",
+  follow:()=>({q:"And when is your birthday?",a:"My birthday is on the fourteenth of March.",hints:[H("mi cumpleaños","my birthday"),H("el catorce","the fourteenth"),H("de marzo","of March")],
+    need:[[ORD,"Usá un ordinal: the fourteenth…"],[/\bon\b|\bin\b/,"Con fechas va \"on\": \"on the fourteenth of March\"."]],react:()=>"Great! Happy birthday in advance!"})},
+ {g:"clima",intro:"Now, a question about the weather. ",q:"What's the weather like in summer where you live? And in winter?",a:"In summer it's hot and sunny. In winter it's cold.",
+  need:[[/summer|winter/,"Hablá de verano (summer) y de invierno (winter)."],[/hot|cold|sun|rain|wind|cloud|snow|warm|cool|nice/,"Usá palabras del clima: hot, cold, sunny, rainy…"]],
+  hints:[H("en verano","in summer"),H("hace calor","it's hot"),H("hace frío","it's cold")],
+  react:()=>"Thank you. That sounds like four different seasons!"},
+ {g:"fecha",intro:"Now, let's talk about dates. ",q:"When is your birthday? What do you do on your birthday?",a:"My birthday is on the fourteenth of March. I have a party with my friends.",
+  need:[[ORD,"Usá un ordinal: the fourteenth…"],[MONTHS,"Decí también el mes: March, July…"]],
+  hints:[H("mi cumpleaños","my birthday"),H("el catorce","the fourteenth"),H("hago una fiesta","I have a party")],
+  react:()=>"That sounds like a lot of fun!",
+  follow:()=>({q:"And what day is it today?",a:"It's Saturday.",hints:[H("hoy es","it's"),H("lunes","Monday"),H("sábado","Saturday")],
+    need:[[/monday|tuesday|wednesday|thursday|friday|saturday|sunday/,"Decí el día: Monday, Tuesday, Saturday…"]],react:()=>"That's right."})},
+ // ---- pasado (was / were)
+ {g:"pasado",intro:"Now, let's talk about yesterday. ",q:"Where were you yesterday?",a:"I was at home with my family.",
+  need:[[/\bwas\b|\bwere\b/,"Es pasado: \"I was at…\"."]],
+  hints:[H("estuve","I was"),H("en casa","at home"),H("en la escuela","at school")],
+  react:()=>"I see.",
+  follow:()=>({q:"Was it fun?",a:"Yes, it was. It was very fun.",hints:[H("sí, lo fue","yes, it was"),H("no lo fue","no, it wasn't"),H("divertido","fun")],
+    need:[[/it was|it wasn't|was|wasn't/,"Contestá \"Yes, it was\" o \"No, it wasn't\"."]],react:()=>"I'm glad."})},
+ {g:"pasado",intro:"Now, let's talk about last weekend. ",q:"Where were you last weekend?",a:"I was at my grandma's house.",
+  need:[[/\bwas\b|\bwere\b/,"Es pasado: \"I was at…\"."]],
+  hints:[H("el fin de semana pasado","last weekend"),H("estuve","I was"),H("la casa de mi abuela","my grandma's house")],
+  react:()=>"That sounds nice.",
+  follow:()=>({q:"Who was with you?",a:"My cousins were with me.",hints:[H("estaba conmigo","was with me"),H("estaban conmigo","were with me"),H("mis primos","my cousins")],
+    need:[[/\bwas\b|\bwere\b|with me/,"Usá \"was\" o \"were\": \"My cousins were with me\"."]],react:()=>"How lovely."})},
+ {g:"pasado",intro:"Now, let's talk about yesterday. ",q:"How was your day yesterday?",a:"It was good. I was at school and then I was at the park.",
+  need:[[/it was|was/,"Es pasado: \"It was good\"."],[/\band\b|\bthen\b/,"Sumá otra idea con \"and then\"."]],
+  hints:[H("fue bueno","it was good"),H("estuve en","I was at"),H("y después","and then")],
+  react:()=>"That's nice to hear."}
 ];
+// ---- Dibujos: el examinador muestra un dibujo y pregunta qué hacen / qué trabajo tienen (como en el examen real)
+const JOBS_PIC=[
+ {e:"👩‍⚕️",who:"her",she:"She",job:"doctor",an:"a",re:/doctor|nurse/,hint:H("doctora","doctor")},
+ {e:"👨‍🚒",who:"his",she:"He",job:"firefighter",an:"a",re:/fire/,hint:H("bombero","firefighter")},
+ {e:"👩‍🏫",who:"her",she:"She",job:"teacher",an:"a",re:/teach/,hint:H("maestra","teacher")},
+ {e:"🧑‍✈️",who:"his",she:"He",job:"pilot",an:"a",re:/pilot/,hint:H("piloto","pilot")},
+ {e:"👨‍🌾",who:"his",she:"He",job:"farmer",an:"a",re:/farm/,hint:H("granjero","farmer")},
+ {e:"👮",who:"his",she:"He",job:"police officer",an:"a",re:/police/,hint:H("policía","police officer")},
+ {e:"👩‍🍳",who:"her",she:"She",job:"cook",an:"a",re:/cook|chef/,hint:H("cocinera","cook")}
+];
+const ACT_PIC=[
+ {e:"🏊",q:"What is he doing?",a:"He is swimming.",re:/swim/,pron:"he",hint:H("nadando","swimming")},
+ {e:"👩‍🍳",q:"What is she doing?",a:"She is cooking.",re:/cook/,pron:"she",hint:H("cocinando","cooking")},
+ {e:"🧒⚽🧒",q:"What are they doing?",a:"They are playing football.",re:/play|football|soccer/,pron:"they",hint:H("jugando al fútbol","playing football")},
+ {e:"🚴",q:"What is he doing?",a:"He is riding a bike.",re:/ride|riding|cycl|bike|bicycle/,pron:"he",hint:H("andando en bici","riding a bike")},
+ {e:"🧒📖",q:"What is he doing?",a:"He is reading a book.",re:/read/,pron:"he",hint:H("leyendo un libro","reading a book")},
+ {e:"👩‍🎨",q:"What is she doing?",a:"She is painting.",re:/paint|draw/,pron:"she",hint:H("pintando","painting")},
+ {e:"💃",q:"What is she doing?",a:"She is dancing.",re:/danc/,pron:"she",hint:H("bailando","dancing")},
+ {e:"🎸",q:"What is he doing?",a:"He is playing the guitar.",re:/guitar|play|music/,pron:"he",hint:H("tocando la guitarra","playing the guitar")}
+];
+function stepJobPic(j){return {g:"dibujo",intro:"Look at this picture. ",picture:j.e,q:`What's ${j.who} job?`,a:`${j.she}'s ${j.an} ${j.job}.`,
+  need:[[/(she|he)('s| is)|it's|it is/,`Empezá con \"${j.she}'s a…\".`],[j.re,`Mirá el dibujo: es ${j.hint.es} (${j.hint.en}).`]],
+  hints:[H(j.she==="She"?"ella es":"él es",`${j.she}'s`),j.hint,H("trabajo","job")],react:()=>pick(["That's right!","Yes, very good!"])}}
+function stepActionPic(x){return {g:"dibujo",intro:"Look at this picture. ",picture:x.e,q:x.q,a:x.a,
+  need:[[x.pron==="they"?/they('re| are)/:/(he|she)('s| is)/,`Empezá con \"${x.a.split(' ').slice(0,2).join(' ')}…\".`],[/\w+ing\b/,"Usá el presente continuo: verbo + -ing (swimming, playing…)."],[x.re,`Mirá el dibujo: está ${x.hint.es} (${x.hint.en}).`]],
+  hints:[x.hint,H("está","is / are"),H("están","are")],react:()=>pick(["Yes, that's right!","Very good!"])}}
+// ---- Al final, el candidato le hace una pregunta al examinador (Trinity lo pide en el Grade 3)
+const QSTEP={g:"pregunta",q:"Now, do you have a question for me?",a:"Yes, I do. What's your favourite colour?",
+  need:[[/\?|\b(what|where|when|who|why|how|which|do you|does|are you|is it|can you|have you|did you|were you)\b/,"Hacele una pregunta al examinador: \"What's your favourite food?\", \"Do you like your job?\"."]],
+  hints:[H("¿Tenés…?","Do you have…?"),H("¿Qué…?","What…?"),H("¿Dónde…?","Where…?")],
+  react:t=>/job|work/.test(t)?"Yes, I do. I like my job very much.":/pet|dog|cat/.test(t)?"Yes, I have a little dog.":/colou?r/.test(t)?"My favourite colour is blue.":/food|eat|pizza/.test(t)?"I love pasta!":/live|from/.test(t)?"I live in a small town near here.":/swim|can/.test(t)?"Yes, I can swim.":/get up|time/.test(t)?"I get up at seven o'clock.":/weekend/.test(t)?"At the weekend I like walking in the park.":"That's a very good question. Thank you!"};
+const GRUPOS=["casa","barrio","escuela","rutina","libre","familia","clima","fecha","pasado"];
+// arma una charla que pasa por TODOS los temas del Grade 3, un paso de cada uno, y termina con la pregunta del candidato
+function armarPasos(){
+  const por=g=>MIDDLE.filter(s=>s.g===g);
+  const pasos=GRUPOS.map(g=>pick(por(g)));
+  // familia: además de la charla sobre la familia, un dibujo de un trabajo
+  const j=pick(JOBS_PIC);pasos.splice(GRUPOS.indexOf("familia")+1,0,stepJobPic(j));
+  // dibujos de acciones (presente continuo): dos distintos
+  const a=shuffleA(ACT_PIC).slice(0,2);a.forEach(x=>pasos.push(stepActionPic(x)));
+  return [...OPEN,...pasos,QSTEP,CLOSE];
+}
 const CLOSE={q:"Thank you. That's the end of our conversation. Goodbye!",a:"Goodbye, have a nice day!",
   need:[[/bye/,"Despedite: \"Goodbye!\"."]],react:()=>"Have a nice day!",last:true};
 
@@ -714,21 +821,38 @@ const IS_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==
 // Con IA, la voz se graba y se transcribe: anda igual en PC, Android e iPhone (el dictado del navegador falla en muchos equipos).
 let sttRec=IA_ON;
 
-const SISTEMA_IA=`You are a kind, patient examiner for the Trinity GESE Grade 3 oral exam (CEFR A1-A2).
-You are talking with Felu, a 10-year-old child from Argentina learning English.
-Rules:
-- Use very simple English: short sentences, easy words. Speak like a friendly teacher.
-- Ask ONE question at a time. Never repeat a question already asked. Vary the topics: family, pets, school, daily routine, favourite things, weekend, house, town, food, sports, weather, birthday, jobs, past (was/were), can/can't, prepositions of place.
-- First react briefly to what the child said (one short sentence), then ask the next question. Use the child's name or details when you can.
-- If the child did not understand or asks to repeat, repeat more slowly with simpler words.
-- Grade 3 grammar only: present simple, present continuous, can, there is/are, was/were, prepositions, wh- questions.
-- When turn >= max, say a warm goodbye instead of a question and set "end": true.
-Answer ONLY with JSON: {"reply": string, "ok": boolean, "tip": string, "model": string, "end": boolean}
-- "reply": what the examiner says out loud (English only).
-- "ok": true if the child's last answer was a complete, relevant sentence in English (small mistakes are fine); false if it was empty, off-topic, in Spanish or only one word.
+const SISTEMA_IA=`You are a kind, patient examiner for the Trinity GESE Grade 3 oral exam (CEFR A2.1, "Initial stage"). The exam is ONE friendly conversation of up to 7 minutes.
+You are talking with Felu, a 10-year-old child from Argentina who is learning English. Speak to him like a warm teacher.
+STYLE
+- Use very simple English (A1-A2): short sentences, easy words. Contractions are fine (it's, I'm).
+- Ask ONE question at a time. Never repeat a question that was already asked.
+- First react to the child's last answer in a few words (e.g. "Oh, that sounds nice!"), then link to the next question naturally ("Now, let's talk about your school."). The conversation must feel fluid, not like a list of questions.
+- If the child did not understand or asks you to repeat, repeat more slowly with simpler words.
+TOPICS (the real Grade 3 syllabus). Follow this order, one topic per turn, linking each one naturally. "turn" is the number of the turn and "max" is the last question turn:
+ 1: greeting, "How are you today?" (warm-up, not assessed)
+ 2: his name (warm-up)
+ 3: HOME LIFE: his house, rooms, what is in his bedroom, who he lives with (there is / there are)
+ 4: LOCAL AREA and DIRECTIONS: is it near school, what is near his house, where something is (near, opposite, in front of, behind, next to), or how to get somewhere (go straight on, turn left/right, cross, along, up, down)
+ 5: PLACE OF STUDY: school subjects, what is in his classroom, what time school finishes
+ 6: DAILY ROUTINE and TIMES: what time he gets up / goes to bed, what he does after school (encourage "and" / "and then")
+ 7: FREE TIME and CAN / CAN'T: hobbies, weekend, what he can and can't do
+ 8: FAMILY and JOBS: his family's jobs. Include a PICTURE of a person with a job and ask "What's his/her job?"
+ 9: WEATHER and DATES: today's weather, favourite season, today's date or his birthday (ordinal numbers up to 31st)
+ 10: PAST (was / were): where he was yesterday or last weekend, was it fun
+ 11: PRESENT CONTINUOUS with a PICTURE: show a picture and ask "What is he/she doing?" or "What are they doing?"
+ turn = max: say "Now, do you have a question for me?" (the candidate must ask the examiner at least one question)
+ turn = max+1: answer his question in one short sentence and say a warm goodbye. Set "end" to true.
+GRAMMAR he should use: present simple for routines, present continuous for what is happening now or in a picture, can/can't, was/were, on/in/at, near/in front of/behind/opposite, and the link words "and" and "and then".
+PICTURES: when a turn needs a picture, put 1 to 3 emojis in "picture" (one person doing one clear thing, e.g. "🏊", "👩‍🍳", "🧒⚽🧒", "👨‍🚒", "🚴"), say "Look at this picture." in the reply and ask about it. Otherwise "picture" is "".
+HELP FOR THE CHILD (very important)
+- "hints": 1 to 3 short items {"es": Spanish, "en": English} with the English words or phrases that will help him answer YOUR NEXT QUESTION (e.g. {"es":"enfrente de","en":"opposite"}). They are shown to the child between questions.
+- "help": if his last answer contained Spanish words or he said he doesn't know ("no sé", "I don't know"), write one short sentence in Spanish telling him how to say it in English (e.g. "«perro» se dice dog."). Otherwise "".
+Answer ONLY with JSON: {"reply": string, "ok": boolean, "tip": string, "model": string, "end": boolean, "picture": string, "hints": [{"es": string, "en": string}], "help": string}
+- "reply": what the examiner says out loud (English only, no emojis).
+- "ok": true if the child's last answer was a relevant sentence in English (small mistakes are fine); false if it was empty, off-topic, in Spanish or only one word. At the warm-up turns always true.
 - "tip": if ok is false, one short helpful tip in SPANISH (max 20 words); otherwise "".
 - "model": if ok is false, a short correct example answer in English; otherwise "".
-- "end": true only for the goodbye.`;
+- "end": true only for the final goodbye.`;
 const PROMPT_TRANSCRIBIR="Transcribe exactly what the speaker says. The speaker is a child called Felu (short for Felipe) learning English (Argentine Spanish accent) and the speech is meant to be in English. If you hear his name, write it as Felu. Output ONLY the transcription: no quotes, no comments, no translation. If there is no intelligible speech, output nothing.";
 
 // --- Firebase AI Logic (se carga recién cuando hace falta)
@@ -778,7 +902,9 @@ function _iaMsg(e){
   return (m||"sin detalle").slice(0,230)+pista;
 }
 function _jsonDe(t){t=String(t||"").trim().replace(/^```(?:json)?\s*/i,"").replace(/```\s*$/,"");const i=t.indexOf("{"),j=t.lastIndexOf("}");if(i<0||j<i)throw new Error("respuesta inválida");return JSON.parse(t.slice(i,j+1))}
-function _iaNorm(o){if(!o||!o.reply)throw new Error("respuesta vacía");return{reply:String(o.reply).slice(0,400),ok:!!o.ok,tip:String(o.tip||"").slice(0,200),model:String(o.model||"").slice(0,200),end:!!o.end}}
+function _iaNorm(o){if(!o||!o.reply)throw new Error("respuesta vacía");
+  const hints=(Array.isArray(o.hints)?o.hints:[]).map(h=>({es:String((h&&h.es)||"").slice(0,60),en:String((h&&h.en)||"").slice(0,60)})).filter(h=>h.es&&h.en).slice(0,3);
+  return{reply:String(o.reply).slice(0,400),ok:!!o.ok,tip:String(o.tip||"").slice(0,200),model:String(o.model||"").slice(0,200),end:!!o.end,picture:String(o.picture||"").slice(0,30),hints,help:String(o.help||"").slice(0,200)}}
 function _iaContents(messages){
   const cs=(messages||[]).slice(-24).map(m=>({role:m.role==="child"?"user":"model",parts:[{text:String(m.text||"").slice(0,300)}]}));
   if(!cs.length||cs[0].role!=="user")cs.unshift({role:"user",parts:[{text:"(The child sits down. Start the exam with a greeting and a first question.)"}]});
@@ -985,6 +1111,7 @@ function mountConv(rootId,mode){
   root.innerHTML=`<div class="card">
   <div class="row" style="margin:0"><span class="tag" id="${P}n">${E?"Examen oral":"Conversación"}</span>
     <label class="chk"><input type="checkbox" id="${P}txt" ${E?"":"checked"}> Ver lo que dice el examinador</label>
+    <label class="chk"><input type="checkbox" id="${P}help" ${E?"":"checked"}> 💡 Ayudas (cómo se dice)</label>
     <label class="chk"><input type="checkbox" id="${P}tap" checked> Tocar 🎤 para hablar</label>
     ${IA_ON?`<label class="chk"><input type="checkbox" id="${P}ia" checked> 🤖 Examinador con IA</label>`:""}</div>
   <div class="bar"><i id="${P}bar"></i></div>
@@ -997,7 +1124,12 @@ function mountConv(rootId,mode){
     <label for="${P}in" class="es" id="${P}tmsg">El micrófono no funciona en este navegador. Escribí la respuesta (en el celu podés dictarla con el 🎤 del teclado):</label>
     <div class="sbtns"><input id="${P}in" type="text" autocomplete="off" placeholder="My name is…"><button class="btn alt" id="${P}send">Enviar</button></div>
   </div>
+  <div id="${P}howbox" hidden>
+    <label for="${P}howin" class="es">Escribí en español lo que querés decir y te digo cómo se dice en inglés:</label>
+    <div class="sbtns"><input id="${P}howin" type="text" autocomplete="off" placeholder="perro, mi cumpleaños, doblar a la izquierda…" style="flex:2 1 180px;min-width:0;font:600 1rem var(--body);padding:12px;border-radius:12px;border:2px solid var(--line);background:var(--paper);color:var(--ink)"><button class="btn alt" id="${P}howgo">Buscar</button></div>
+  </div>
   <div class="sbtns">
+    <button class="btn ghost" id="${P}how" ${E?"hidden":""}>❓ ¿Cómo se dice…?</button>
     <button class="btn alt" id="${P}start">${E?"Empezar examen oral":"Empezar conversación"}</button>
     <button class="btn ghost" id="${P}rep" hidden>Repetir pregunta</button>
     <button class="btn ghost" id="${P}kb" hidden>⌨️ Escribir</button>
@@ -1116,7 +1248,57 @@ function mountConv(rootId,mode){
   el("in").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();el("send").click()}});
 
   const bubble=(cls,html)=>{const d=document.createElement("div");d.className="msg "+cls;d.innerHTML=html;el("chat").appendChild(d);d.scrollIntoView({block:"nearest",behavior:"smooth"});return d};
-  async function examiner(text){curQ=text;bubble("ex"+(el("txt").checked?"":" hide"),`<span class="who">Examinador</span>${esc(text)}`);await say(text,status);await new Promise(r=>setTimeout(r,350))}
+  // ❓ ¿Cómo se dice…? : busca primero en el vocabulario del sitio (instantáneo, sin internet) y, si no está, pregunta a la IA
+  const sinTildes=t=>String(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[¿?¡!.,;:]/g,"").replace(/\s+/g," ").trim();
+  function buscarEnVocab(es){
+    const q=sinTildes(es);if(!q)return [];const exactas=[],parciales=[];
+    VOCAB.forEach(c=>c[3].forEach(([en,esw])=>{
+      const alts=sinTildes(esw).split(/\s*[\/(),]\s*/).filter(Boolean);
+      if(alts.indexOf(q)>=0)exactas.push({es:esw,en});
+      else if(q.length>=4&&alts.some(a=>a.indexOf(q)>=0||(a.length>=4&&q.indexOf(a)>=0)))parciales.push({es:esw,en});
+    }));
+    return exactas.concat(parciales).slice(0,4);
+  }
+  async function preguntarIA(es){
+    const txt=await _fbGenerar({system:'You are a friendly English teacher for a 10-year-old child from Argentina (level A1-A2). The child writes a word or phrase in Spanish. Answer ONLY with JSON: {"en": the most natural simple English for it, "example": one short simple English sentence that uses it, "example_es": that sentence in Spanish}.',
+      contents:[{role:"user",parts:[{text:String(es).slice(0,120)}]}],json:true,temp:.2,tokens:300});
+    const o=_jsonDe(txt);if(!o.en)throw new Error("sin respuesta");
+    return {en:String(o.en).slice(0,80),example:String(o.example||"").slice(0,140),example_es:String(o.example_es||"").slice(0,140)};
+  }
+  async function comoSeDice(){
+    const es=el("howin").value.trim();if(!es)return;
+    el("howin").value="";
+    const chip=t=>`<button class="hchip" data-say="${attr(t)}"><b>${esc(t)}</b> 🔊</button>`;
+    const hall=buscarEnVocab(es);
+    let html;
+    if(hall.length&&sinTildes(hall[0].es).split(/\s*[\/(),]\s*/).indexOf(sinTildes(es))>=0){
+      html=`<b>«${esc(es)}»</b> se dice ${hall.slice(0,3).map(h=>chip(h.en)).join(" ")}`;
+    }else if(fbListo()){
+      status("Buscando cómo se dice…");
+      try{const r=await preguntarIA(es);status("");
+        html=`<b>«${esc(es)}»</b> se dice ${chip(r.en)}`+(r.example?`<br>Ejemplo: ${chip(r.example)}${r.example_es?` <span class="es">— ${esc(r.example_es)}</span>`:""}`:"");
+      }catch(e){status("");console.warn("[IA] cómo se dice:",e);
+        html=hall.length?`<b>«${esc(es)}»</b> se parece a ${hall.map(h=>chip(h.en)+" <span class=\"es\">("+esc(h.es)+")</span>").join(" ")}`:`No pude buscar «${esc(es)}» ahora (${esc(_iaMsg(e))}). Probá con otra palabra.`}
+    }else{
+      html=hall.length?`<b>«${esc(es)}»</b> se parece a ${hall.map(h=>chip(h.en)+" <span class=\"es\">("+esc(h.es)+")</span>").join(" ")}`:`No encontré «${esc(es)}» en el vocabulario del sitio. Probá con otra palabra.`;
+    }
+    bubble("tip",`💡 ${html}`);
+  }
+  el("how").onclick=()=>{const b=el("howbox");b.hidden=!b.hidden;if(!b.hidden)el("howin").focus()};
+  el("howgo").onclick=comoSeDice;
+  el("howin").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();comoSeDice()}});
+  // Ayudas "cómo se dice": se muestran entre preguntas, con 🔊 para escuchar cada una (sólo si la casilla está tildada)
+  const attr=t=>String(t).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+  function mostrarAyudas(hints){
+    if(!hints||!hints.length||!el("help")||!el("help").checked)return;
+    bubble("hint",`<span class="who">💡 Cómo se dice</span><span class="hchips">${hints.map(h=>`<button class="hchip" data-say="${attr(h.en)}"><span class="es">${esc(h.es)}</span> → <b>${esc(h.en)}</b> 🔊</button>`).join("")}</span>`);
+  }
+  async function examiner(text,extra){
+    curQ=text;extra=extra||{};
+    const pic=extra.picture?`<span class="bigpic" aria-hidden="true">${esc(extra.picture)}</span>`:"";
+    bubble("ex"+(el("txt").checked?"":" hide"),`<span class="who">Examinador</span>${pic}${esc(text)}`);
+    mostrarAyudas(extra.hints);
+    await say(text,status);await new Promise(r=>setTimeout(r,350))}
   const check=(step,t)=>{const low=t.toLowerCase().replace(/[.,!?]/g,"");const tips=step.need.filter(([re])=>!re.test(low)).map(m=>m[1]);
     if(!step.last&&low.split(/\s+/).filter(Boolean).length<3&&!tips.length)tips.push("Contestá con una oración completa.");return{low,tips}};
 
@@ -1142,7 +1324,7 @@ function mountConv(rootId,mode){
   // Charla con IA: el examinador inventa las preguntas y reacciona a lo que dice el chico.
   // La IA juzga cada respuesta (ok/tip/model) en la vuelta SIGUIENTE, por eso se anota con "prev".
   async function conversationIA(id){
-    const max=E?8:10;let hist=[],prev=null;
+    const max=12;let hist=[],prev=null;
     for(let k=1;k<=max+1;k++){
       el("n").textContent=`${E?"Examen oral":"Charla con IA"} · ${Math.min(k,max)} de ${max}`;el("bar").style.width=(Math.min(k-1,max)/max*100)+"%";
       let r;
@@ -1156,7 +1338,8 @@ function mountConv(rootId,mode){
         else{pts+=.4;review.push({q:prev,a:r.model||"…"});
           if(!E&&(r.tip||r.model))bubble("tip",`<b>Casi.</b> ${esc(r.tip||"")}${r.model?`<br>Ejemplo: <i>${esc(r.model)}</i>`:""}`)}}
       hist.push({role:"examiner",text:r.reply});
-      await examiner(r.reply);if(run!==id)return false;
+      if(r.help)bubble("tip",`💡 ${esc(r.help)}`);
+      await examiner(r.reply,{picture:r.picture,hints:r.hints});if(run!==id)return false;
       if(r.end||k>max)break;
       const t=await listen();if(run!==id)return false;
       if(t===null){hist.push({role:"child",text:"(silence)"});prev=r.reply;continue}
@@ -1170,19 +1353,19 @@ function mountConv(rootId,mode){
     OPEN[0].q=pick(["Hello! Come in and sit down, please. How are you today?","Good morning! Please, take a seat. How are you today?","Hi there! Nice to see you. How are you today?","Hello! Welcome. Sit down, please. How are you feeling today?"]);
     OPEN[1].q=pick(["What's your name?","Can you tell me your name, please?","And what is your name?"]);
     CLOSE.q=pick(["Thank you. That's the end of our conversation. Goodbye!","Thank you very much. That's all. Goodbye!","OK, that's the end of the exam. Thank you. Goodbye!"]);
-    const steps=[...OPEN,...shuffleA(MIDDLE).slice(0,E?8:10),CLOSE];
+    const steps=armarPasos();
     el("chat").innerHTML="";el("start").hidden=true;el("stop").hidden=false;el("rep").hidden=false;el("kb").hidden=false;status("");
     if(IA_ON&&el("ia")&&el("ia").checked){const ok=await conversationIA(id);if(ok===false)return;if(ok===true){el("bar").style.width="100%";finish();return}}
     for(let k=0;k<steps.length;k++){
       const step=steps[k];
       el("n").textContent=`${E?"Examen oral":"Tema"} · ${k+1} de ${steps.length}`;el("bar").style.width=(k/steps.length*100)+"%";
-      const q=step.last&&kidName?step.q.replace("Thank you.",`Thank you, ${kidName}.`):step.q;
-      await examiner(q);if(run!==id)return;
+      const q=(step.intro||"")+(step.last&&kidName?step.q.replace("Thank you.",`Thank you, ${kidName}.`):step.q);
+      await examiner(q,{picture:step.picture,hints:step.hints});if(run!==id)return;
       const low=await turn(step,id);if(run!==id||low===null)return;
       const fol=low&&step.follow?step.follow(low):null;
       if(low)await examiner(step.react(low));
       if(run!==id)return;
-      if(fol){await examiner(fol.q);if(run!==id)return;const l2=await turn(fol,id);if(run!==id||l2===null)return;if(l2)await examiner(fol.react(l2));if(run!==id)return}
+      if(fol){await examiner(fol.q,{hints:fol.hints});if(run!==id)return;const l2=await turn(fol,id);if(run!==id||l2===null)return;if(l2)await examiner(fol.react(l2));if(run!==id)return}
     }
     el("bar").style.width="100%";finish();
   }
@@ -1489,7 +1672,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · programa 1";
+const BUILD="2026-11-01 · programa 4";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};

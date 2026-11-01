@@ -31,6 +31,7 @@
   --bg:#11152a; --paper:#1a2040; --ink:#e8ecff; --muted:#a3acd6; --line:#2c3462;
   --accent:#ffcf52; --accent-ink:#2b2000; --blue:#8aa5ff;
   --good:#5fd68f; --good-bg:#183a28; --bad:#ff7f7f; --bad-bg:#43202a; color-scheme:dark}
+[hidden]{display:none!important}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
 .wrap{max-width:760px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 header h1{font-family:var(--display);font-weight:800;font-size:clamp(1.9rem,6vw,2.6rem);line-height:1.05;letter-spacing:-0.02em;margin:0;text-wrap:balance}
@@ -136,6 +137,27 @@ h3.sec{font-family:var(--display);font-weight:800;font-size:1.2rem;color:var(--m
 .msg.tip ul{margin:.3rem 0 0;padding-left:1.1rem}
 .msg .r{color:var(--good);font-weight:700}
 .grade{font-family:var(--display);font-weight:800;font-size:2rem;color:var(--blue)}
+.chat.fin{max-height:none;overflow:visible}
+.msg.nota{scroll-margin-top:90px;align-self:stretch;max-width:none;background:var(--paper);border:2px solid var(--blue);border-radius:18px;padding:16px;font-size:.98rem}
+.msg.nota p{margin:.55rem 0}
+.msg.nota h4{font-family:var(--display);font-weight:600;font-size:1.02rem;margin:.9rem 0 .25rem;color:var(--blue)}
+.msg.nota ul{margin:.2rem 0 0;padding-left:1.1rem}
+.msg.nota li{margin:.35rem 0}
+.nota-top{display:flex;gap:14px;align-items:center}
+.nota-num{font-family:var(--display);font-weight:800;font-size:3.1rem;line-height:1;color:var(--blue);min-width:4.4rem;text-align:center}
+.nota-num small{display:block;font-size:.8rem;color:var(--muted);font-weight:700;letter-spacing:.04em}
+.nota-tit{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:800}
+.nota-let{font-family:var(--display);font-size:1.25rem;font-weight:800;line-height:1.2}
+.nota-let b{display:inline-block;min-width:1.5em;text-align:center;background:var(--accent);color:var(--accent-ink);border-radius:8px;padding:0 .2em}
+.ncs{display:grid;gap:7px;margin:.7rem 0}
+.nc{display:grid;grid-template-columns:minmax(0,10.5rem) 1fr 1.4rem;align-items:center;gap:8px;font-size:.9rem}
+.nc b{text-align:right;font-variant-numeric:tabular-nums}
+.nb{height:10px;border-radius:6px;background:var(--line);overflow:hidden}
+.nb i{display:block;height:100%;border-radius:6px}
+.nrep{display:flex;flex-wrap:wrap;gap:6px}
+.nrep span{background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:.88rem}
+.nota-pie{font-size:.8rem;margin-bottom:0}
+@media (max-width:480px){.nc{grid-template-columns:minmax(0,8.2rem) 1fr 1.4rem;font-size:.84rem}.nota-num{font-size:2.6rem;min-width:3.6rem}}
 .mic{animation:pop .28s cubic-bezier(.2,.9,.3,1) both;display:flex;align-items:center;gap:12px;margin-top:10px;padding:12px 14px;border-radius:14px;background:var(--bad-bg);border:2px solid var(--bad)}
 .mic .dot{width:16px;height:16px;border-radius:50%;background:var(--bad);flex:none;animation:pulse2 1s ease-in-out infinite}
 .mic .live{flex:1;min-width:0;display:flex;flex-direction:column}
@@ -912,7 +934,8 @@ function calentarIA(){
 async function _fbGenerar(o){
   const {ai,getGenerativeModel,Schema}=await fbCargar();
   let nombres=(_FB.models&&_FB.models.length)?_FB.models.slice():FB_MODELOS.slice();
-  if(_fbBueno&&nombres.indexOf(_fbBueno)>0)nombres=[_fbBueno].concat(nombres.filter(x=>x!==_fbBueno));
+  if(o.fuerte)nombres.reverse();   // trabajos donde importa más la calidad que la rapidez (la nota): se prueba primero el modelo más capaz
+  else if(_fbBueno&&nombres.indexOf(_fbBueno)>0)nombres=[_fbBueno].concat(nombres.filter(x=>x!==_fbBueno));
   const total=o.ms||10000,cobertura=o.hedge||2500;
   const reintentable=/404|not found|not_found|not supported|unsupported|not available|429|500|502|503|504|overload|high demand|unavailable|resource.?exhausted|tiempo agotado|internal|failed to fetch/i;
   return new Promise((resolve,reject)=>{
@@ -1002,6 +1025,74 @@ async function iaTranscribir(blob){
   }
   t=String(t||"").trim().replace(/^["“]+|["”]+$/g,"").trim();
   return /^[(\[].*[)\]]$/.test(t)?"":t;   // "(silencio)", "[no speech]"…
+}
+
+// --- Corrección final: la IA lee TODA la charla y la puntúa (0 a 10) con los criterios del Grade 3
+const SISTEMA_EVAL=`You are a Trinity College London GESE examiner. You have just examined Felu, a 10-year-old child from Argentina, in the Grade 3 oral exam (Initial stage, CEFR A2.1). Now MARK the whole conversation.
+The transcript has lines "EXAMINER:" and "FELU:". Felu's lines come from automatic speech-to-text: IGNORE punctuation, capital letters, spelling and tiny transcription slips (never count them as mistakes). "[picture shown to the child: ...]" says what the drawing showed. "(no answer)" means he said nothing. "[the examiner helped the child here]" means his first try was weak and the examiner modelled the answer, so his repetition counts for little.
+LEVEL: Grade 3 is A2.1, very simple English. Short simple sentences ("I live in a house.", "He is swimming.") deserve a HIGH mark. Do not ask for more than a 10-year-old beginner can do.
+MARK these four criteria with a whole number from 0 to 10:
+- comprension: he understood the questions and answered WHAT WAS ASKED (relevant, on topic, and for a picture question, matching the picture shown). Answers in Spanish, off-topic answers, a wrong answer about the picture, "I don't know" and silence lower it.
+- gramatica: accuracy of the Grade 3 grammar: present simple, present continuous (pictures), can / can't, was / were, there is / there are, prepositions (in, on, at, near, next to, opposite, in front of, behind), and the link words "and" / "and then". Small slips are fine; errors that make a sentence hard to understand lower it a lot.
+- vocabulario: the right words for the Grade 3 topics (jobs, places in town, school, home, weather, free time, dates and times) and some variety.
+- fluidez: how much he says: full sentences instead of one word, link words (and, and then, because), tries to say more than the minimum.
+SCALE: 0-3 very weak; 4-5 weak; 6 pass; 7 good; 8 very good; 9-10 excellent for his level. Be honest, fair and consistent: not harsh and not flattering. Never give 8 or more if most answers were one word or in Spanish. Never give less than 5 if he answered most questions with correct simple sentences.
+"pregunto": true ONLY if Felu asked the examiner at least one real question of his own (for example "Do you like pizza?" or "What is your favourite colour?").
+TEXT FOR THE CHILD: write it in Argentine Spanish with "vos" (decí, probá, podés), warm and short, as if talking to a 10-year-old. English only inside quotes.
+- "resumen": 2 short sentences: the overall impression and the single most important thing to improve.
+- "bien": 2 or 3 short strings with what he did WELL, each with a real example of what he said.
+- "mejorar": up to 4 items taken from what Felu REALLY said: "dijo" = his words copied EXACTLY from the transcript (English), "mejor" = the corrected or fuller English sentence a child of his level could say, "porque" = one short reason in Spanish. Only real mistakes, answers in Spanish or one-word answers. If there are none, return an empty list. Never invent what he said.
+- "repasar": 1 to 4 short Spanish strings naming the Grade 3 topics or grammar he should study (for example "Presente continuo: He is swimming", "Direcciones: near, opposite, behind").
+Answer ONLY with JSON: {"comprension": integer, "gramatica": integer, "vocabulario": integer, "fluidez": integer, "pregunto": boolean, "resumen": string, "bien": [string], "mejorar": [{"dijo": string, "mejor": string, "porque": string}], "repasar": [string]}`;
+const EVAL_CRIT=[["comprension","🎧","Entender y responder"],["gramatica","🧩","Gramática"],["vocabulario","📚","Vocabulario"],["fluidez","💬","Fluidez"]];
+// letra al estilo Trinity (A Distinction · B Merit · C Pass · D todavía no) según la nota de 0 a 10
+function notaLetra(n){
+  return n>=8.5?{l:"A",en:"Distinction",msg:"¡Excelente! Estás muy bien preparado para el Trinity."}
+   :n>=7?{l:"B",en:"Merit",msg:"¡Muy bien! Con un poco más de práctica llegás a la A."}
+   :n>=5.5?{l:"C",en:"Pass",msg:"Aprobado. Repasá lo de abajo para subir la nota."}
+   :{l:"D",en:"Todavía no",msg:"Seguí practicando: con lo de abajo vas a mejorar rápido."};
+}
+const fmtNota=n=>(Math.round(n*10)/10).toString().replace(".",",");
+// lo que se le manda a la IA para corregir: la charla completa, con lo que mostraba cada dibujo
+function transcripcion(reg){
+  return reg.map(x=>x.r==="E"?"EXAMINER: "+x.t+(x.pic?" [picture shown to the child: "+x.pic+"]":"")+(x.coach?" [the examiner helped the child here]":""):"FELU: "+x.t).join("\n").slice(0,7000);
+}
+// La nota la calcula la página (promedio de los 4 criterios), no la IA: así es siempre coherente con las barras que se ven.
+// Las frases que la IA dice que el chico dijo se comprueban contra lo que dijo de verdad (si inventó una, se descarta).
+function _evalNorm(o,reg){
+  const ent=v=>{v=Math.round(Number(v));return isFinite(v)?Math.max(0,Math.min(10,v)):null};
+  const c={};
+  EVAL_CRIT.forEach(([k])=>{c[k]=ent(o&&o[k]);if(c[k]===null)throw new Error("la corrección vino incompleta")});
+  const pregunto=!!o.pregunto;
+  if(!pregunto)c.comprension=Math.min(c.comprension,6);   // en el Grade 3 el candidato tiene que hacerle al menos una pregunta al examinador
+  const nota=Math.round(EVAL_CRIT.reduce((a,[k])=>a+c[k],0)/EVAL_CRIT.length*10)/10;
+  const nrm=x=>String(x||"").toLowerCase().replace(/[^a-z0-9' ]+/g," ").replace(/\s+/g," ").trim();
+  const kid=reg.filter(x=>x.r==="K").map(x=>nrm(x.t));
+  const real=d=>{const q=nrm(d).split(" ").filter(Boolean);if(!q.length)return false;
+    return kid.some(l=>{const b=new Set(l.split(" "));return q.filter(w=>b.has(w)).length/q.length>=.8})};
+  const txt=(x,n)=>String(x||"").trim().slice(0,n);
+  const lista=(a,n,m)=>(Array.isArray(a)?a:[]).map(x=>txt(x,m)).filter(Boolean).slice(0,n);
+  const mejorar=(Array.isArray(o.mejorar)?o.mejorar:[]).map(x=>({dijo:txt(x&&x.dijo,160),mejor:txt(x&&x.mejor,160),porque:txt(x&&x.porque,200)}))
+    .filter(x=>x.dijo&&x.mejor&&nrm(x.dijo)!==nrm(x.mejor)&&real(x.dijo)).slice(0,4);
+  return {c,nota,letra:notaLetra(nota),pregunto,resumen:txt(o.resumen,320),bien:lista(o.bien,3,200),mejorar,repasar:lista(o.repasar,4,90)};
+}
+async function iaEvaluar(reg){
+  let ult;
+  for(let i=0;i<2;i++){
+    const t0=Date.now();
+    try{
+      const out=await _fbGenerar({system:SISTEMA_EVAL,contents:[{role:"user",parts:[{text:transcripcion(reg)}]}],json:true,temp:.2,tokens:4000,fuerte:true,ms:30000,hedge:10000,
+        schema:S=>{const I=()=>S.integer?S.integer():S.number();
+          return S.object({properties:{comprension:I(),gramatica:I(),vocabulario:I(),fluidez:I(),pregunto:S.boolean(),resumen:S.string(),
+            bien:S.array({items:S.string()}),mejorar:S.array({items:S.object({properties:{dijo:S.string(),mejor:S.string(),porque:S.string()}})}),repasar:S.array({items:S.string()})}})}});
+      let o;try{o=_jsonDe(out)}catch(e){throw new Error("la corrección vino en un formato que no entiendo")}
+      return _evalNorm(o,reg);
+    }catch(e){ult=e;console.warn("[IA] corrección, intento "+(i+1)+":",e);
+      if(/app ?check|401|403|api key|permission/i.test(String(e&&e.message||e)))break;   // reintentar no lo arregla
+      if(Date.now()-t0>20000)break;   // ya esperó mucho: mejor mostrar el resumen simple que hacerlo esperar otra vez
+      if(i<1)await new Promise(r=>setTimeout(r,900))}
+  }
+  throw ult;
 }
 
 // --- grabación en WAV (funciona en Safari/iPhone, que no tiene dictado confiable)
@@ -1353,7 +1444,7 @@ function mountConv(rootId,mode){
   let cambioDeModo=false;
   async function escuchar(){let t;do{cambioDeModo=false;t=await listen()}while(t===null&&cambioDeModo&&run>=0);return t}
   function listen(){
-    if(micBroken)return new Promise(res=>{typedResolve=res;micUI(true,"Escribí tu respuesta…");el("in").focus()});
+    if(micBroken)return new Promise(res=>{typedResolve=res;el("type").hidden=false;micUI(true,"Escribí tu respuesta…");el("in").focus()});
     return (el("tap").checked?new Promise(r=>{
       // Se espera un toque antes de abrir el reconocimiento: así arranca igual que el probador (que anda) y con la voz del examinador ya terminada
       micUI(true,"Tocá 🎤 Hablar y contestá");el("talk").hidden=false;el("done").hidden=true;
@@ -1445,6 +1536,7 @@ function mountConv(rootId,mode){
   }
   async function examiner(text,extra){
     curQ=text;extra=extra||{};
+    registro.push({r:"E",t:String(text),pic:extra.picture&&picInfo(extra.picture)?picInfo(extra.picture).d:"",coach:/^Good try! You can say:/.test(text)});
     const pic=extra.picture?`<span class="bigpic" role="img" aria-label="dibujo">${esc(extra.picture)}</span><span class="piccap">🖼️ Mirá el dibujo</span>`:"";
     bubble("ex"+(el("txt").checked?"":" hide"),`<span class="who">Examinador</span>${pic}${esc(text)}`);
     mostrarAyudas(extra.hints);
@@ -1458,16 +1550,17 @@ function mountConv(rootId,mode){
     if(!step.last&&low.split(/\s+/).filter(Boolean).length<3&&!tips.length)tips.push("Contestá con una oración completa.");return{low,tips}};
 
   let avisoSinVoz=false;
-  let pts=0,total=0,review=[];
+  let pts=0,total=0,review=[],registro=[],iaCaida=false;
   async function turn(step,id){
     total++;
     for(let attempt=0;attempt<2;attempt++){
       const t=await escuchar();if(run!==id)return null;
       if(t===null){
+        registro.push({r:"K",t:"(no answer)"});
         if(attempt===0){await examiner("Sorry, I can't hear you. Can you say that again?");if(run!==id)return null;continue}
         await examiner("That's OK. Let's go on.");review.push(step);return "";
       }
-      bubble("kid",esc(t));
+      bubble("kid",esc(t));registro.push({r:"K",t});
       const {low,tips}=check(step,t);
       if(/repeat|sorry|don't understand/.test(low)&&attempt===0){total--;await examiner("Of course. "+curQ.replace(/^Of course\. /,""));if(run!==id)return null;total++;continue}
       if(!tips.length){pts+=attempt===0?1:.6;return low}
@@ -1487,7 +1580,7 @@ function mountConv(rootId,mode){
       status("🤔 El examinador está pensando…");
       try{r=await iaPedirReintentos(hist,k,max);status("")}catch(e){
         if(run!==id)return false;
-        if(k===1){if(/app ?check|not enabled|api key|referer|referrer|permission|40[13]/i.test(String(e&&e.message||e)))sttRec=false;status("No pude conectarme con la IA ("+esc(_iaMsg(e))+"). Sigo con las preguntas de siempre.");console.warn("[IA] sin conexión:",e);return null}
+        if(k===1){iaCaida=true;if(/app ?check|not enabled|api key|referer|referrer|permission|40[13]/i.test(String(e&&e.message||e)))sttRec=false;status("No pude conectarme con la IA ("+esc(_iaMsg(e))+"). Sigo con las preguntas de siempre.");console.warn("[IA] sin conexión:",e);return null}
         console.warn("[IA] se cortó la charla:",e);status("Se cortó la conexión con la IA ("+esc(_iaMsg(e))+"): cerramos la charla.");r={reply:"Thank you. That's the end of our conversation. Goodbye!",ok:true,tip:"",model:"",end:true}}
       if(r.end&&k<max&&fbListo()){   // se despidió antes de tiempo: se le pide que siga con el próximo tema del plan
         try{const r2=await iaPedir(hist,k,max,"The exam is NOT over yet. Do not say goodbye and do not set end to true. React to the child's last answer in a few words and continue with the next topic of the agenda.");if(r2&&r2.reply&&!r2.end)r=r2}catch(e){}
@@ -1507,19 +1600,19 @@ function mountConv(rootId,mode){
       await examiner(r.reply,{picture:pic,hints:r.hints});if(run!==id)return false;
       if(r.end||k>max)break;
       const t=await escuchar();if(run!==id)return false;
-      if(t===null){hist.push({role:"child",text:"(silence)"});prev=r.reply;continue}
-      bubble("kid",esc(t));hist.push({role:"child",text:t});prev=r.reply;
+      if(t===null){hist.push({role:"child",text:"(silence)"});registro.push({r:"K",t:"(no answer)"});prev=r.reply;continue}
+      bubble("kid",esc(t));hist.push({role:"child",text:t});registro.push({r:"K",t});prev=r.reply;
     }
     return true}
   async function conversation(){
     if(activeStop)activeStop();activeStop=halt;
-    const id=++run;pts=0;total=0;review=[];kidName="";
+    const id=++run;pts=0;total=0;review=[];registro=[];iaCaida=false;kidName="";
     // para que no pregunte siempre lo mismo: saludo y despedida con variantes, y las preguntas del medio se sortean cada vez
     OPEN[0].q=pick(["Hello! Come in and sit down, please. How are you today?","Good morning! Please, take a seat. How are you today?","Hi there! Nice to see you. How are you today?","Hello! Welcome. Sit down, please. How are you feeling today?"]);
     OPEN[1].q=pick(["What's your name?","Can you tell me your name, please?","And what is your name?"]);
     CLOSE.q=pick(["Thank you. That's the end of our conversation. Goodbye!","Thank you very much. That's all. Goodbye!","OK, that's the end of the exam. Thank you. Goodbye!"]);
     const steps=armarPasos();
-    el("chat").innerHTML="";el("start").hidden=true;el("stop").hidden=false;el("rep").hidden=false;el("kb").hidden=false;status("");
+    el("chat").innerHTML="";el("chat").classList.remove("fin");el("start").hidden=true;el("stop").hidden=false;el("rep").hidden=false;el("kb").hidden=false;status("");
     if(IA_ON&&el("ia")&&el("ia").checked){const ok=await conversationIA(id);if(ok===false)return;if(ok===true){el("bar").style.width="100%";finish();return}}
     for(let k=0;k<steps.length;k++){
       const step=steps[k];
@@ -1534,7 +1627,40 @@ function mountConv(rootId,mode){
     }
     el("bar").style.width="100%";finish();
   }
-  function finish(){
+  // Al terminar: la IA lee toda la charla y pone una nota. Si no hay IA, no contestó al empezar o falla, queda el resumen simple de antes.
+  async function finish(){
+    const id=run;
+    const hablo=registro.filter(x=>x.r==="K"&&x.t!=="(no answer)").length;
+    endUI();el("start").textContent=E?"Hacer otro examen oral":"Otra conversación (preguntas nuevas)";activeStop=null;
+    if(!(IA_ON&&fbListo())||iaCaida)return finishViejo(IA_ON&&fbListo()?"La IA no estaba disponible en esta charla, así que no puedo ponerte la nota de 0 a 10. Te dejo el resumen simple:":"");
+    if(hablo<3)return finishViejo("Hablaste muy poco como para ponerte una nota. Probá de nuevo contestando cada pregunta con una oración.");
+    const espera=bubble("tip","⏳ <b>La IA está corrigiendo tu examen…</b> (unos segundos)");
+    let ev=null,err=null;
+    try{ev=await iaEvaluar(registro)}catch(e){err=e}
+    if(run!==id)return;   // tocó «Empezar» otra vez mientras corregía
+    espera.remove();
+    if(ev){guardarNota(ev,id);mostrarNota(ev);return}
+    finishViejo("No pude conectarme con la IA para ponerte la nota ("+esc(_iaMsg(err))+"). Te dejo el resumen simple:");
+  }
+  function notasGuardadas(){try{const a=JSON.parse(localStorage.getItem("trinity_notas")||"[]");return Array.isArray(a)?a:[]}catch(e){return[]}}
+  const modoNota=()=>E?"examen":"charla";
+  function guardarNota(ev){try{const a=notasGuardadas();a.push({f:Date.now(),m:modoNota(),n:ev.nota});localStorage.setItem("trinity_notas",JSON.stringify(a.slice(-40)))}catch(e){}}
+  function mostrarNota(ev){
+    const prev=notasGuardadas().filter(x=>x&&x.m===modoNota()&&isFinite(x.n)).slice(0,-1).slice(-4);   // la última es la que se acaba de guardar
+    const col=v=>v>=7?"var(--good)":v>=5.5?"var(--accent)":"var(--bad)";
+    const crit=EVAL_CRIT.map(([k,ic,nom])=>`<div class="nc"><span>${ic} ${nom}</span><span class="nb"><i style="width:${ev.c[k]*10}%;background:${col(ev.c[k])}"></i></span><b>${ev.c[k]}</b></div>`).join("");
+    const preg=ev.pregunto?"✅ Le hiciste una pregunta al examinador.":"❗ No le hiciste ninguna pregunta al examinador (en el examen se pide al menos una), por eso «Entender y responder» no pasa de 6.";
+    const bien=ev.bien.length?`<h4>👍 Lo que hiciste bien</h4><ul>${ev.bien.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:"";
+    const mej=ev.mejorar.length?`<h4>🛠️ Para mejorar</h4><ul class="mej">${ev.mejorar.map(x=>`<li>Dijiste: <i>«${esc(x.dijo)}»</i><br>Mejor: <button class="hchip" data-say="${attr(x.mejor)}"><b>${esc(x.mejor)}</b> 🔊</button>${x.porque?`<br><span class="es">${esc(x.porque)}</span>`:""}</li>`).join("")}</ul>`:"";
+    const rep=ev.repasar.length?`<h4>📖 Para repasar en «Estudiar»</h4><div class="nrep">${ev.repasar.map(x=>`<span>${esc(x)}</span>`).join("")}</div>`:"";
+    const ult=prev.length?`<p class="es">Tus últimas notas: ${prev.map(x=>fmtNota(x.n)).join(" → ")} → <b>${fmtNota(ev.nota)}</b> ${ev.nota-prev[prev.length-1].n>=.5?"· ▲ ¡subiste!":ev.nota-prev[prev.length-1].n<=-.5?"· ▼ bajaste un poco":"· parecida"}</p>`:"";
+    el("chat").classList.add("fin");
+    const tarjeta=bubble("nota",`<div class="nota-top"><div class="nota-num">${fmtNota(ev.nota)}<small>de 10</small></div><div><div class="nota-tit">${E?"Nota del examen oral":"Nota de la charla"}</div><div class="nota-let"><b>${ev.letra.l}</b> · ${ev.letra.en}</div><div>${ev.letra.msg}</div></div></div>`
+      +(ev.resumen?`<p>${esc(ev.resumen)}</p>`:"")+`<div class="ncs">${crit}</div><p>${preg}</p>`+bien+mej+rep+ult
+      +`<p class="es nota-pie">Es una estimación de la IA para practicar, no la nota oficial. Se calcula con lo que dijiste (en texto): la pronunciación así no se puede medir, pedile a un adulto que te escuche.</p>`);
+    tarjeta.scrollIntoView({block:"start",behavior:"smooth"});   // se ve primero la nota, no el final de la tarjeta
+  }
+  function finishViejo(aviso){
     const pct=total?Math.round(pts/total*100):0;
     let grade,msg;
     if(pct>=85){grade="Distinction";msg="¡Excelente! Estás listo para el Trinity."}
@@ -1542,10 +1668,10 @@ function mountConv(rootId,mode){
     else if(pct>=45){grade="Pass";msg="Aprobado. Practicá las respuestas de abajo para subir la nota."}
     else{grade="Todavía no";msg="Seguí practicando en la pestaña Speaking y probá otra vez."}
     const rv=review.length?`<br>Para practicar:<ul>${review.map(s=>`<li>${esc(s.q)}<br><span class="r">✓ ${esc(s.a)}</span></li>`).join("")}</ul>`:"<br>¡Todas las respuestas completas!";
-    bubble("tip",E?`<span class="grade">${grade}</span><br><b>${pct}%</b> — ${msg}${rv}`:`<b>¡Terminaste la conversación!</b><br>Respuestas completas: <b>${pct}%</b>${rv}`);
+    bubble("tip",(aviso?`${aviso}<br><br>`:"")+(E?`<span class="grade">${grade}</span><br><b>${pct}%</b> — ${msg}${rv}`:`<b>¡Terminaste la conversación!</b><br>Respuestas completas: <b>${pct}%</b>${rv}`));
     endUI();el("start").textContent=E?"Hacer otro examen oral":"Otra conversación (preguntas nuevas)";activeStop=null;
   }
-  function endUI(){capDetener();el("start").hidden=false;el("stop").hidden=true;el("rep").hidden=true;el("kb").hidden=true;micUI(false)}
+  function endUI(){capDetener();el("type").hidden=true;el("start").hidden=false;el("stop").hidden=true;el("rep").hidden=true;el("kb").hidden=true;micUI(false)}
   function stopAll(){run++;capDetener();lvlStop();if(recAbort){recAbort();recAbort=null}if(synth)synth.cancel();if(rec){try{rec.abort()}catch(e){}rec=null}finishNow=null;typedResolve=null;micUI(false)}
   function halt(){const was=!el("start").hidden?false:true;stopAll();if(was){endUI();el("start").textContent=E&&total>0?"Hacer otro examen oral":"Empezar de nuevo";bubble("tip","Conversación en pausa.")}activeStop=null}
   el("start").onclick=async()=>{
@@ -1839,7 +1965,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · manos libres 2";
+const BUILD="2026-11-01 · nota de la IA 1";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};

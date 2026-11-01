@@ -240,7 +240,7 @@ td.say-td.pressed{background:color-mix(in srgb,var(--accent) 35%,transparent)}
 <details id="diagSonido" style="margin-bottom:14px;border-color:var(--accent)">
   <summary>🔧 ¿No suena? Diagnóstico de sonido</summary>
   <p class="es">En el iPhone, primero revisá que <b>no haya una campanita tachada 🔕</b> arriba junto a la hora (modo silencio) y que el volumen esté arriba. Después tocá los botones <b>de a uno</b>, en orden, y fijate si suena. Abajo aparece qué pasó. Si algo falla, <b>sacá una captura de esta pantalla</b> y mandásela a quien te ayuda.</p>
-  <div class="sbtns"><button class="btn" id="dsA">1) Audio del sitio</button><button class="btn alt" id="dsB">2) Voz del navegador</button><button class="btn ghost" id="dsC">3) Voz de la IA</button></div>
+  <div class="sbtns"><button class="btn" id="dsA">1) Audio del sitio</button><button class="btn alt" id="dsB">2) Voz del navegador</button><button class="btn ghost" id="dsC">3) Voz de la IA</button><button class="btn" id="dsD" style="background:var(--good)">4) Micrófono</button></div>
   <ol id="dsLog" class="log"></ol>
 </details>
 
@@ -932,7 +932,7 @@ function mountConv(rootId,mode){
         el("talk").hidden=true;el("done").hidden=false;
         stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}});   // sin supresión de ruido: en varias notebooks "recorta" la voz suave
         if(done){stream.getTracks().forEach(t=>t.stop());return}
-        if(_actx.state==="suspended")await Promise.race([_actx.resume(),new Promise(r=>setTimeout(r,1500))]);
+        if(_actx.state!=="running")await Promise.race([_actx.resume(),new Promise(r=>setTimeout(r,1500))]);
         rate=_actx.sampleRate;
         src=_actx.createMediaStreamSource(stream);
         proc=_actx.createScriptProcessor(4096,1,1);
@@ -1341,7 +1341,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · sonido 6";
+const BUILD="2026-11-01 · sonido 7";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};
@@ -1382,6 +1382,37 @@ const BUILD="2026-11-01 · sonido 6";
     try{const ok=await iaVoz("Hello, can you hear me? This is the voice of the examiner.");
       L(ok,"Voz de la IA: "+(ok?"sonó (":"no pudo generarse (")+((performance.now()-t0)/1000).toFixed(1).replace(".",",")+" s)")}
     catch(e){L(false,"Voz de la IA: error → "+_iaMsg(e))}
+  };
+  $("dsD").onclick=async()=>{
+    cabecera();primeAudio();audioSesion("play-and-record");
+    const md=navigator.mediaDevices;
+    L(null,"Sitio seguro (https): "+(window.isSecureContext?"sí":"NO")+" · getUserMedia: "+(md&&md.getUserMedia?"disponible":"NO disponible"));
+    if(!md||!md.getUserMedia){L(false,"Este navegador o ventana no permite usar el micrófono. Abrí el link en Safari.");return}
+    L(null,"Pidiendo permiso del micrófono… (si aparece un cartel, tocá Permitir)");
+    let stream,tr;
+    try{stream=await md.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}})}
+    catch(e){L(false,"Permiso del micrófono: "+e.name+(e.message?" · "+e.message:"")+(e.name==="NotAllowedError"?" → en Safari tocá aA → Configuración del sitio web → Micrófono → Permitir":""));return}
+    tr=stream.getAudioTracks()[0];
+    L(true,"Permiso OK · micrófono: "+((tr&&tr.label)||"(sin nombre)")+" · estado: "+(tr?tr.readyState:"?")+(tr&&tr.muted?" · SILENCIADO por el sistema":""));
+    let ctx=_actx;
+    try{if(ctx.state!=="running")await Promise.race([ctx.resume(),new Promise(r=>setTimeout(r,2000))])}catch(e){}
+    L(ctx.state==="running","Audio del navegador (AudioContext): "+ctx.state+" · "+ctx.sampleRate+" Hz"+(ctx.state==="running"?"":" → no arrancó: tocá el botón otra vez"));
+    let frames=0,peak=0,chunks=[];
+    const src=ctx.createMediaStreamSource(stream),proc=ctx.createScriptProcessor(4096,1,1);
+    proc.onaudioprocess=e=>{const d=e.inputBuffer.getChannelData(0);frames++;chunks.push(new Float32Array(d));for(let i=0;i<d.length;i++){const a=Math.abs(d[i]);if(a>peak)peak=a}};
+    src.connect(proc);proc.connect(ctx.destination);
+    L(null,"🎙️ HABLÁ AHORA en inglés durante 4 segundos…");
+    await new Promise(r=>setTimeout(r,4000));
+    try{proc.onaudioprocess=null;proc.disconnect();src.disconnect()}catch(e){}
+    stream.getTracks().forEach(t=>t.stop());audioSesion("playback");
+    const rate=ctx.sampleRate;try{ctx.close()}catch(e){}_actx=null;
+    L(frames>0,"Bloques de audio recibidos: "+frames+(frames?"":" → el iPhone no está entregando audio"));
+    L(peak>0.01,"Volumen máximo captado: "+Math.round(peak*100)+" %"+(peak>0.01?"":" → muy bajo o nada: acercate y hablá más fuerte"));
+    if(!frames||peak<=0.008)return;
+    if(!fbListo()){L(null,"La IA no está conectada: no se puede pasar a texto.");return}
+    L(null,"Enviando tu voz a la IA para pasarla a texto…");
+    try{const t=await iaTranscribir(_aWav(chunks,rate));L(!!t,"La IA entendió: «"+(t||"nada")+"»")}
+    catch(e){L(false,"Error al pasar la voz a texto: "+_iaMsg(e))}
   };
   $("buildInfo").textContent="Versión "+BUILD;
 })();

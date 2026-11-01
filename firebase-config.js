@@ -12,7 +12,7 @@ window.TRINITY_FB = {
     appId: "1:359252973253:web:a03d87d79de47238fa02ac"
   },
   // Clave de sitio de reCAPTCHA (Firebase → App Check → Apps → Web). Obligatoria para AI Logic desde el 2/11/2026.
-  appCheckSiteKey: "6LfvwwouAAAAAI7_A9lz_pLRw0zrAVrhGLG2DrTp",
+  appCheckSiteKey: "6LduhAsuAAAAAO3XpUX7CTvd29T45kG0VzZd7nRm",
   appCheckEnterprise: true,   // true sólo si se eligió reCAPTCHA Enterprise en vez de reCAPTCHA v3
   // Modelos a probar en orden (si uno no está disponible pasa al siguiente)
   models: ["gemini-3.5-flash-lite", "gemini-3.8-flash"]

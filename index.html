@@ -744,7 +744,7 @@ function _audioKey(t){
 }
 const _AUDIO_SET=new Set(window.TRINITY_AUDIO||[]);
 let _aud=null,_audOk=false,_playCorta=null;
-const _SILENCIO="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+const _SILENCIO="audio/silencio.mp3";
 function unlockAudioEl(){   // iPhone: el primer play() tiene que ocurrir dentro de un toque; después el mismo elemento puede sonar solo
   if(_audOk)return;_audOk=true;
   try{_aud=_aud||new Audio();_aud.src=_SILENCIO;const p=_aud.play();if(p&&p.catch)p.catch(()=>{_audOk=false})}catch(e){_audOk=false}
@@ -759,6 +759,36 @@ function _playUrl(url){
     a.src=url;const pl=a.play();if(pl&&pl.catch)pl.catch(()=>ok(false));
   });
 }
+const TTS_MODELOS=["gemini-2.5-flash-preview-tts","gemini-3.1-flash-tts-preview"];
+const _vozCache=new Map();
+function _pcmAWav(b64,rate){   // Gemini devuelve PCM de 16 bits, mono; se le pone encabezado WAV para que cualquier navegador lo reproduzca
+  const bin=atob(b64),n=bin.length,dv=new DataView(new ArrayBuffer(44+n));
+  const w=(o,x)=>{for(let i=0;i<x.length;i++)dv.setUint8(o+i,x.charCodeAt(i))};
+  w(0,"RIFF");dv.setUint32(4,36+n,true);w(8,"WAVE");w(12,"fmt ");dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,1,true);
+  dv.setUint32(24,rate,true);dv.setUint32(28,rate*2,true);dv.setUint16(32,2,true);dv.setUint16(34,16,true);w(36,"data");dv.setUint32(40,n,true);
+  for(let i=0;i<n;i++)dv.setUint8(44+i,bin.charCodeAt(i));
+  return new Blob([dv.buffer],{type:"audio/wav"});
+}
+async function iaVoz(t){   // true si sonó
+  if(!fbListo())return false;
+  if(_vozCache.has(t))return _playUrl(_vozCache.get(t));
+  let ai,getGenerativeModel;
+  try{({ai,getGenerativeModel}=await fbCargar())}catch(e){return false}
+  const nombres=(_FB.ttsModels&&_FB.ttsModels.length)?_FB.ttsModels:TTS_MODELOS;
+  for(const nombre of nombres){
+    try{
+      const m=getGenerativeModel(ai,{model:nombre,generationConfig:{responseModalities:["AUDIO"],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:"Kore"}}}}});
+      const x=await Promise.race([m.generateContent("Say in a slow, clear, friendly British voice, like a kind teacher talking to a child: "+t),new Promise((_,ko)=>setTimeout(()=>ko(new Error("tiempo agotado")),14000))]);
+      const pt=(x.response.inlineDataParts?x.response.inlineDataParts():[])[0];
+      if(!pt)throw new Error("sin audio");
+      const rate=+((/rate=(\d+)/.exec(pt.inlineData.mimeType)||[])[1])||24000;
+      const url=URL.createObjectURL(_pcmAWav(pt.inlineData.data,rate));
+      _vozCache.set(t,url);
+      return await _playUrl(url);
+    }catch(e){console.warn("[IA] voz "+nombre+":",e)}
+  }
+  return false;
+}
 function sayOnline(t){
   const partes=t.match(/[^.!?]+[.!?]*/g)||[t];const trozos=[];let cur="";
   partes.forEach(x=>{if((cur+x).length>180&&cur){trozos.push(cur);cur=x}else cur+=x});if(cur.trim())trozos.push(cur);
@@ -771,6 +801,11 @@ function say(t,status){
   return _sayResto(t,status);
 }
 function _sayResto(t,status){
+  if(IS_IOS&&fbListo()){
+    unlockVoice();
+    if(status)status("🔊 Preparando la voz del examinador…");
+    return iaVoz(t).then(ok=>{if(ok){if(status)status("");return}return sayLocal(t,status)});
+  }
   if(IS_IOS){unlockVoice();return sayOnline(t).then(ok=>ok?undefined:sayLocal(t,status))}
   return sayLocal(t,status);
 }

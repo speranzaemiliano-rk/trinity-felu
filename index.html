@@ -874,20 +874,21 @@ function fbCargar(){
       const prov=_FB.appCheckEnterprise?new C.ReCaptchaEnterpriseProvider(_FB.appCheckSiteKey):new C.ReCaptchaV3Provider(_FB.appCheckSiteKey);
       C.initializeAppCheck(app,{provider:prov,isTokenAutoRefreshEnabled:true});
     }
-    return {ai:I.getAI(app,{backend:new I.GoogleAIBackend()}),getGenerativeModel:I.getGenerativeModel};
+    return {ai:I.getAI(app,{backend:new I.GoogleAIBackend()}),getGenerativeModel:I.getGenerativeModel,Schema:I.Schema};
   })();
   _fbP.catch(()=>{_fbP=null});
   return _fbP;
 }
 // Prueba cada modelo de la lista: si uno no existe o no está disponible, pasa al siguiente
 async function _fbGenerar(o){
-  const {ai,getGenerativeModel}=await fbCargar();
+  const {ai,getGenerativeModel,Schema}=await fbCargar();
   let nombres=(_FB.models&&_FB.models.length)?_FB.models.slice():FB_MODELOS.slice();
   if(_fbBueno&&nombres.indexOf(_fbBueno)>0)nombres=[_fbBueno].concat(nombres.filter(x=>x!==_fbBueno));
   let ultimo;
   for(const nombre of nombres){
     try{
       const gc={temperature:o.temp,maxOutputTokens:o.tokens};if(o.json)gc.responseMimeType="application/json";
+      if(o.schema&&Schema)gc.responseSchema=o.schema(Schema);   // la IA tiene que devolver exactamente estos campos
       const params={model:nombre,generationConfig:gc};if(o.system)params.systemInstruction=o.system;
       const m=getGenerativeModel(ai,params);
       const r=await Promise.race([m.generateContent(o.partes?o.partes:{contents:o.contents}),new Promise((_,ko)=>setTimeout(()=>ko(new Error("tiempo agotado")),o.ms||12000))]);
@@ -931,7 +932,16 @@ async function iaPedirReintentos(h,k,max,nota){   // a mitad de la charla se rei
   throw ult;
 }
 async function iaPedir(messages,turn,max,nota){
-  if(fbListo())return _iaNorm(_jsonDe(await _fbGenerar({system:SISTEMA_IA+"\nturn="+turn+" max="+max+(nota?"\nNOTE: "+nota:""),contents:_iaContents(messages),json:true,temp:.9,tokens:1200})));
+  if(fbListo()){
+    const txt=await _fbGenerar({system:SISTEMA_IA+"\nturn="+turn+" max="+max+(nota?"\nNOTE: "+nota:""),contents:_iaContents(messages),json:true,temp:.8,tokens:1500,
+      schema:S=>S.object({properties:{reply:S.string(),ok:S.boolean(),tip:S.string(),model:S.string(),end:S.boolean(),picture:S.string(),hints:S.array({items:S.object({properties:{es:S.string(),en:S.string()}})}),help:S.string()}})});
+    let o;
+    try{o=_jsonDe(txt)}
+    catch(e){const t=String(txt||"").trim();   // si igual contestó en texto plano, se usa como pregunta del examinador
+      if(t&&t.length<500&&!/[{}\[\]]/.test(t))o={reply:t,ok:true,tip:"",model:"",end:false,picture:"",hints:[],help:""};
+      else throw new Error("respuesta inválida: "+t.slice(0,80));}
+    return _iaNorm(o);
+  }
   return _iaNorm(await _iaWorker({messages,turn,max},20000));
 }
 // La voz grabada (WAV) pasa a texto
@@ -1691,7 +1701,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · programa 7";
+const BUILD="2026-11-01 · programa 8";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};

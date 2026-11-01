@@ -933,7 +933,7 @@ function mountConv(rootId,mode){
       let r;
       try{r=await iaPedir(hist,k,max)}catch(e){
         if(run!==id)return false;
-        if(k===1){status("No pude conectarme con la IA ("+esc(String(e&&e.message||e).slice(0,140))+"): sigo con las preguntas de siempre.");return null}
+        if(k===1){sttRec=false;status("No pude conectarme con la IA ("+esc(String(e&&e.message||e).slice(0,140))+"): sigo con las preguntas de siempre.");return null}
         status("Se cortó la conexión con la IA: cerramos la charla.");r={reply:"Thank you. That's the end of our conversation. Goodbye!",ok:true,tip:"",model:"",end:true}}
       if(run!==id)return false;
       if(prev){total++;

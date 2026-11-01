@@ -226,7 +226,8 @@ ul.plano{margin:.3rem 0;padding-left:1.15rem}ul.plano li{margin:.4rem 0}
 .hchip{font:inherit;cursor:pointer;border:2px solid var(--line);background:var(--paper);color:var(--ink);border-radius:999px;padding:5px 11px;line-height:1.25}
 .hchip .es{color:var(--muted)}
 .hchip:active,.hchip.pressed{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 30%,var(--paper))}
-.bigpic{display:block;font-size:3.4rem;line-height:1.15;margin:2px 0 6px}
+.bigpic{display:block;font-size:3.6rem;line-height:1.15;margin:2px 0 2px;color:var(--ink);-webkit-text-fill-color:initial;text-shadow:none;user-select:none}
+.piccap{display:block;font-size:.75rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);-webkit-text-fill-color:initial;margin-bottom:6px}
 </style>
 </head>
 <body>
@@ -826,6 +827,23 @@ const IS_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==
 // Con IA, la voz se graba y se transcribe: anda igual en PC, Android e iPhone (el dictado del navegador falla en muchos equipos).
 let sttRec=IA_ON;
 
+// Dibujos que puede mostrar el examinador. La IA elige SOLO de esta lista y sabe qué muestra cada uno,
+// así puede corregir si la respuesta del chico coincide con el dibujo (antes no lo sabía y aprobaba cualquier cosa).
+const PIC_LISTA=[
+ {e:"🏊",d:"a boy swimming",k:"accion"},{e:"👩‍🍳",d:"a woman cooking",k:"accion"},{e:"🧒⚽🧒",d:"two children playing football",k:"accion"},{e:"🚴",d:"a person riding a bike",k:"accion"},
+ {e:"🧒📖",d:"a boy reading a book",k:"accion"},{e:"👩‍🎨",d:"a woman painting",k:"accion"},{e:"💃",d:"a woman dancing",k:"accion"},{e:"🎸",d:"a man playing the guitar",k:"accion"},
+ {e:"🏃",d:"a man running",k:"accion"},{e:"🧒🍎",d:"a boy eating an apple",k:"accion"},{e:"👧🎤",d:"a girl singing",k:"accion"},{e:"🧒📺",d:"a boy watching TV",k:"accion"},
+ {e:"👩‍⚕️",d:"a woman doctor",k:"trabajo"},{e:"👨‍🚒",d:"a man firefighter",k:"trabajo"},{e:"👩‍🏫",d:"a woman teacher",k:"trabajo"},{e:"🧑‍✈️",d:"a pilot",k:"trabajo"},
+ {e:"👨‍🌾",d:"a man farmer",k:"trabajo"},{e:"👮",d:"a police officer",k:"trabajo"},{e:"👨‍🍳",d:"a man cook",k:"trabajo"},{e:"👷",d:"a construction worker",k:"trabajo"}
+];
+const picInfo=e=>PIC_LISTA.find(x=>x.e===e)||null;
+function elegirDibujo(reply){   // si el examinador habla de un dibujo y no mandó ninguno, se elige uno acorde a la pregunta (trabajo o acción, él / ella / ellos)
+  const r=String(reply).toLowerCase(),trab=/\bjob\b|\bwork|what does (he|she) do\b|what do they do\b/.test(r);
+  let c=PIC_LISTA.filter(x=>x.k===(trab?"trabajo":"accion"));
+  const f=/\bthey\b|children|people/.test(r)?c.filter(x=>/children/.test(x.d)):/\bshe\b|\bher\b|woman|girl/.test(r)?c.filter(x=>/woman|girl/.test(x.d)):/\bhe\b|\bhis\b|\bman\b|boy/.test(r)?c.filter(x=>/\b(man|boy)\b/.test(x.d)):[];
+  if(f.length)c=f;
+  return pick(c);
+}
 const SISTEMA_IA=`You are a kind, patient examiner for the Trinity GESE Grade 3 oral exam (CEFR A2.1, "Initial stage"). The exam is ONE friendly conversation of up to 7 minutes.
 You are talking with Felu, a 10-year-old child from Argentina who is learning English. Speak to him like a warm teacher.
 STYLE
@@ -853,13 +871,13 @@ AGENDA (the real Grade 3 syllabus). "turn" is the number of this turn and "max" 
  turn = max+1 (15): answer his question in one short sentence and say a warm goodbye. Set "end" to true.
 HARD RULES FOR EVERY REPLY: one short reaction (at most 8 words) + ONE short question (at most 15 words). NEVER ask two questions in one reply and never join two questions with "and". A 10-year-old must be able to follow it.
 GRAMMAR he should use: present simple for routines, present continuous for what is happening now or in a picture, can/can't, was/were, on/in/at, near/in front of/behind/opposite, and the link words "and" and "and then".
-PICTURES: only on turns 9 and 13 put 1 to 3 emojis in "picture" (one person doing one clear thing, e.g. "🏊", "👩‍🍳", "🧒⚽🧒", "👨‍🚒", "🚴"), say "Look at this picture." in the reply and ask about it. On every other turn "picture" MUST be an empty string "" (never repeat a previous picture).
+PICTURES: only on turns 9 and 13. To show a picture put EXACTLY one emoji string from the PICTURES AVAILABLE list (given below) in "picture", say "Look at this picture." in the reply and ask about it. If your reply mentions a picture you MUST fill "picture". On every other turn "picture" MUST be an empty string "" (never repeat a previous picture). The text after "=" says what the picture shows: when you judge the child's answer to a picture question, use it (ok=false if his answer does not match the picture).
 HELP FOR THE CHILD (very important)
 - "hints": 1 to 3 short items {"es": Spanish, "en": English} with the English words or phrases that will help him answer YOUR NEXT QUESTION (e.g. {"es":"enfrente de","en":"opposite"}). They are shown to the child between questions.
 - "help": if his last answer contained Spanish words or he said he doesn't know ("no sé", "I don't know"), write one short sentence in Spanish telling him how to say it in English (e.g. "«perro» se dice dog."). Otherwise "".
 Answer ONLY with JSON: {"reply": string, "ok": boolean, "tip": string, "model": string, "end": boolean, "picture": string, "hints": [{"es": string, "en": string}], "help": string}
 - "reply": what the examiner says out loud (English only, no emojis).
-- "ok": true if the child's last answer was a relevant sentence in English (small mistakes are fine); false if it was empty, off-topic, in Spanish or only one word. At the warm-up turns always true.
+- "ok": be a fair but DEMANDING judge, do not say yes just to be nice. true only if the last answer was relevant, in English, a sentence (not one word) and, for a picture, matched what the picture shows (small grammar mistakes are fine). false if it was empty, off-topic, in Spanish, one word, or did not match the picture. At the warm-up turns (1 and 2) always true.
 - "tip": if ok is false, one short helpful tip in SPANISH (max 20 words); otherwise "".
 - "model": if ok is false, a short correct example answer in English; otherwise "".
 - "end": true only for the final goodbye.`;
@@ -941,7 +959,7 @@ function _iaNorm(o){if(!o||!o.reply)throw new Error("respuesta vacía");
   const hints=(Array.isArray(o.hints)?o.hints:[]).map(h=>({es:String((h&&h.es)||"").slice(0,60),en:String((h&&h.en)||"").slice(0,60)})).filter(h=>h.es&&h.en).slice(0,3);
   return{reply:String(o.reply).slice(0,400),ok:!!o.ok,tip:String(o.tip||"").slice(0,200),model:String(o.model||"").slice(0,200),end:!!o.end,picture:String(o.picture||"").slice(0,30),hints,help:String(o.help||"").slice(0,200)}}
 function _iaContents(messages){
-  const cs=(messages||[]).slice(-24).map(m=>({role:m.role==="child"?"user":"model",parts:[{text:String(m.text||"").slice(0,300)}]}));
+  const cs=(messages||[]).slice(-24).map(m=>({role:m.role==="child"?"user":"model",parts:[{text:String(m.text||"").slice(0,480)}]}));
   if(!cs.length||cs[0].role!=="user")cs.unshift({role:"user",parts:[{text:"(The child sits down. Start the exam with a greeting and a first question.)"}]});
   return cs;
 }
@@ -962,7 +980,7 @@ async function iaPedirReintentos(h,k,max,nota){   // a mitad de la charla se rei
 }
 async function iaPedir(messages,turn,max,nota){
   if(fbListo()){
-    const txt=await _fbGenerar({system:SISTEMA_IA+"\nturn="+turn+" max="+max+(nota?"\nNOTE: "+nota:""),contents:_iaContents(messages),json:true,temp:.8,tokens:1500,
+    const txt=await _fbGenerar({system:SISTEMA_IA+"\nPICTURES AVAILABLE:\n"+PIC_LISTA.map(x=>x.e+" = "+x.d).join("\n")+"\nturn="+turn+" max="+max+(nota?"\nNOTE: "+nota:""),contents:_iaContents(messages),json:true,temp:.8,tokens:1500,
       schema:S=>S.object({properties:{reply:S.string(),ok:S.boolean(),tip:S.string(),model:S.string(),end:S.boolean(),picture:S.string(),hints:S.array({items:S.object({properties:{es:S.string(),en:S.string()}})}),help:S.string()}})});
     let o;
     try{o=_jsonDe(txt)}
@@ -1427,7 +1445,7 @@ function mountConv(rootId,mode){
   }
   async function examiner(text,extra){
     curQ=text;extra=extra||{};
-    const pic=extra.picture?`<span class="bigpic" aria-hidden="true">${esc(extra.picture)}</span>`:"";
+    const pic=extra.picture?`<span class="bigpic" role="img" aria-label="dibujo">${esc(extra.picture)}</span><span class="piccap">🖼️ Mirá el dibujo</span>`:"";
     bubble("ex"+(el("txt").checked?"":" hide"),`<span class="who">Examinador</span>${pic}${esc(text)}`);
     mostrarAyudas(extra.hints);
     const sono=await say(text,status,{ex:true});
@@ -1479,9 +1497,14 @@ function mountConv(rootId,mode){
         if(r.ok)pts+=1;
         else{pts+=.4;review.push({q:prev,a:r.model||"…"});
           if(!E&&(r.tip||r.model))bubble("tip",`<b>Casi.</b> ${esc(r.tip||"")}${r.model?`<br>Ejemplo: <i>${esc(r.model)}</i>`:""}`)}}
-      hist.push({role:"examiner",text:r.reply});
+      // dibujo: sólo de la lista; si habla de un dibujo y no mandó ninguno, se pone uno; si manda uno sin hablar de él, no se muestra
+      const habla=/picture|photo|image|drawing|look at (this|the)/i.test(r.reply);
+      let pic=picInfo(r.picture)?r.picture:"";
+      if(!pic&&habla)pic=elegirDibujo(r.reply).e;
+      if(pic&&!habla)pic="";
+      hist.push({role:"examiner",text:r.reply+(pic?" [PICTURE SHOWN TO THE CHILD: "+pic+" = "+picInfo(pic).d+"]":"")});
       if(r.help)bubble("tip",`💡 ${esc(r.help)}`);
-      await examiner(r.reply,{picture:/picture|look at/i.test(r.reply)?r.picture:"",hints:r.hints});if(run!==id)return false;
+      await examiner(r.reply,{picture:pic,hints:r.hints});if(run!==id)return false;
       if(r.end||k>max)break;
       const t=await escuchar();if(run!==id)return false;
       if(t===null){hist.push({role:"child",text:"(silence)"});prev=r.reply;continue}
@@ -1551,7 +1574,7 @@ function mountConv(rootId,mode){
     if(m.indexOf("error:")===0){status("El micrófono no abrió ("+esc(m.slice(6))+"). Cerrá otras apps que lo usen, recargá la página y probá de nuevo.");return}
     micBroken=sinDictado;el("type").hidden=!micBroken;el("done").hidden=micBroken;
     el("kb").textContent="⌨️ Escribir";el("tmsg").innerHTML="Escribí tu respuesta:";
-    if(!micBroken)status("✅ Micrófono listo. Cuando el examinador pregunte, tocá <b>🎤 Hablar</b>.");
+    if(!micBroken)status(el("tap").checked?"✅ Micrófono listo. Cuando el examinador pregunte, tocá <b>🎤 Hablar</b>.":"✅ Micrófono listo. Te escucho solo cuando el examinador termine de preguntar.");
     if(typedResolve){cambioDeModo=true;const r=typedResolve;typedResolve=null;micUI(false);r(null)}   // retoma la pregunta ahora con el micrófono
   };
   el("txt").onchange=e=>el("chat").querySelectorAll(".msg.ex").forEach(m=>m.classList.toggle("hide",!e.target.checked));
@@ -1816,7 +1839,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · manos libres 1";
+const BUILD="2026-11-01 · manos libres 2";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};

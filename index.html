@@ -6,6 +6,7 @@
 <title>Trinity GESE Grade 3</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <script src="firebase-config.js"></script>
+<script src="audio/manifest.js"></script>
 <meta name="theme-color" content="#3157d5">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -732,7 +733,17 @@ function unlockVoice(){unlockAudioEl();if(unlocked||!synth)return;unlocked=true;
 let ttsTimer=null;
 function ttsKeepAlive(on){clearInterval(ttsTimer);if(on)ttsTimer=setInterval(()=>{if(synth.speaking&&!synth.paused){synth.pause();synth.resume()}},9000)}
 // Plan B: si la PC/el celu no tiene voz en inglés instalada, se reproduce desde un servicio en línea (no depende de las voces del sistema)
-let _aud=null,_audOk=false;
+// Audios guardados en el propio sitio (carpeta audio/): suenan igual en iPhone, Android y PC, sin depender de voces del navegador
+function _audioKey(t){
+  t=String(t).toLowerCase().replace(/\s+/g," ").trim();
+  let h1=0xdeadbeef,h2=0x41c6ce57;
+  for(let i=0,ch;i<t.length;i++){ch=t.charCodeAt(i);h1=Math.imul(h1^ch,2654435761);h2=Math.imul(h2^ch,1597334677)}
+  h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);
+  h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
+  return (4294967296*(2097151&h2)+(h1>>>0)).toString(36);
+}
+const _AUDIO_SET=new Set(window.TRINITY_AUDIO||[]);
+let _aud=null,_audOk=false,_playCorta=null;
 const _SILENCIO="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
 function unlockAudioEl(){   // iPhone: el primer play() tiene que ocurrir dentro de un toque; después el mismo elemento puede sonar solo
   if(_audOk)return;_audOk=true;
@@ -740,7 +751,9 @@ function unlockAudioEl(){   // iPhone: el primer play() tiene que ocurrir dentro
 }
 function _playUrl(url){
   return new Promise(r=>{
-    let fin=false,t=null;const ok=v=>{if(!fin){fin=true;clearTimeout(t);r(v)}};
+    if(_playCorta){_playCorta();_playCorta=null}   // un audio nuevo corta el anterior (sin que el anterior pase a "falló")
+    let fin=false,t=null;const ok=v=>{if(!fin){fin=true;clearTimeout(t);if(_playCorta===cortar)_playCorta=null;r(v)}};
+    const cortar=()=>ok(true);_playCorta=cortar;
     const a=_aud||(_aud=new Audio());a.onended=()=>ok(true);a.onerror=()=>ok(false);
     t=setTimeout(()=>ok(false),20000);
     a.src=url;const pl=a.play();if(pl&&pl.catch)pl.catch(()=>ok(false));
@@ -753,6 +766,11 @@ function sayOnline(t){
 }
 function say(t,status){
   audioSesion("playback");
+  const k=_audioKey(t);
+  if(_AUDIO_SET.has(k)){unlockVoice();return _playUrl("audio/"+k+".mp3").then(ok=>ok?undefined:_sayResto(t,status))}
+  return _sayResto(t,status);
+}
+function _sayResto(t,status){
   if(IS_IOS){unlockVoice();return sayOnline(t).then(ok=>ok?undefined:sayLocal(t,status))}
   return sayLocal(t,status);
 }
@@ -1065,12 +1083,15 @@ const VOCAB=[
 document.getElementById("vocab").innerHTML=VOCAB.map(([en,es,ex,w])=>`<details><summary>${en} <span class="es">· ${es}</span></summary>
 <p class="es"><button class="ejem" data-say="${ex.replace(/<[^>]+>/g,"").replace(/ \/ /g,". ").replace(/"/g,"")}">🔊 Ejemplo: ${ex}</button></p><div class="chips">${w.map(([a,b])=>`<button class="chip" data-say="${a.replace(/"/g,"")}"><b>${a}</b><span>${b}</span></button>`).join("")}</div></details>`).join("");
 function toast(m){let t=$("toast");if(!t){t=document.createElement("div");t.id="toast";t.setAttribute("role","status");document.body.appendChild(t)}t.innerHTML=m;t.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove("on"),5000)}
-function tocarSonido(e){
-  let c=e.target.closest("[data-say]"),txt=c&&c.dataset.say.replace(" / "," or ");
-  if(!c){c=e.target.closest("ul.ex li");if(!c)return;const k=c.cloneNode(true);k.querySelectorAll(".es").forEach(x=>x.remove());
+function _sonidoDe(el){   // qué texto se lee al tocar este elemento
+  let c=el.closest("[data-say]"),txt=c&&c.dataset.say.replace(" / "," or ");
+  if(!c){c=el.closest("ul.ex li");if(!c)return null;const k=c.cloneNode(true);k.querySelectorAll(".es").forEach(x=>x.remove());
     txt=k.textContent.replace(/^\s*(Negativo|Pregunta|Afirmativo|Afirmativa|Respuesta|Ejemplo|Corta)s?:\s*/i,"").replace(/[.]?\s*\/\s*/g,". ").replace(/\s+/g," ").trim()}
-  if(!txt)return;
-  c.classList.add("pressed");say(txt,toast).then(()=>c.classList.remove("pressed"))}
+  return txt?{c,txt}:null;
+}
+function tocarSonido(e){
+  const r=_sonidoDe(e.target);if(!r)return;
+  r.c.classList.add("pressed");say(r.txt,toast).then(()=>r.c.classList.remove("pressed"))}
 document.addEventListener("click",tocarSonido);
 document.addEventListener("keydown",e=>{if((e.key==="Enter"||e.key===" ")&&e.target.matches&&e.target.matches('.ord div[data-say]')){e.preventDefault();tocarSonido(e)}});
 

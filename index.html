@@ -530,7 +530,12 @@ ul.plano{margin:.3rem 0;padding-left:1.15rem}ul.plano li{margin:.4rem 0}
 <!-- SPEAKING -->
 <section id="v-speak" hidden>
 <h2>Speaking</h2>
-<p class="lead">Una charla con el examinador para practicar. Él pregunta en voz alta, el micrófono se activa solo y vos contestás hablando. Si la respuesta queda corta, te da un ejemplo y te deja intentar de nuevo.</p>
+<p class="lead">Una charla con el examinador para practicar el <b>Trinity GESE Grade 3</b>. Él pregunta en voz alta y vos contestás hablando. La charla pasa por <b>todos los temas del examen</b>: tu casa, el barrio y las direcciones, tu escuela, tu rutina y las horas, tu tiempo libre, tu familia y los trabajos, el clima, las fechas, el pasado, <b>dibujos</b> para describir y, al final, <b>una pregunta tuya para el examinador</b>.</p>
+<ul class="plano">
+<li><b>💡 Ayudas:</b> entre las preguntas aparece <i>cómo se dice</i> en inglés lo que vas a necesitar. Tocá una para escucharla.</li>
+<li><b>❓ ¿Cómo se dice…?</b> escribí una palabra en español y te digo cómo se dice en inglés.</li>
+<li>Si la respuesta queda corta, te da un ejemplo y te deja intentar de nuevo.</li>
+</ul>
 <details class="diag" id="diag"><summary>¿No anda la voz o el micrófono? Probar</summary>
   <p class="es">1) Tocá <b>Probar</b> y hablá: la barra tiene que moverse. 2) Después decí <b>"hello, my name is…"</b> y fijate si aparece escrito.</p>
   <div class="sbtns"><button class="btn" id="dgVoice">Probar voz</button><button class="btn alt" id="dgGo">Probar micrófono</button></div>
@@ -1701,7 +1706,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · programa 8";
+const BUILD="2026-11-01 · programa 9";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};

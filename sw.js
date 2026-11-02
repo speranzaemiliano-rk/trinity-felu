@@ -1,6 +1,6 @@
 // Service worker: guarda la app para abrirla sin conexión (la voz y el dictado igual necesitan internet)
-const CACHE="trinity-felu-v5";
-const ARCHIVOS=["./","./index.html","./manifest.json","./firebase-config.js","./audio/manifest.js","./icon-192.png","./icon-512.png"];
+const CACHE="trinity-felu-v6";
+const ARCHIVOS=["./","./index.html","./estilos.css","./comun.js","./contenido-g3.js","./motor.js","./manifest.json","./firebase-config.js","./audio/manifest.js","./icon-192.png","./icon-512.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ARCHIVOS)).then(()=>self.skipWaiting()))});
 self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==CACHE).map(x=>caches.delete(x)))).then(()=>self.clients.claim()))});
 self.addEventListener("fetch",e=>{

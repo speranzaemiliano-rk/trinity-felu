@@ -25,7 +25,7 @@ const r=await p.evaluate(async()=>({area:document.getElementById('dsInforme').va
   portapapeles:await navigator.clipboard.readText().catch(e=>'(no se pudo leer: '+e.name+')')}));
 console.log(r.area);console.log('\n--- aviso:',r.msg,'| cuadro visible:',r.visible,'| portapapeles = cuadro:',r.portapapeles===r.area);
 const t=r.area;const res=[];const chk=(n,v)=>{res.push(!!v);console.log(v?'✓':'✗',n)};
-chk('trae versión, dispositivo e iOS',/preguntas variadas \d/.test(t)&&/iPhone\/iPad · iOS 17\.5/.test(t));
+chk('trae versión, dispositivo e iOS',/módulos \d/.test(t)&&/iPhone\/iPad · iOS 17\.5/.test(t));
 chk('trae la apertura del micrófono de manos libres',/mic abierto/.test(t));
 chk('registra cada voz del examinador (mp3 o voz) y su resultado',/say \[(mp3|voz)\]/.test(t)&&/examinador: voz ok/.test(t));
 chk('registra que el micrófono se abre y se SUELTA',/mic abierto/.test(t)&&/mic soltado/.test(t));

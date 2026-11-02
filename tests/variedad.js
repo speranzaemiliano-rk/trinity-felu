@@ -78,7 +78,7 @@ const charlaCompleta=async()=>{
   return {q,e,ctx2}};
 const hacer=async(c,pre)=>{const q=c.q;await q.evaluate(()=>{window.say=async t=>{window.__dichos.push(String(t))}});
   await q.click('#t-speak');await q.click('#practice-start');await q.waitForTimeout(400);
-  const resp=['I live with my mum and I get up at seven o\'clock and then I play football. It was good. Yes I can swim. It is sunny. It is the first of November.','si','Sorry, can you repeat, please?','I have two brothers','my name is Felu','blue'];
+  const resp=['Sorry, can you repeat, please?','I live with my mum and I get up at seven o\'clock and then I play football. It was good. Yes I can swim. It is sunny. It is the first of November.','si','I have two brothers','my name is Felu','blue'];
   for(let i=0;i<160;i++){
     if(await q.evaluate(()=>!document.getElementById('practice-start').hidden))break;
     await q.waitForSelector('#practice-in:visible',{timeout:4000}).catch(()=>{});

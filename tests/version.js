@@ -1,9 +1,11 @@
-// Aviso de versión nueva: un «servidor» falso (https://trinity.test) sirve el index.html real, a veces con una versión «vieja».
+// Aviso de versión nueva: un «servidor» falso (https://trinity.test) sirve el sitio real, a veces con un motor.js de versión «vieja».
 const {chromium}=require('playwright');const fs=require('fs');const path=require('path');
 const RAIZ=require('path').resolve(__dirname,'..');const D=require('path').join(__dirname,'assets')+'/';
-const REAL=fs.readFileSync(RAIZ+'/index.html','utf8');const BUILD_REAL=/const BUILD="([^"]+)"/.exec(REAL)[1];
-const VIEJA=REAL.replace(/const BUILD="[^"]*"/,'const BUILD="vieja"');
-const TIPOS={'.js':'application/javascript','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.html':'text/html; charset=utf-8','.mp3':'audio/mpeg'};
+// la versión vive en motor.js (lo comparten todos los módulos): el «servidor» sirve el motor real o uno con versión «vieja»
+const INDEX=fs.readFileSync(RAIZ+'/index.html','utf8');
+const MOTOR=fs.readFileSync(RAIZ+'/motor.js','utf8');const BUILD_REAL=/const BUILD="([^"]+)"/.exec(MOTOR)[1];
+const MOTOR_VIEJO=MOTOR.replace(/const BUILD="[^"]*"/,'const BUILD="vieja"');
+const TIPOS={'.css':'text/css','.js':'application/javascript','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.html':'text/html; charset=utf-8','.mp3':'audio/mpeg'};
 const MOCK_AI=`export class GoogleAIBackend{} export function getAI(){return {}}
 export const Schema={object:o=>o,string:()=>1,boolean:()=>1,integer:()=>1,array:a=>a};
 export function getGenerativeModel(ai,params){return {async generateContent(req){
@@ -17,14 +19,18 @@ async function nuevo(b,srv){
   const docs=[];
   await ctx.route('https://www.gstatic.com/firebasejs/**/firebase-app.js',r=>r.fulfill(js(`export function initializeApp(c){return {}}`)));
   await ctx.route('https://www.gstatic.com/firebasejs/**/firebase-ai.js',r=>r.fulfill(js(MOCK_AI)));
+  let ultimaEsV=false;   // la última carga del documento fue una recarga con ?v= (el motor que le sigue es el nuevo, salvo ignorarV)
   await ctx.route('https://trinity.test/**',async r=>{
     const u=new URL(r.request().url());let f=u.pathname==='/'?'/index.html':u.pathname;
     if(f==='/firebase-config.js')return r.fulfill(js(`window.TRINITY_FB={config:{apiKey:"k",projectId:"p",appId:"a"},models:["m1"]};`));
     if(f==='/index.html'){
-      const esSonda=/[?&]c=\d+/.test(u.search),esV=/[?&]v=\d+/.test(u.search);
-      if(!esSonda)docs.push(u.pathname+u.search);
-      let sirve=esSonda?srv.sonda:(esV&&!srv.ignorarV?'real':srv.documento);
-      return r.fulfill({status:200,contentType:'text/html; charset=utf-8',headers:{'cache-control':'no-store'},body:sirve==='real'?REAL:VIEJA});
+      ultimaEsV=/[?&]v=\d+/.test(u.search);docs.push(u.pathname+u.search);
+      return r.fulfill({status:200,contentType:'text/html; charset=utf-8',headers:{'cache-control':'no-store'},body:INDEX});
+    }
+    if(f==='/motor.js'){
+      const esSonda=/[?&]c=\d+/.test(u.search);
+      const sirve=esSonda?srv.sonda:((ultimaEsV&&!srv.ignorarV)?'real':srv.documento);
+      return r.fulfill({status:200,contentType:'application/javascript',headers:{'cache-control':'no-store'},body:sirve==='real'?MOTOR:MOTOR_VIEJO});
     }
     try{const cuerpo=fs.readFileSync(RAIZ+f);r.fulfill({status:200,contentType:TIPOS[path.extname(f)]||'application/octet-stream',body:cuerpo})}catch(e){r.fulfill({status:404,body:''})}
   });

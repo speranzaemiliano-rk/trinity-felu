@@ -2,7 +2,7 @@
 // El motor (motor.js) es el mismo para todos los módulos y lee de acá lo que necesita (ver README, «Módulos»).
 const MOD={id:"g3",grado:3,nombre:"Felu",titulo:"Trinity GESE Grade 3",minutos:7,notasKey:"trinity_notas",iaMax:14};
 const OPEN=[
- {q:"Hello! Come in and sit down, please. How are you today?",a:"I'm fine, thank you. And you?",
+ {q:"Hello! Come in and sit down, please. How are you today?",a:"I'm fine, thank you. And you?",responde:true,
   need:[[/fine|\bgood\b|great|\bok\b|okay|\bwell\b|happy/,"Decí cómo estás: \"I'm fine, thank you\"."]],
   react:t=>/and you|how are you/.test(t)?"I'm very well, thank you for asking!":"Good! I'm very well too."},
  {q:"What's your name?",a:"My name is Felu.",
@@ -521,7 +521,7 @@ const QSTEP_Q=["Now, do you have a question for me?","Now it's your turn. Can yo
 const QSTEP={g:"pregunta",q:QSTEP_Q[0],a:"Yes, I do. What's your favourite colour?",
   need:[[/\?|\b(what|where|when|who|why|how|which|do you|does|are you|is it|can you|have you|did you|were you)\b/,"Hacele una pregunta al examinador: \"What's your favourite food?\", \"Do you like your job?\"."]],
   hints:[H("¿Tenés…?","Do you have…?"),H("¿Qué…?","What…?"),H("¿Dónde…?","Where…?")],
-  react:t=>/\bold\b|\bage\b/.test(t)?"I'm thirty-five years old.":/\bname\b/.test(t)?"My name is Alex.":/job|work/.test(t)?"Yes, I do. I like my job very much.":/pet|dog|cat/.test(t)?"Yes, I have a little dog.":/colou?r/.test(t)?"My favourite colour is blue.":/food|eat|pizza/.test(t)?"I love pasta!":/music|sing|guitar/.test(t)?"Yes, I love music!":/live|from/.test(t)?"I live in a small town near here.":/swim|can/.test(t)?"Yes, I can swim.":/get up|time/.test(t)?"I get up at seven o'clock.":/weekend/.test(t)?"At the weekend I like walking in the park.":/brother|sister|family/.test(t)?"Yes, I have a sister.":/football|sport|tennis|play/.test(t)?"Yes, I like sport very much.":/school|teacher|subject/.test(t)?"I like English and music.":/birthday/.test(t)?"My birthday is in July.":"That's a very good question. Thank you!"};
+  react:reaccionPregunta};   // (cómo contesta el examinador una pregunta: escucha.js, igual en los dos módulos)
 const CLOSE_Q=["Thank you. That's the end of our conversation. Goodbye!","Thank you very much. That's all. Goodbye!","OK, that's the end of the exam. Thank you. Goodbye!","Thank you, that's all. Goodbye!","OK, that's all. Thank you very much. Goodbye!"];
 const CLOSE={q:CLOSE_Q[0],a:"Goodbye, have a nice day!",
   need:[[/bye/,"Despedite: \"Goodbye!\"."]],react:R("Have a nice day!","See you soon!","Goodbye!"),last:true};
@@ -694,10 +694,11 @@ const SISTEMA_IA=`You are a kind, patient examiner for the Trinity GESE Grade 3 
 You are talking with Felu, a 10-year-old child from Argentina who is learning English. Speak to him like a warm teacher.
 STYLE
 - Use very simple English (A1-A2): short sentences, easy words. Contractions are fine (it's, I'm).
-- Ask ONE question at a time. Never repeat a question that was already asked.
+- Ask ONE question at a time. Never repeat a question that was already asked (the only exception: ask your previous question again after answering a question from the child, see below).
 - First react to the child's last answer in a few words (e.g. "Oh, that sounds nice!"), then link to the next question naturally ("Now, let's talk about your school."). The conversation must feel fluid, not like a list of questions.
 - If the child did not understand or asks you to repeat, repeat more slowly with simpler words.
 - NEVER say goodbye and NEVER set "end" to true before turn = max+1, even if his answer is short or is a question. If he asks you something earlier, answer in one short sentence and then continue with the next topic of the agenda. Do not skip topics.
+- If he asks YOU a question INSTEAD of answering (for example "What is your name?" or "Do you like football?"), answer it in one short, friendly sentence (invent a simple answer about yourself), then say "Now, back to my question." and ask your previous question again. That is not a mistake: set "ok" to true and leave "tip" empty. If he answers AND asks you something ("I like pizza. And you?"), react to his answer, answer his question in a few words and then go on with the next question.
 - All Spanish text you write ("tip", "help", the "es" of hints) must be Argentine Spanish with "vos" (decí, probá, podés), never "puedes" or "di".
 LISTEN LIKE A REAL EXAMINER (inside the topic of each turn; still one short reaction + ONE question)
 - Your short reaction must show that you LISTENED: mention ONE concrete detail of his last answer (a person, an animal, a food, a place or an activity) instead of a generic "Very good!" (for example "A dog! What a nice pet." or "Football, nice!").

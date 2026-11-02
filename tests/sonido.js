@@ -56,9 +56,11 @@ let ctx,p,e;
 
 // 1) iPhone: se oye todo, también con el micrófono abierto → MANOS LIBRES
 ctx=await nuevoCtx(UA_IOS);p=await pagina(ctx);
-await p.click('#t-speak');await p.click('#practice-snd');
+await p.click('#t-speak');await p.evaluate(()=>{localStorage.setItem('trinity_tap3','1');document.querySelectorAll('input[id$="-tap"]').forEach(x=>x.checked=true)});   // (venía eligiendo «tocar 🎤»)
+await p.click('#practice-snd');
 chk('el botón «Probar el sonido» abre la revisión de 3 pasos',await visible(p,'#rkSonido #rkSnIni'));
 await recorrer(p,[OK,OK2,OK3]);e=await estado(p);
+chk('rehacer la revisión borra el «tocar 🎤» elegido antes (la revisión decide de nuevo)',await p.evaluate(()=>localStorage.getItem('trinity_tap3'))===null);
 chk('suena «Monday» y «Thursday» con la voz del celular ('+JSON.stringify(e.tts)+') y 3 audios grabados ('+e.mp3+')',e.tts.includes('Monday')&&e.tts.includes('Thursday')&&e.mp3===3);
 chk('el micrófono se abrió 2 veces (pasos 2 y 3) y quedó suelto ('+e.gum+' pedidos, '+e.vivas+' pistas vivas)',e.gum===2&&e.vivas===0);
 chk('resultado «manos libres» y lo explica',/manos libres/.test(e.texto)&&/sin botón «Hablar»/.test(e.texto)&&e.guardado.mp3a===1);
@@ -121,11 +123,11 @@ await p.click('#practice-stop');await p.waitForTimeout(300);
 await p.click('#practice-start');await p.waitForTimeout(1500);
 chk('iPhone: la segunda vez no vuelve a pedir la revisión',!(await visible(p,'#rkSonido')));
 await p.click('#practice-stop');await p.waitForTimeout(300);
-// en plena charla: «¿No se oye?» pausa, suelta el micrófono, vuelve a «tocar 🎤» y lo recuerda
+// en plena charla: «¿No se oye?» pausa, suelta el micrófono y vuelve a «tocar 🎤» (sin guardarlo: lo decide la revisión de sonido)
 await p.click('#practice-start');await p.waitForSelector('#practice-chat .msg.ex',{timeout:40000});
 await p.click('#practice-snd');await p.waitForTimeout(500);
-e=await estado(p);const g=await p.evaluate(()=>localStorage.getItem('trinity_tap2'));
-chk('en plena charla «¿No se oye?»: pausa, suelta el micrófono ('+e.vivas+' pistas), vuelve a «tocar 🎤» y lo recuerda ('+g+')',e.vivas===0&&e.tap.every(Boolean)&&g==='1'&&(await visible(p,'#rkSonido #rkSnIni')));
+e=await estado(p);const g=await p.evaluate(()=>localStorage.getItem('trinity_tap3'));
+chk('en plena charla «¿No se oye?»: pausa, suelta el micrófono ('+e.vivas+' pistas), vuelve a «tocar 🎤» y NO lo guarda ('+g+')',e.vivas===0&&e.tap.every(Boolean)&&g===null&&(await visible(p,'#rkSonido #rkSnIni')));
 await p.close();
 // si cierra la revisión sin hacerla no se la vuelve a imponer
 p=await pagina(ctx);await p.evaluate(()=>localStorage.removeItem('trinity_sonido3'));

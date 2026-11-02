@@ -36,7 +36,7 @@ export function getGenerativeModel(ai,params){return {async generateContent(req)
   return p;
 }
 const ESTADO=()=>({vivas:window.__pistas.filter(x=>x.readyState==='live').length,gum:window.__gum,tr:window.__tr||0,ev:window.__ev.length,
-  tap:document.getElementById('oral-tap').checked,guardado:localStorage.getItem('trinity_tap2'),
+  tap:document.getElementById('oral-tap').checked,guardado:localStorage.getItem('trinity_tap3'),
   talkVisible:getComputedStyle(document.getElementById('oral-talk')).display!=='none',
   aviso:(document.getElementById('oral-st').hidden?'':document.getElementById('oral-st').innerText),
   sonaron:window.__vivoEnSay.length,conMicAbierto:window.__vivoEnSay.filter(x=>x.vivas>0||x.ctx!=='cerrado'||x.sesion==='play-and-record').length,

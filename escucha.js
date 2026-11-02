@@ -134,8 +134,143 @@ function escuchaRecuerdo(mem){
   const c=Object.keys(mem.temas).filter(id=>ESC_IDX[id]&&ESC_IDX[id].rec).sort((a,b)=>((ESC_IDX[b].gen?0:100)+mem.temas[b])-((ESC_IDX[a].gen?0:100)+mem.temas[a]));
   return c.length&&Math.random()<.85?ESC_IDX[c[0]].rec:"";
 }
+// El examinador contesta la pregunta de quien rinde con una frase corta que NO contradice lo que se preguntó. El tema es libre, así que no se mira
+// DE QUÉ trata la pregunta sino CÓMO empieza: «Did you…?» → «Yes, I did.»; «Where…?», «How often…?» → un dato general que sirve para cualquier tema.
+const _SUJ={you:"I",i:"you",he:"he",she:"she",it:"it",they:"they",we:"we",there:"there",this:"it",that:"it"};
+const _ELLA=/^(mum|mom|mother|sister|grandma|grandmother|aunt|wife|daughter)$/,_EL=/^(dad|father|brother|grandpa|grandfather|uncle|husband|son)$/,_ADJ=/^(best|new|old|little|big|small|favou?rite|first|last|next|other|good|great)$/;
+function reaccionPregunta(t){
+  const x0=String(t||"").toLowerCase();
+  if(/^\s*(no|nope|not now|no thanks?|no thank you|no question)\b/.test(x0)&&!/\?/.test(x0))return pick(SIGAMOS);   // «No, gracias»: no tiene una pregunta, se sigue
+  const x=x0.replace(/[’`]/g,"'").replace(/\b(what|where|who|how|when|which)'?s\b/g,"$1 is").replace(/[^a-z' ]+/g," ").replace(/\s+/g," ").trim();
+  if(/^(and you|(what|how) about you)$/.test(x))return pick(ESC_GRACIAS);   // «And you?» / «What about you?» solos
+  // la pregunta es la última que aparece (puede venir después de un «yes, I do»): se busca dónde empieza
+  const ultimo=re=>{let m,u=-1;while((m=re.exec(x)))u=m.index;return u};
+  const iw=ultimo(/\b(what|where|when|who|whose|why|how|which)\b/g),ia=ultimo(/\b(do|does|did|is|are|am|was|were|can|could|will|would|have|has|should) (you|he|she|it|they|we|there|this|that|i|your|the|my|a|an)\b/g);
+  const u=(iw>=0&&(ia<0||ia<iw||x.slice(iw,ia).split(" ").length<=4))?iw:ia;
+  if(u<0&&/\b(and you|what about you|how about you)\b/.test(x))return pick(ESC_GRACIAS);   // «…And you?»
+  const q=u>=0?x.slice(u):x,p=q.split(" "),w=p[0],w2=p[1]||"",tiene=r=>r.test(q);
+  // —— sí / no: empiezan con un auxiliar
+  if(/^(do|does|did|is|are|am|was|were|can|could|will|would|have|has|should)$/.test(w)){
+    if(/ or /.test(" "+q+" "))return tiene(/like|love|prefer|enjoy|favou?rite/)?pick(["I like both!","Both, I think!"]):"The first one, I think.";
+    if(w==="have"&&w2==="you")return pick(["No, I haven't, but I'd like to!","Yes, I have. Once, a long time ago."]);
+    let suj=_SUJ[w2];
+    if(!suj&&/^(your|the|my)$/.test(w2)){const n=p[2]||"";suj=_ADJ.test(n)?"":_ELLA.test(n)?"she":_EL.test(n)?"he":/[^s]s$/.test(n)?"they":"it"}
+    if(!suj)return "Yes, I think so.";                                  // «Does your best friend…?»: no se sabe quién es
+    if(w==="do"&&suj==="I"&&tiene(/\b(like|love|enjoy)\b/))return pick(["Yes, I do. I like it very much.","Yes, I do. A lot!"]);
+    let v=w;if(w==="are"&&suj==="I")v="am";else if(w==="were"&&suj==="I")v="was";else if(w==="am")v="are";
+    return "Yes, "+suj+" "+v+".";
+  }
+  // —— con palabra de pregunta
+  if(w==="how"){
+    if(w2==="often")return pick(["About twice a week.","Quite often, I think."]);
+    if(w2==="old")return "I'm thirty-five years old.";
+    if(w2==="many")return "Three or four, I think.";
+    if(w2==="much")return tiene(/\b(cost|price|pay|spend)\b/)?"It's not very expensive.":"A lot, I think.";
+    if(w2==="long")return "About two hours.";
+    if(w2==="well")return "Quite well, I think.";
+    if(w2==="are"&&p[2]==="you")return "I'm very well, thank you.";
+    if(w2==="was"||w2==="were")return "It was great, thank you!";
+    if(w2==="is")return "It's great, thank you!";
+    if(tiene(/\b(go|get|travel|come|arrive)\b/))return tiene(/\bdid\b/)?"By car, with my family.":"By bus, usually.";
+    return "It's easy and fun!";
+  }
+  if(w==="what"){
+    if(tiene(/\bname\b/))return "My name is Alex.";
+    if(tiene(/\b(old|age)\b/))return "I'm thirty-five years old.";
+    if(tiene(/\btime\b/))return "At about seven o'clock.";
+    if(tiene(/\bgoing to\b/))return "I'm going to visit my family.";
+    if(tiene(/\bdid you\b/))return tiene(/\b(eat|have|drink)\b/)?"I had pasta. It was delicious.":tiene(/\bplay/)?"I played tennis with a friend.":tiene(/\b(watch|see)\b/)?"I watched an adventure film.":tiene(/\b(buy|get)\b/)?"I bought a book.":tiene(/\b(cook|make)\b/)?"I made a cake with my mum.":"I stayed at home and relaxed.";
+    if(tiene(/\blike (doing|to do)\b/))return "I like reading and walking.";
+    if(tiene(/\bdo you (usually |often )?do\b/))return "I read, I play sport and I see my friends.";
+    if(tiene(/\bcolou?r\b/))return "My favourite colour is blue.";
+    if(tiene(/\b(food|eat|dish|meal|breakfast|lunch|dinner|snack|fruit|pizza|pasta|drink)\b/))return "I love pasta!";
+    if(tiene(/\b(music|sing|singer|song|band|guitar|instrument)\b/))return "I like pop music.";
+    if(tiene(/\b(sport|football|tennis|team|game|match|play|hobby|hobbies)\b/))return "I like football and tennis.";
+    if(tiene(/\b(subject|lesson|school|class|teacher)\b/))return "I like English and music.";
+    if(tiene(/\b(animal|pet|dog|cat)\b/))return "I like dogs.";
+    if(tiene(/\b(film|movie|cartoon|series|programme|show|book)\b/))return "I like adventure films.";
+    if(tiene(/\b(season|summer|winter|spring|autumn|weather)\b/))return "I like summer.";
+    if(tiene(/\b(day|weekend|saturday|sunday)\b/))return "I like Saturday.";
+    if(tiene(/\b(place|country|city|town|holiday|travel|trip)\b/))return "I like the mountains.";
+    if(tiene(/\bbirthday\b/))return "My birthday is in July.";
+    return "That's a good question! I like lots of things.";
+  }
+  if(w==="where"){
+    if(tiene(/\bfrom\b/))return "I'm from a small town near the sea.";
+    if(tiene(/\blive\b/))return "I live in a small town near the sea.";
+    if(tiene(/\b(going to|will)\b/))return "I'm going to go to the mountains.";
+    if(tiene(/\b(did|was|were)\b/))return tiene(/\b(go|travel|visit)\b/)?"I went to the mountains.":"At home, with my family.";
+    return "In a nice place near my house.";
+  }
+  if(w==="when"){
+    if(tiene(/\bbirthday\b/))return "My birthday is in July.";
+    if(tiene(/\b(start|begin|began|first|learn)\b/))return "About two years ago.";
+    if(tiene(/\b(going to|will)\b/))return "Next month, I think.";
+    if(tiene(/\b(did|was|were)\b/))return "Last year, I think.";
+    return "At the weekend, usually.";
+  }
+  if(w==="who"||w==="whose")return tiene(/\b(favou?rite|best)\b/)?"I have a few. It's hard to choose!":tiene(/\b(with|go|went|play|played|live|come|came)\b/)?"With my family and my friends.":"A friend of mine.";
+  if(w==="why")return pick(["Because it's fun!","Because I like it a lot."]);
+  if(w==="which")return "That's a difficult choice. I like them all!";
+  return "That's a very good question. Thank you!";   // lo que no se reconoce
+}
+// preguntas de ejemplo: sirven para armar la lista de audios (cada respuesta posible del examinador tiene que tener el suyo) y para las pruebas
+const PREGUNTAS_MUESTRA=["Do you like football?","Do you like dogs or cats?","Do you play the guitar?","Does your mum like football?","Do they play football?","Did you go on holiday last summer?","Did he win?","Are you going to travel this year?","Are you tall?","Are they friends?","Is it big?","Is your dog big?","Is there a park?","Was it fun?","Were you there?","Can you swim?","Can I ask you something?","Will you come?","Would you like to play?","Have you ever been to the beach?","Has it got a pool?","What is your name?","How old are you?","What is your favourite colour?","What is your favourite sport?","What do you like doing?","What did you do last weekend?","What did you eat yesterday?","What did you play?","What did you watch?","What did you buy?","What did you cook?","What are you going to do?","What time do you get up?","What do you do at the weekend?","What music do you like?","What food do you like?","What subject do you like?","What animal do you like?","What film do you like?","What season do you like?","What day do you like?","What place do you like?","What is your birthday?","What is that?","Where do you live?","Where are you from?","Where did you go?","Where did you celebrate your birthday?","Where are you going to go?","Where do you play?","When did you start?","When is your birthday?","When are you going to go?","When do you play?","When was it?","Who is your favourite player?","Who did you go with?","Who is that?","Why do you like it?","Which team do you like?","How often do you play?","How many friends do you have?","How much does it cost?","How much do you like it?","How long did it take?","How well do you play?","How are you?","How was your holiday?","How is your dog?","How did you go?","How do you go to school?","How do you play?","And you?","What about you?","No, thank you.","Pipa?"];
+
+// ---- ¿Le hicieron una pregunta al examinador? (en cualquier momento, no sólo cuando él lo pide)
+// Una pregunta siempre ARRANCA una cláusula («Do you…?», «What is…?», «Sorry, can I…?»); un auxiliar en medio de una frase NO es una pregunta
+// («I have a dog», «it is a house», «my mum has a car», «when it is hot»). Por eso se miran las cláusulas (cortadas por . ? ! , ; :) y la pregunta tiene que
+// arrancar una. Ante la duda NO se toma por pregunta: equivocarse acá es que el examinador conteste algo que nadie le preguntó.
+const ESC_VUELTA=["Now, back to my question.","OK. Now it's your turn to answer."];                    // después de contestarle algo que no era la respuesta: se vuelve a la pregunta
+const ESC_GRACIAS=["Thank you for asking!","That's kind of you to ask!"];                          // «…and you?»
+const ESC_FILLER=/^(yes|yeah|yep|no|nope|ok|okay|well|um|uh|hmm|mm|sorry|please|and|so|but|then|now|thank|thanks|you|excuse|me|teacher|sir|miss|mister|mr|mrs|ms|examiner|madam)$/;   // lo que puede ir antes de una pregunta sin ser una respuesta
+const ESC_SALTAR=/^(yes|yeah|yep|no|nope|ok|okay|well|um|uh|hmm|mm|sorry|please|and|so|but|then|now|excuse|me|teacher|sir|miss|mister|mr|mrs|ms|examiner|madam)$/;
+const ESC_AUX=/^(?:(?:do|does|did|is|are|was|were|could|would|have|has|should)(?:n't)?|am|can(?:'t)?|will|won't)$/,ESC_WH=/^(what|where|when|who|whose|why|how|which)$/;
+const ESC_ACLARAR=/\b(repeat|again|slowly|don'?t understand|do not understand|what do you mean|what does that mean|say that)\b|^\W*(pardon|excuse me|sorry|what|eh|huh)\W*$/;   // pedir que repita no es una pregunta para el examinador
+const ESC_FORMULA=/\b(how are you|how old are you|what is your name|where are you from|where do you live|do you (?:like|have|play|live|speak|want) )/;   // las que se dicen de corrido aunque el dictado no ponga puntos: «I'm fine how are you»
+// ¿una pregunta arranca en la palabra s de la cláusula c? (cq: la cláusula terminaba en «?»). Con «?» alcanza con que arranque con una palabra de pregunta o un auxiliar
+// («Who cooks pasta?», «Is maths difficult?»); sin «?» (dictado) se pide la forma completa, y «do my homework» o «have a nice day» —respuestas cortas— no cuentan.
+function _escEsPregunta(c,s,cq){
+  const w=c[s]||"",w1=c[s+1]||"",largo=c.length-s>=3;
+  if(ESC_WH.test(w)){   // palabra de pregunta + (algún sustantivo) + auxiliar: «what is…», «what time do…», «what kind of music do…»; «when it is hot» o «where we went» no
+    for(let k=1;k<=5&&s+k<c.length;k++){
+      if(ESC_AUX.test(c[s+k]))return true;
+      if(/^(i|we|they|he|she|it|you|my|your|his|her|our|their|the|a|an|this|that|there)$/.test(c[s+k]))break}
+    return cq&&largo}   // sin auxiliar pero con «?»: «What day comes after Wednesday?», «Who cooks it?» (sin «?», «when it is hot» o «where we went» no son preguntas)
+  if(ESC_AUX.test(w)){
+    if(cq&&largo)return true;                                                           // «Is maths difficult for you?»
+    if(/^(do|does|did)(n't)?$/.test(w))return /^(you|he|she|they|we|there)$/.test(w1);   // «do my homework», «do the dishes» son respuestas, no preguntas
+    if(/^(have|has)(n't)?$/.test(w))return /^(you|he|she|it|they|we|there)$/.test(w1);   // «have a dog» (tener) tampoco
+    return /^(you|he|she|it|they|we|there|this|that|your|the|my|a|an|i|his|her|our|their)$/.test(w1)}
+  return false;
+}
+function escuchaPregunta(raw){   // → {pregunta: ¿hay una pregunta para el examinador?, solo: ¿es TODO lo que dijo? (no contestó lo que se le preguntó), q: la pregunta}
+  const NO={pregunta:false,solo:false,q:""};
+  const t=String(raw||"").toLowerCase().replace(/[’`]/g,"'").replace(/\b(what|where|who|how|when|which)'s\b/g,"$1 is").trim();
+  if(!t||ESC_ACLARAR.test(t))return NO;
+  const partes=t.split(/([.?!,;:\n]+)/),cl=[];   // cláusulas, cada una con sus palabras y si terminaba en «?»
+  for(let i=0;i<partes.length;i+=2){const ws=partes[i].replace(/[^a-z' ]+/g," ").split(/\s+/).filter(Boolean);if(ws.length)cl.push({w:ws,q:/\?/.test(partes[i+1]||"")})}
+  let hay=null;
+  cl.forEach((k,ci)=>{
+    const c=k.w;let s=0;const salt=()=>{while(s<c.length&&ESC_SALTAR.test(c[s]))s++};
+    salt();if(/^thanks?$/.test(c[s]||"")){s+=c[s+1]==="you"?2:1;salt()}
+    const ult=c.slice(-3).join(" "),ult2=c.slice(-2).join(" ");
+    if(s<c.length&&_escEsPregunta(c,s,k.q))hay={ci,s};
+    else if(/^(what|how) about you$/.test(ult))hay={ci,s:c.length-3};                    // «…What about you?»
+    else if(ult2==="and you"&&c.length>=2)hay={ci,s:c.length-2};                        // «…And you?»
+    else{const m=ESC_FORMULA.exec(c.join(" "));if(m){const n=c.join(" ").slice(0,m.index).split(" ").filter(Boolean).length;if(n>=1)hay={ci,s:n}}}   // «I'm fine how are you»
+  });
+  if(!hay)return NO;
+  const prev=[];for(let i=0;i<hay.ci;i++)prev.push(...cl[i].w);prev.push(...cl[hay.ci].w.slice(0,hay.s));
+  const despues=cl.slice(hay.ci+1).reduce((n,k)=>n+k.w.length,0);
+  return {pregunta:true,solo:prev.every(w=>ESC_FILLER.test(w))&&despues<4,q:cl[hay.ci].w.slice(hay.s).concat(...cl.slice(hay.ci+1).map(k=>k.w)).join(" ")};
+}
+function escuchaResponder(raw){const e=escuchaPregunta(raw);return e.pregunta?reaccionPregunta(e.q):null}   // lo que contesta el examinador, o null si no le preguntaron nada
+
 // todas las frases sueltas que puede decir (para grabar los audios); los pasos (ELICITAR y ESC_SEG) los recorre rkTextosGuion de cada módulo
 function escuchaFrases(){
   const o=[];ESC_TEMAS.forEach(x=>{x.r.forEach(s=>o.push(s));if(x.rec)o.push(x.rec)});
-  [ESC_TRIST,ESC_NO,ESC_NOSE,ESC_POS,ESC_RICA,ESC_NEUTRO].forEach(l=>l.forEach(s=>o.push(s)));return o;
+  [ESC_TRIST,ESC_NO,ESC_NOSE,ESC_POS,ESC_RICA,ESC_NEUTRO,ESC_VUELTA,ESC_GRACIAS].forEach(l=>l.forEach(s=>o.push(s)));
+  PREGUNTAS_MUESTRA.forEach(q=>{for(let n=0;n<14;n++)o.push(reaccionPregunta(q))});   // todo lo que puede contestar cuando le hacen una pregunta
+  return o;
 }

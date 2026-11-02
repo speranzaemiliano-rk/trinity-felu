@@ -36,7 +36,7 @@ async function pagina(b,o){
 }
 const ESTADO=()=>({vivas:window.__pistas.filter(x=>x.readyState==='live').length,gum:window.__gum,tr:window.__tr||0,hablo:window.__dichos.length,speak:window.__speak.filter(x=>x!=='ok').length,mp3:window.__mp3.length,
   rep:getComputedStyle(document.getElementById('oral-rep')).display!=='none',ia:document.getElementById('oral-ia')?document.getElementById('oral-ia').checked:null,
-  tap:document.getElementById('oral-tap').checked,guardado:localStorage.getItem('trinity_tap2'),persistente:PERSISTENTE,ctx:(typeof _actx!=='undefined'&&_actx)?_actx.state:'cerrado'});
+  tap:document.getElementById('oral-tap').checked,guardado:localStorage.getItem('trinity_tap3'),persistente:PERSISTENTE,ctx:(typeof _actx!=='undefined'&&_actx)?_actx.state:'cerrado'});
 (async()=>{
 const b=await chromium.launch({args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--use-file-for-fake-audio-capture='+D+'speech_ruido.wav','--autoplay-policy=no-user-gesture-required']});
 const res=[];const chk=(n,v)=>{res.push(!!v);console.log(v?'✓':'✗',n)};

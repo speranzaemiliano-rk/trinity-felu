@@ -336,7 +336,7 @@ const TEMAS_PROHIBIDOS=/^(holidays?|shopping|school( and work)?|work|hobbies( an
 // ---- Los pasos del examinador en el tema (todo GENERAL y grabado: lo del tema se ve en pantalla en «📌 …»)
 const SALUDOS4=["Hello! Come in and sit down, please. How are you today?","Good morning! Please, take a seat. How are you today?","Hi there! Nice to see you. How are you today?","Hello! Welcome. Sit down, please. How are you feeling today?","Good afternoon! Please, sit down. How are you today?","Hello! Please, come in. How are you today?"];
 // (el saludo y la despedida no se evalúan en el examen real: cualquier respuesta corta sirve y el examinador contesta algo que va con lo que se dijo)
-const SALUDO4={g:"saludo",rotulo:"Saludo",q:SALUDOS4[0],a:"I'm fine, thank you. And you?",corta:true,
+const SALUDO4={g:"saludo",rotulo:"Saludo",q:SALUDOS4[0],a:"I'm fine, thank you. And you?",corta:true,responde:true,
   need:[],hints:[H("estoy bien","I'm fine"),H("gracias","thank you"),H("¿y vos?","and you?")],
   react:t=>/and you|how are you/.test(t)?"I'm very well, thank you for asking!":/not bad/.test(t)?"Good! I'm very well too.":/\b(tired|sad|bad|sick|ill|hungry|nervous|worried|so so|not (good|well|fine|ok|okay))\b/.test(t)?"Oh, I see. Don't worry, we're going to have a nice chat.":"Good! I'm very well too."};
 const FORMA4=[
@@ -352,84 +352,7 @@ const TITULO4=[
 ];
 // después del 2.º punto: quien rinde le hace una pregunta al examinador (en el Grade 4 es obligatorio en el tema)
 const PREG4_Q=[["Do you want to ask me a question about your topic?","Yes, I do."],["Now, do you have a question for me about your topic?","Yes, I do."],["Would you like to ask me something about your topic?","Yes, I would."]];
-// El examinador contesta la pregunta de quien rinde con una frase corta que NO contradice lo que se preguntó. El tema es libre, así que no se mira
-// DE QUÉ trata la pregunta sino CÓMO empieza: «Did you…?» → «Yes, I did.»; «Where…?», «How often…?» → un dato general que sirve para cualquier tema.
-const _SUJ={you:"I",i:"you",he:"he",she:"she",it:"it",they:"they",we:"we",there:"there",this:"it",that:"it"};
-const _ELLA=/^(mum|mom|mother|sister|grandma|grandmother|aunt|wife|daughter)$/,_EL=/^(dad|father|brother|grandpa|grandfather|uncle|husband|son)$/,_ADJ=/^(best|new|old|little|big|small|favou?rite|first|last|next|other|good|great)$/;
-function reaccionPregunta(t){
-  const x=String(t||"").toLowerCase().replace(/[’`]/g,"'").replace(/\b(what|where|who|how|when|which)'?s\b/g,"$1 is").replace(/[^a-z' ]+/g," ").replace(/\s+/g," ").trim();
-  // la pregunta es la última que aparece (puede venir después de un «yes, I do»): se busca dónde empieza
-  const ultimo=re=>{let m,u=-1;while((m=re.exec(x)))u=m.index;return u};
-  const iw=ultimo(/\b(what|where|when|who|whose|why|how|which)\b/g),ia=ultimo(/\b(do|does|did|is|are|am|was|were|can|could|will|would|have|has|should) (you|he|she|it|they|we|there|this|that|i|your|the|my|a|an)\b/g);
-  const u=(iw>=0&&(ia<0||ia<iw||x.slice(iw,ia).split(" ").length<=4))?iw:ia;
-  const q=u>=0?x.slice(u):x,p=q.split(" "),w=p[0],w2=p[1]||"",tiene=r=>r.test(q);
-  // —— sí / no: empiezan con un auxiliar
-  if(/^(do|does|did|is|are|am|was|were|can|could|will|would|have|has|should)$/.test(w)){
-    if(/ or /.test(" "+q+" "))return tiene(/like|love|prefer|enjoy|favou?rite/)?pick(["I like both!","Both, I think!"]):"The first one, I think.";
-    if(w==="have"&&w2==="you")return pick(["No, I haven't, but I'd like to!","Yes, I have. Once, a long time ago."]);
-    let suj=_SUJ[w2];
-    if(!suj&&/^(your|the|my)$/.test(w2)){const n=p[2]||"";suj=_ADJ.test(n)?"":_ELLA.test(n)?"she":_EL.test(n)?"he":/[^s]s$/.test(n)?"they":"it"}
-    if(!suj)return "Yes, I think so.";                                  // «Does your best friend…?»: no se sabe quién es
-    if(w==="do"&&suj==="I"&&tiene(/\b(like|love|enjoy)\b/))return pick(["Yes, I do. I like it very much.","Yes, I do. A lot!"]);
-    let v=w;if(w==="are"&&suj==="I")v="am";else if(w==="were"&&suj==="I")v="was";else if(w==="am")v="are";
-    return "Yes, "+suj+" "+v+".";
-  }
-  // —— con palabra de pregunta
-  if(w==="how"){
-    if(w2==="often")return pick(["About twice a week.","Quite often, I think."]);
-    if(w2==="old")return "I'm thirty-five years old.";
-    if(w2==="many")return "Three or four, I think.";
-    if(w2==="much")return tiene(/\b(cost|price|pay|spend)\b/)?"It's not very expensive.":"A lot, I think.";
-    if(w2==="long")return "About two hours.";
-    if(w2==="well")return "Quite well, I think.";
-    if(w2==="are"&&p[2]==="you")return "I'm very well, thank you.";
-    if(w2==="was"||w2==="were")return "It was great, thank you!";
-    if(w2==="is")return "It's great, thank you!";
-    if(tiene(/\b(go|get|travel|come|arrive)\b/))return tiene(/\bdid\b/)?"By car, with my family.":"By bus, usually.";
-    return "It's easy and fun!";
-  }
-  if(w==="what"){
-    if(tiene(/\bname\b/))return "My name is Alex.";
-    if(tiene(/\b(old|age)\b/))return "I'm thirty-five years old.";
-    if(tiene(/\btime\b/))return "At about seven o'clock.";
-    if(tiene(/\bgoing to\b/))return "I'm going to visit my family.";
-    if(tiene(/\bdid you\b/))return tiene(/\b(eat|have|drink)\b/)?"I had pasta. It was delicious.":tiene(/\bplay/)?"I played tennis with a friend.":tiene(/\b(watch|see)\b/)?"I watched an adventure film.":tiene(/\b(buy|get)\b/)?"I bought a book.":tiene(/\b(cook|make)\b/)?"I made a cake with my mum.":"I stayed at home and relaxed.";
-    if(tiene(/\blike (doing|to do)\b/))return "I like reading and walking.";
-    if(tiene(/\bdo you (usually |often )?do\b/))return "I read, I play sport and I see my friends.";
-    if(tiene(/\bcolou?r\b/))return "My favourite colour is blue.";
-    if(tiene(/\b(food|eat|dish|meal|breakfast|lunch|dinner|snack|fruit|pizza|pasta|drink)\b/))return "I love pasta!";
-    if(tiene(/\b(music|sing|singer|song|band|guitar|instrument)\b/))return "I like pop music.";
-    if(tiene(/\b(sport|football|tennis|team|game|match|play|hobby|hobbies)\b/))return "I like football and tennis.";
-    if(tiene(/\b(subject|lesson|school|class|teacher)\b/))return "I like English and music.";
-    if(tiene(/\b(animal|pet|dog|cat)\b/))return "I like dogs.";
-    if(tiene(/\b(film|movie|cartoon|series|programme|show|book)\b/))return "I like adventure films.";
-    if(tiene(/\b(season|summer|winter|spring|autumn|weather)\b/))return "I like summer.";
-    if(tiene(/\b(day|weekend|saturday|sunday)\b/))return "I like Saturday.";
-    if(tiene(/\b(place|country|city|town|holiday|travel|trip)\b/))return "I like the mountains.";
-    if(tiene(/\bbirthday\b/))return "My birthday is in July.";
-    return "That's a good question! I like lots of things.";
-  }
-  if(w==="where"){
-    if(tiene(/\bfrom\b/))return "I'm from a small town near the sea.";
-    if(tiene(/\blive\b/))return "I live in a small town near the sea.";
-    if(tiene(/\b(going to|will)\b/))return "I'm going to go to the mountains.";
-    if(tiene(/\b(did|was|were)\b/))return tiene(/\b(go|travel|visit)\b/)?"I went to the mountains.":"At home, with my family.";
-    return "In a nice place near my house.";
-  }
-  if(w==="when"){
-    if(tiene(/\bbirthday\b/))return "My birthday is in July.";
-    if(tiene(/\b(start|begin|began|first|learn)\b/))return "About two years ago.";
-    if(tiene(/\b(going to|will)\b/))return "Next month, I think.";
-    if(tiene(/\b(did|was|were)\b/))return "Last year, I think.";
-    return "At the weekend, usually.";
-  }
-  if(w==="who"||w==="whose")return tiene(/\b(favou?rite|best)\b/)?"I have a few. It's hard to choose!":tiene(/\b(with|go|went|play|played|live|come|came)\b/)?"With my family and my friends.":"A friend of mine.";
-  if(w==="why")return pick(["Because it's fun!","Because I like it a lot."]);
-  if(w==="which")return "That's a difficult choice. I like them all!";
-  return "That's a very good question. Thank you!";   // lo que no se reconoce
-}
-// preguntas de ejemplo: sirven para armar la lista de audios (cada respuesta posible del examinador tiene que tener el suyo) y para las pruebas
-const PREGUNTAS_MUESTRA=["Do you like football?","Do you like dogs or cats?","Do you play the guitar?","Does your mum like football?","Do they play football?","Did you go on holiday last summer?","Did he win?","Are you going to travel this year?","Are you tall?","Are they friends?","Is it big?","Is your dog big?","Is there a park?","Was it fun?","Were you there?","Can you swim?","Can I ask you something?","Will you come?","Would you like to play?","Have you ever been to the beach?","Has it got a pool?","What is your name?","How old are you?","What is your favourite colour?","What is your favourite sport?","What do you like doing?","What did you do last weekend?","What did you eat yesterday?","What did you play?","What did you watch?","What did you buy?","What did you cook?","What are you going to do?","What time do you get up?","What do you do at the weekend?","What music do you like?","What food do you like?","What subject do you like?","What animal do you like?","What film do you like?","What season do you like?","What day do you like?","What place do you like?","What is your birthday?","What is that?","Where do you live?","Where are you from?","Where did you go?","Where did you celebrate your birthday?","Where are you going to go?","Where do you play?","When did you start?","When is your birthday?","When are you going to go?","When do you play?","When was it?","Who is your favourite player?","Who did you go with?","Who is that?","Why do you like it?","Which team do you like?","How often do you play?","How many friends do you have?","How much does it cost?","How much do you like it?","How long did it take?","How well do you play?","How are you?","How was your holiday?","How is your dog?","How did you go?","How do you go to school?","How do you play?","Pipa?"];
+// (reaccionPregunta —cómo contesta el examinador una pregunta— y PREGUNTAS_MUESTRA están en escucha.js: valen para los dos módulos y para cualquier momento de la charla)
 const PREG4=PREG4_Q.map(([q,si])=>({g:"tema",rotulo:"Tu tema",q,a:si+" Do you like football?",
   need:[[PREGUNTA,"Hacele una pregunta al examinador sobre tu tema: <i>Do you like…?</i>, <i>When…?</i>, <i>What…?</i>"]],
   hints:[H("¿Te gusta…?","Do you like…?"),H("¿Cuándo…?","When…?"),H("¿Qué…?","What…?")],react:reaccionPregunta}));
@@ -561,10 +484,11 @@ const SISTEMA_IA=`You are a kind, patient examiner for the Trinity GESE Grade 4 
 You are talking with ${MOD.nombre}, a child from Argentina who is learning English. Speak like a warm teacher. Do not use "he" or "she" for the child: say "you". Never guess the child's gender: in Spanish text avoid words with a gender ending ("contento/a", "preparado/a", "listo/a", "orgulloso/a") and use neutral wording.
 STYLE
 - Use simple English (A2): short sentences, easy words. Contractions are fine (it's, I'm).
-- Ask ONE question at a time. Never repeat a question that was already asked.
+- Ask ONE question at a time. Never repeat a question that was already asked (the only exception: ask your previous question again after answering a question from the child, see below).
 - First react to the last answer in a few words (e.g. "That sounds nice!"), then ask the next question. Ask for more information, facts or details when an answer is short ("Can you tell me more?", "What else?").
 - If the child did not understand or asks you to repeat, repeat more slowly with simpler words.
 - NEVER say goodbye and NEVER set "end" to true before turn = max+1, even if the answer is short or is a question. If the child asks you something, answer in one short sentence and continue.
+- If the child asks YOU a question INSTEAD of answering (for example "What is your name?" or "Do you like football?"), answer it in one short, friendly sentence (invent a simple answer about yourself), then say "Now, back to my question." and ask your previous question again. That is not a mistake: set "ok" to true and leave "tip" empty. If the child answers AND asks you something ("I like pizza. And you?"), react to the answer, answer the question in a few words and then go on with the next question.
 - All Spanish text you write ("tip", "help", the "es" of hints) must be Argentine Spanish with "vos" (decí, probá, podés), never "puedes" or "di".
 LISTEN LIKE A REAL EXAMINER
 - Your short reaction must show that you LISTENED: mention ONE concrete detail of the child's last answer (a person, an animal, a food, a place or an activity) instead of a generic "Very good!" (for example "A dog! What a nice pet." or "Football, nice!").

@@ -604,9 +604,10 @@ function aplicarSonido(r){
   _localMuda=r.tts===0&&r.ttsd!==1;              // la voz del celular, igual
   SIN_VOZ=modo==="lectura";
   const q=(sel,f)=>document.querySelectorAll(sel).forEach(f);
-  if(IS_IOS){   // en iPhone el modo sale de la prueba (y un «tocar 🎤» que quedó guardado manda)
-    let forzado=false;try{forzado=localStorage.getItem("trinity_tap2")==="1"}catch(e){}
-    q('input[id$="-tap"]',x=>x.checked=forzado||modo==="toque"||modo==="toque-ia");
+  _tapAuto=false;   // (si la app había puesto «tocar 🎤» sola, esta revisión es más nueva)
+  if(IS_IOS){   // en iPhone el modo sale de la prueba (salvo que la persona haya elegido tocar o no tocar: eso manda)
+    const elegido=tapElegido();
+    q('input[id$="-tap"]',x=>x.checked=elegido!==null?elegido:(modo==="toque"||modo==="toque-ia"));
     q('input[id$="-ia"]',x=>x.checked=modo==="toque-ia");
   }else{   // en otras plataformas el micrófono se abre solo en cada turno: sólo se mira qué voz usar
     q('input[id$="-ia"]',x=>x.checked=!(_localMuda&&MP3_OK));
@@ -694,6 +695,7 @@ function abrirSonido(alTerminar){
   function fin(){
     const r={t:Date.now()};["tts","mp3","mp3d","ttsd","mp3a","ecoA","ecoAmb"].forEach(k=>{if(R[k]!==undefined)r[k]=R[k]});ecoIgnorar(false);   // (rehacer la revisión vuelve a activar la vigilancia)
     try{localStorage.setItem("trinity_sonido3",JSON.stringify(r))}catch(e){}
+    try{localStorage.removeItem(TAP_KEY)}catch(e){}   // rehacer la revisión es pedir que se decida de nuevo si hace falta tocar 🎤
     aplicarSonido(r);resultado(r)}
   function resultado(r){
     const modo=modoDe(r);let ico,txt;
@@ -753,9 +755,16 @@ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 let activeStop=null; // para frenar la otra conversación si se empieza una nueva
 // Pide el permiso del micrófono UNA vez al empezar (el cartel del navegador tarda y antes se confundía con "no anda")
 let micPermState="unknown";
-// «Tocar 🎤 para hablar»: se recuerda en el equipo (en un iPhone donde Safari no deja abrir el micrófono solo, queda activado)
-const TAP_GUARDADO=(function(){try{return localStorage.getItem("trinity_tap2")==="1"}catch(e){return false}})();
-function recordarTap(on){try{localStorage.setItem("trinity_tap2",on?"1":"0")}catch(e){}document.querySelectorAll('input[id$="-tap"]').forEach(x=>x.checked=!!on)}
+// «Tocar 🎤 para hablar». Se guarda SÓLO lo que la persona eligió con la casilla: «1» = quiero tocar · «0» = quiero hablar sin tocar. Sin nada guardado manda la revisión de sonido.
+// Lo que la app pone sola (Safari que no deja abrir el micrófono, una llamada que lo corta) NO se guarda: antes quedaba «pegado» (trinity_tap2) y obligaba a tocar 🎤 Hablar para siempre.
+const TAP_KEY="trinity_tap3";
+try{localStorage.removeItem("trinity_tap2")}catch(e){}   // la clave de antes mezclaba lo elegido con lo que había puesto la app sola
+function tapElegido(){try{const v=localStorage.getItem(TAP_KEY);return v==="1"?true:v==="0"?false:null}catch(e){return null}}   // true/false = lo eligió la persona · null = sin elegir
+const TAP_GUARDADO=tapElegido()===true;
+function tapPoner(on){document.querySelectorAll('input[id$="-tap"]').forEach(x=>x.checked=!!on)}   // sólo la casilla, sin guardar
+function recordarTap(on){try{localStorage.setItem(TAP_KEY,on?"1":"0")}catch(e){}tapPoner(on)}   // la persona lo eligió: se guarda
+let _tapAuto=false;   // la casilla la tildó la app sola (un corte del micrófono): en la próxima charla se vuelve a probar sin tocar
+let LISTO_TARDE_MS=10000;   // «Listo» aparece recién cuando el micrófono lleva tanto escuchando (la respuesta termina sola con una pausa)
 const SONIDO_OK=(function(){const r=leerSonido();return !!(r&&modoDe(r)!=="lectura")})();   // ya se confirmó que se oyen las dos voces
 const MSG_MIC_DENEGADO=()=>IS_IOS?"El iPhone no dejó usar el micrófono. Arreglalo así: en Safari tocá <b>aA</b> (a la izquierda de la dirección) → <b>Configuración del sitio web</b> → <b>Micrófono → Permitir</b>. Después tocá <b>🎤 Probar el micrófono otra vez</b>, acá abajo. (Si abriste el link desde WhatsApp, Instagram o un mail, abrilo en <b>Safari</b>.) Mientras tanto, escribí o dictá con el 🎤 del teclado:":"No hay permiso para el micrófono. Tocá el candado junto a la dirección → Micrófono → Permitir. Después tocá <b>🎤 Probar el micrófono otra vez</b>, acá abajo. Mientras tanto, escribí:";
 async function prepMic(){
@@ -785,8 +794,8 @@ function mountConv(rootId,mode){
   <div class="bar"><i id="${P}bar"></i></div>
   <div class="chat" id="${P}chat" aria-live="polite"><div class="msg tip">${E
     ?"Como en el Trinity: el examinador charla con vos hasta "+MOD.minutos+" minutos y no te ayuda. Si no entendés, podés decir <b>\"Sorry, can you repeat, please?\"</b>"
-    :"Tocá <b>Empezar</b>. Cuando veas <b>Te escucho</b>, contestá en voz alta y cuando termines tocá <b>Listo</b> (o hacé una pausa)."}</div></div>
-  <div class="mic" id="${P}mic" hidden><span class="dot"></span><div class="live"><b id="${P}mict">Te escucho…</b><span id="${P}heard"></span><div class="meter lvl"><i id="${P}lvl"></i></div></div><button class="btn alt" id="${P}talk" hidden>🎤 Hablar</button><button class="btn" id="${P}done">Listo</button></div>
+    :"Tocá <b>Empezar</b> y charlá con el examinador en voz alta: cuando hagas una pausa, él sigue solo (no hace falta tocar nada). Si querés, <b>preguntale vos también</b>: te contesta."}</div></div>
+  <div class="mic" id="${P}mic" hidden><span class="dot"></span><div class="live"><b id="${P}mict">Te escucho…</b><span id="${P}heard"></span><div class="meter lvl"><i id="${P}lvl"></i></div></div><button class="btn alt" id="${P}talk" hidden>🎤 Hablar</button><button class="btn" id="${P}done" hidden>Listo</button></div>
   <div class="status" id="${P}st" role="status" hidden></div>
   <div id="${P}type" hidden>
     <label for="${P}in" class="es" id="${P}tmsg">El micrófono no funciona en este navegador. Escribí la respuesta (en el celu podés dictarla con el 🎤 del teclado):</label>
@@ -809,7 +818,12 @@ function mountConv(rootId,mode){
   let micBroken=!SR&&!IA_ON,typedResolve=null,rec=null,finishNow=null,run=0,curQ="";
   const typeMode=m=>{capDetener();PERSISTENTE=false;micBroken=true;el("type").hidden=false;if(m)el("tmsg").innerHTML=m;el("done").hidden=true;el("kb").textContent="🎤 Probar el micrófono otra vez"};
   if(!SR&&!IA_ON)typeMode();
-  const micUI=(on,txt)=>{el("mic").hidden=!on;if(txt)el("mict").textContent=txt;if(!on)el("heard").textContent=""};
+  // «Listo» ya no hace falta: la respuesta termina sola cuando hacés una pausa. Queda escondido y aparece TARDE (si seguís en «Te escucho» pasados unos segundos),
+  // por si el ruido de fondo no deja que la app note que ya terminaste. (Antes estaba siempre a la vista y el texto de la pantalla mandaba a tocarlo.)
+  let tListo=null;
+  const listoOcultar=()=>{clearTimeout(tListo);tListo=null;el("done").hidden=true};
+  const listoTarde=()=>{listoOcultar();tListo=setTimeout(()=>{tListo=null;if(finishNow&&el("talk").hidden&&!el("mic").hidden)el("done").hidden=false},LISTO_TARDE_MS)};
+  const micUI=(on,txt)=>{el("mic").hidden=!on;if(txt)el("mict").textContent=txt;if(!on){el("heard").textContent="";listoOcultar()}};
 
   // Medidor en vivo: muestra si el micrófono manda sonido y avisa si llega silencio total
   let lvlStream=null,lvlCtx=null,lvlRaf=0,lvlPeak=0,recAbort=null;
@@ -829,7 +843,7 @@ function mountConv(rootId,mode){
   function listenRec(){
     return new Promise(async res=>{
       let chunks=[],done=false,spoke=false,lastVoice=0,t0=0,capT=null,vigia=null,nf=0,th=0.02,rate=44100,pk=0,adelanto=null;
-      const cleanup=()=>{clearTimeout(capT);clearTimeout(vigia);finishNow=null;recAbort=null;
+      const cleanup=()=>{clearTimeout(capT);clearTimeout(vigia);finishNow=null;recAbort=null;listoOcultar();
         if(PERSISTENTE&&_cap)_cap.onFrame=null;   // manos libres: el micrófono sigue abierto, sólo se deja de escuchar hasta la próxima pregunta
         else capDetener();                        // si no: se suelta SIEMPRE, así el examinador se oye
         el("lvl").style.width="0"};
@@ -854,13 +868,13 @@ function mountConv(rootId,mode){
         const eraLibres=PERSISTENTE;
         capDetener();PERSISTENTE=false;   // se suelta todo y se sigue tocando 🎤
         rklog("mic: pasa a «tocar 🎤» → "+(e.name||e.message)+(eraLibres?" (se cortó el micrófono de manos libres)":""));
-        el("tap").checked=true;cambioDeModo=true;el("rep").hidden=false;
-        if(IS_IOS&&!eraLibres)recordarTap(true);   // sólo si no dejó abrirlo solo en cada turno; un corte de manos libres (una llamada, otra app) no se recuerda
-        status(eraLibres?"Se cortó el micrófono ("+esc(e.name||e.message)+"). Tocá <b>🎤 Hablar</b> para seguir."
-          :(IS_IOS?"Safari no me deja abrir el micrófono solo en este iPhone ("+esc(e.name||e.message)+"). ":"No pude abrir el micrófono solo ("+esc(e.name||e.message)+"). ")+"Tocá <b>🎤 Hablar</b> cuando quieras contestar."+(IS_IOS?" (Queda así; para volver a probar sin tocar, destildá «Tocar 🎤 para hablar».)":"")+(e.name==="NotAllowedError"?" Si no te deja, en iPhone: Ajustes → Safari → Micrófono → Permitir.":""));
+        if(!el("tap").checked){_tapAuto=true;tapPoner(true)}   // sólo por esta charla y SIN guardarlo (antes quedaba pegado y obligaba a tocar 🎤 Hablar siempre): en la próxima se vuelve a probar sin tocar
+        cambioDeModo=true;el("rep").hidden=false;
+        status(eraLibres?"Se cortó el micrófono ("+esc(e.name||e.message)+"). Tocá <b>🎤 Hablar</b> para seguir. (Es sólo por esta charla: en la próxima vuelvo a probar sin que toques nada.)"
+          :(IS_IOS?"Safari no me deja abrir el micrófono solo en este iPhone ("+esc(e.name||e.message)+"). ":"No pude abrir el micrófono solo ("+esc(e.name||e.message)+"). ")+"Tocá <b>🎤 Hablar</b> cuando quieras contestar. (Es sólo por esta charla: en la próxima vuelvo a probar sin que toques nada.)"+(e.name==="NotAllowedError"?" Si no te deja, en iPhone: Ajustes → Safari → Micrófono → Permitir.":""));
         res(null)};
       try{
-        el("talk").hidden=true;el("done").hidden=false;
+        el("talk").hidden=true;listoOcultar();
         micUI(true,"Abriendo el micrófono…");
         const c=await capIniciar();      // se abre sólo para esta respuesta y se suelta al terminar (ver capIniciar); en manos libres ya está abierto
         if(done){capDetener();return}    // frenaron la charla mientras se abría
@@ -882,7 +896,7 @@ function mountConv(rootId,mode){
           else if(!spoke&&now-t0>12000)terminar();
         };
         micUI(true,"Te escucho… hablá ahora");
-        finishNow=()=>terminar();capT=setTimeout(terminar,20000);
+        finishNow=()=>terminar();capT=setTimeout(terminar,20000);listoTarde();
       }catch(e){
         if(e&&e.name==="Cancelado"){if(!done){done=true;cleanup();micUI(false);res(null)}return}
         caer(e);
@@ -897,9 +911,9 @@ function mountConv(rootId,mode){
     if(micBroken)return new Promise(res=>{typedResolve=res;el("type").hidden=false;micUI(true,"Escribí tu respuesta…");el("in").focus()});
     return (el("tap").checked?new Promise(r=>{
       // Se espera un toque antes de abrir el reconocimiento: así arranca igual que el probador (que anda) y con la voz del examinador ya terminada
-      micUI(true,"Tocá 🎤 Hablar y contestá");el("talk").hidden=false;el("done").hidden=true;
-      el("talk").onclick=()=>{primeAudio();el("talk").hidden=true;el("done").hidden=false;r()};
-      typedResolve=null;finishNow=()=>{el("talk").hidden=true;el("done").hidden=false;finishNow=null;r("cancel")}
+      micUI(true,"Tocá 🎤 Hablar y contestá");el("talk").hidden=false;listoOcultar();
+      el("talk").onclick=()=>{primeAudio();el("talk").hidden=true;r()};
+      typedResolve=null;finishNow=()=>{el("talk").hidden=true;finishNow=null;r("cancel")}
     }):Promise.resolve()).then(go=>go==="cancel"?null:(sttRec&&IA_ON)?listenRec():new Promise(res=>{
       try{synth.cancel()}catch(e){}
       let done=false,started=false,text="",silence=null,noSound=null,cap=null;
@@ -909,7 +923,7 @@ function mountConv(rootId,mode){
       finishNow=()=>fin(text);
       try{rec=new SR()}catch(e){typeMode();return listen().then(res)}
       rec.lang="en-GB";rec.continuous=false;rec.interimResults=true;rec.maxAlternatives=1;
-      rec.onstart=rec.onaudiostart=()=>{if(started)return;started=true;micUI(true,"Te escucho… hablá ahora");
+      rec.onstart=rec.onaudiostart=()=>{if(started)return;started=true;micUI(true,"Te escucho… hablá ahora");listoTarde();
         noSound=setTimeout(async()=>{if(text)return;el("type").hidden=false;
           // recién ahora se abre el medidor (abrirlo desde el principio compite con el reconocimiento en algunos micrófonos)
           status("Revisando el micrófono… <b>hablá ahora</b>");await lvlStart();await new Promise(r=>setTimeout(r,3000));const pk=lvlPeak;lvlStop();if(done||text)return;
@@ -984,7 +998,17 @@ function mountConv(rootId,mode){
     if(!hints||!hints.length||!el("help")||!el("help").checked)return;
     bubble("hint",`<span class="who">💡 Cómo se dice</span><span class="hchips">${hints.map(h=>`<button class="hchip" data-say="${attr(h.en)}"><span class="es">${esc(h.es)}</span> → <b>${esc(h.en)}</b> 🔊</button>`).join("")}</span>`);
   }
-  let avisoManosLibres=false;
+  let avisoManosLibres=false,probandoLibres=false;
+  // iPhone en «tocar 🎤» porque la revisión de sonido no oyó al examinador con el micrófono abierto (no porque la persona lo haya pedido): se ofrece probar sin tocar nada.
+  // Esa revisión puede equivocarse (modo silencio puesto, volumen bajo) y es lo que obliga a tocar «Hablar» en cada respuesta. Elegir probar se guarda («sin tocar») y
+  // deja a la vista lo que dice el examinador, por si de verdad no se oye; si no anda, tildar «Tocar 🎤 para hablar» vuelve a como estaba.
+  function ofrecerManosLibres(){
+    const b=bubble("tip","🎤 Esta charla es <b>tocando «Hablar»</b> en cada respuesta, porque la revisión de sonido no oyó al examinador con el micrófono abierto. ¿Querés <b>probar sin tocar nada</b>?<div class=\"sbtns\"><button type=\"button\" class=\"btn alt\">🙌 Probar manos libres</button></div>");
+    b.querySelector("button").onclick=()=>{
+      recordarTap(false);probandoLibres=true;
+      const t=el("txt");if(t&&!t.checked){t.checked=true;t.dispatchEvent(new Event("change"))}
+      stopAll();activeStop=null;endUI();el("start").click()};
+  }
   // ---- Manos libres: con el micrófono abierto se mide si el audio del examinador llega al micrófono (si el parlante suena, el micrófono lo oye).
   // Si una frase "sonó" pero no llegó, no se está oyendo (en iPhone con iOS 26/27 pasa con las apps instaladas: WebKit 295518): se muestra el texto,
   // se repite la frase con otra forma de reproducirla (ESTRATEGIAS) y, si ninguna anda, se explica qué hacer. Sólo si en la revisión de sonido la persona
@@ -1047,7 +1071,7 @@ function mountConv(rootId,mode){
   let pts=0,total=0,review=[],registro=[],iaCaida=false;
   let _ultTurno={ok:true};   // cómo le fue en la última pregunta: {ok:false} si no contestó o hubo que ayudarla (el examinador no insiste con otra pregunta)
   async function turn(step,id,qtxt){   // qtxt: lo que se le preguntó (para repetirlo si lo pide)
-    total++;_ultTurno={ok:true};
+    total++;_ultTurno={ok:true};let nPreg=0;
     for(let attempt=0;attempt<2;attempt++){
       const t=await escuchar();if(run!==id)return null;
       if(t===null){
@@ -1055,10 +1079,15 @@ function mountConv(rootId,mode){
         if(attempt===0){await examiner(pick(NO_OIGO),{relleno:true});if(run!==id)return null;continue}
         await examiner(pick(SIGAMOS),{relleno:true});review.push(step);return "";
       }
-      bubble("kid",esc(t));registro.push({r:"K",t});
+      bubble("kid",esc(t));registro.push({r:"K",t});_ultTurno.t=t;
       const {low,tips}=check(step,t);
+      // le hizo una pregunta al examinador EN VEZ de contestar («What's your name?»): se la contesta, se vuelve a la pregunta y no cuenta como respuesta (no se lo corrige como si hubiera contestado mal)
+      if(nPreg<2&&!step.responde&&!step.last&&!step.solo&&step.react!==reaccionPregunta){
+        const ep=escuchaPregunta(t);
+        if(ep.pregunta&&ep.solo){nPreg++;total--;await examiner(reaccionPregunta(ep.q));if(run!==id)return null;await examiner(pick(ESC_VUELTA),{relleno:true});if(run!==id)return null;await examiner(qtxt||curQ);if(run!==id)return null;total++;attempt--;continue}
+      }
       // pidió que se repita: «Of course.» y la misma pregunta, cada una con su audio grabado (juntas no tenían)
-      if(/repeat|sorry|don't understand/.test(low)&&attempt===0){total--;await examiner(pick(REPITE),{relleno:true});if(run!==id)return null;await examiner(qtxt||curQ);if(run!==id)return null;total++;continue}
+      if(/repeat|sorry|don't understand|pardon|what do you mean|say (that )?again/.test(low)&&attempt===0){total--;await examiner(pick(REPITE),{relleno:true});if(run!==id)return null;await examiner(qtxt||curQ);if(run!==id)return null;total++;continue}
       if(tips.length)_ultTurno.ok=false;
       if(!tips.length){pts+=attempt===0?1:.6;return low}
       if(E){pts+=.4;review.push(step);return low}
@@ -1109,7 +1138,9 @@ function mountConv(rootId,mode){
     if(activeStop)activeStop();activeStop=halt;
     const id=++run;pts=0;total=0;review=[];registro=[];iaCaida=false;kidName="";_mudo={n:0,reint:0,aviso:false};
     el("chat").innerHTML="";el("chat").classList.remove("fin");el("start").hidden=true;el("stop").hidden=false;el("rep").hidden=PERSISTENTE;el("kb").hidden=false;status("");
-    if(PERSISTENTE)bubble("tip","🎙️ <b>Charla manos libres.</b> El examinador usa preguntas grabadas y vos contestás hablando, sin tocar nada. Si no entendés, decí <i>“Sorry, can you repeat, please?”</i>"+(avisoManosLibres?" (El examinador con IA habla con la voz del celular, que en iPhone no anda con el micrófono abierto: para usarlo tildá «Tocar 🎤 para hablar».)":""));
+    const prueba=probandoLibres;probandoLibres=false;   // (sólo vale para la charla que se arma justo después de tocar «Probar manos libres»)
+    if(PERSISTENTE){bubble("tip","🎙️ <b>Charla manos libres.</b> El examinador usa preguntas grabadas y vos contestás hablando, sin tocar nada: cuando hacés una pausa, él sigue solo. Si no entendés, decí <i>“Sorry, can you repeat, please?”</i> y si querés saber algo, <b>preguntale</b>."+(avisoManosLibres?" (El examinador con IA habla con la voz del celular, que en iPhone no anda con el micrófono abierto: para usarlo tildá «Tocar 🎤 para hablar».)":"")+(prueba?" <b>Es una prueba:</b> si no oís al examinador, tildá «Tocar 🎤 para hablar» (arriba) y seguí tocando 🎤 Hablar.":""))}
+    else if(IS_IOS&&el("tap").checked&&tapElegido()!==true&&!_tapAuto&&!micBroken&&!(el("ia")&&el("ia").checked))ofrecerManosLibres();   // iPhone en «tocar 🎤» sin que la persona lo haya pedido (lo puso la revisión de sonido)
     if(IA_ON&&el("ia")&&el("ia").checked){const ok=await conversationIA(id);if(ok===false)return;if(ok===true){el("bar").style.width="100%";finish();return}}
     // el guion de siempre: preguntas distintas cada vez (banco grande, orden al azar, sin repetir lo reciente; ver armarPasos)
     const steps=armarPasos(E?"exam":"practice"),preguntadas=new Set(),mem=escuchaNueva();   // mem: de qué se habló (escucha.js)
@@ -1123,12 +1154,16 @@ function mountConv(rootId,mode){
       if(step.solo)continue;   // el examinador habla (p. ej. «Now let's talk about food.») y no se espera respuesta
       const low=await turn(step,id,q);if(run!==id||low===null)return;
       const an=low?escuchaAnalizar(low):null,flojo=!_ultTurno.ok;
+      const preg=low&&!step.last&&!step.responde&&step.react!==reaccionPregunta?escuchaResponder(_ultTurno.t||low):null;   // contestó Y le preguntó algo al examinador («…And you?»)
       if(an){mem.n++;escuchaRecordar(mem,an)}
-      const fol=low?elegirSeguida(step,low,preguntadas,{an,mem,flojo}):null;   // la repregunta sale según lo que dijo (escucha.js)
-      if(low)await examiner(escuchaReaccion(step,low,an,mem,flojo)||step.react(low));
+      const fol=low&&!preg?elegirSeguida(step,low,preguntadas,{an,mem,flojo}):null;   // la repregunta sale según lo que dijo (escucha.js); si preguntó él, el examinador contesta y sigue
+      if(low){
+        if(preg){if(!(step.react&&step.react.generica))await examiner(step.react(low));if(run!==id)return;await examiner(preg)}   // (lo suyo, p. ej. «Nice to meet you, Felu!», y después la respuesta)
+        else await examiner(escuchaReaccion(step,low,an,mem,flojo)||step.react(low));
+      }
       if(run!==id)return;
       if(fol){preguntadas.add(_audioKey(fol.q));await examiner(fol.q,{hints:fol.hints});if(run!==id)return;const l2=await turn(fol,id,fol.q);if(run!==id||l2===null)return;
-        if(l2){const a2=escuchaAnalizar(l2);escuchaRecordar(mem,a2);await examiner(escuchaReaccion(fol,l2,a2,mem,!_ultTurno.ok)||fol.react(l2))}if(run!==id)return}
+        if(l2){const a2=escuchaAnalizar(l2);escuchaRecordar(mem,a2);const pr2=escuchaResponder(_ultTurno.t||l2);await examiner(pr2||escuchaReaccion(fol,l2,a2,mem,!_ultTurno.ok)||fol.react(l2))}if(run!==id)return}
     }
     el("bar").style.width="100%";finish();
   }
@@ -1183,6 +1218,7 @@ function mountConv(rootId,mode){
   el("start").onclick=async()=>{
     stopAll();if(activeStop)activeStop();      // si hay otra charla andando se la frena ANTES de abrir el micrófono
     if(IS_IOS&&!leerSonido()&&!window.__sonidoVisto){window.__sonidoVisto=true;abrirSonido(()=>el("start").click());return}   // iPhone: primero se confirma qué se escucha (una sola vez)
+    if(_tapAuto){_tapAuto=false;tapPoner(false)}   // el «tocar 🎤» lo puso la app por un corte de la charla anterior: se vuelve a probar sin tocar
     PERSISTENTE=IS_IOS&&!el("tap").checked&&!micBroken;   // iPhone sin «tocar 🎤»: manos libres con el micrófono abierto toda la charla
     avisoManosLibres=false;
     if(PERSISTENTE&&el("ia")&&el("ia").checked){el("ia").checked=false;avisoManosLibres=true}   // el examinador con IA habla con la voz del celular, que en manos libres no se puede usar
@@ -1198,7 +1234,7 @@ function mountConv(rootId,mode){
     conversation()};
   el("stop").onclick=()=>{stopAll();activeStop=null;if(E&&total>0){finish();return}endUI();el("start").textContent="Empezar de nuevo";bubble("tip","Conversación en pausa.")};
   el("rep").onclick=()=>{if(curQ)say(curQ,status,{ex:true})};
-  el("snd").onclick=()=>{if(el("start").hidden)recordarTap(true);abrirSonido(()=>el("start").click())};   // si se apretó en plena charla: vuelve a «tocar 🎤», el modo que andaba
+  el("snd").onclick=()=>{if(el("start").hidden)tapPoner(true);abrirSonido(()=>el("start").click())};   // si se apretó en plena charla: vuelve a «tocar 🎤», el modo que andaba (sin guardarlo; la revisión de sonido decide después)
   // alternar entre hablar y escribir en cualquier momento
   el("kb").onclick=async()=>{
     if(!micBroken){typeMode("Escribí tu respuesta (en el celu podés dictarla con el 🎤 del teclado):");el("kb").textContent="🎤 Volver al micrófono";if(finishNow){cambioDeModo=true;const f=finishNow;f()}return}
@@ -1211,7 +1247,7 @@ function mountConv(rootId,mode){
     if(m==="denied"){typeMode(MSG_MIC_DENEGADO());return}
     if(m==="nodev"){typeMode("No se encontró micrófono. Escribí la respuesta:");return}
     if(m.indexOf("error:")===0){status("El micrófono no abrió ("+esc(m.slice(6))+"). Cerrá otras apps que lo usen, recargá la página y probá de nuevo.");return}
-    micBroken=sinDictado;el("type").hidden=!micBroken;el("done").hidden=micBroken;
+    micBroken=sinDictado;el("type").hidden=!micBroken;listoOcultar();
     el("kb").textContent="⌨️ Escribir";el("tmsg").innerHTML="Escribí tu respuesta:";
     if(!micBroken)status(el("tap").checked?"✅ Micrófono listo. Cuando el examinador pregunte, tocá <b>🎤 Hablar</b>.":"✅ Micrófono listo. Te escucho solo cuando el examinador termine de preguntar.");
     if(typedResolve){cambioDeModo=true;const r=typedResolve;typedResolve=null;micUI(false);r(null)}   // retoma la pregunta ahora con el micrófono
@@ -1341,7 +1377,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-02 · examinador que escucha";
+const BUILD="2026-11-02 · contesta preguntas y sin tocar";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};
@@ -1357,7 +1393,8 @@ const BUILD="2026-11-02 · examinador que escucha";
   // informe completo (dispositivo, ajustes, registro de lo que pasó con la voz y el micrófono) para pegarlo en el chat
   function informe(n){
     const ua=navigator.userAgent,ios=(/OS (\d+[_\d]*) like Mac OS X/.exec(ua)||[])[1];
-    let tap="(sin guardar)";try{tap=localStorage.getItem("trinity_tap2")||tap}catch(e){}
+    let tap="(sin elegir)";try{const v=localStorage.getItem(TAP_KEY);if(v==="1")tap="elegido: tocar";else if(v==="0")tap="elegido: sin tocar"}catch(e){}
+    tap+=" · casilla "+((document.querySelector('input[id$="-tap"]')||{}).checked?"tildada":"destildada")+(_tapAuto?" (la puso la app por un corte)":"");
     const l=["Informe Trinity · "+MOD.id+" · "+BUILD+" · "+new Date().toLocaleString("es-AR"),
       "Dispositivo: "+(IS_IOS?"iPhone/iPad"+(()=>{const v=IOS_VER>=26?(/Version\/([\d.]+)/.exec(ua)||[])[1]:(ios?ios.replace(/_/g,"."):(IOS_VER||""));return v?" · iOS "+v:""})():/Android/i.test(ua)?"Android":"PC")+" · abierto en: "+modo()+" · pantalla "+innerWidth+"x"+innerHeight,
       (n?null:"Navegador: "+ua)+(n?"":(IOS_VER?" · iOS/Safari "+IOS_VER:"")+" · app instalada: "+(esInstalada()?"sí":"no")),

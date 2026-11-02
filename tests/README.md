@@ -30,6 +30,8 @@ La IA (Firebase AI Logic) y el audio del iPhone **se simulan**: App Check no dej
 | `nota.js`, `topes.js` | nota con IA y sus topes |
 | `pics.js` | dibujos del examinador con IA |
 | `guion.js`, `ia_ui.js` | charla de siempre y pantalla con IA |
+| `pregunta.js` | el examinador contesta lo que le preguntan en cualquier momento (y no toma por pregunta una respuesta normal: «I have a dog», «it is a house»…), en los dos módulos |
+| `sin_tocar.js` | que no haga falta apretar «Hablar» ni «Listo»: «Listo» escondido y tardío, un corte del micrófono no queda guardado, «Probar manos libres» |
 | `escucha.js` | el examinador que escucha (los dos módulos): reconoce de qué se habló, reacciona (animales, deportes, comidas…, lo triste, el «no sé», lo largo), repregunta con criterio (no lo ya dicho, pide más si fue cortito, no apila sobre quien no pudo), se interesa por lo que se mencionó, se acuerda antes de despedirse, tiene audio para todo y se nota en una charla tecleada completa |
 | `g4_banco.js` | Raphina (Grade 4): el banco del examinador —preguntas por función, áreas, tema, hoja de ejemplo—, los textos para la IA y que cada respuesta modelo cumpla lo que pide |
 | `g4_charla.js` | Raphina: charlas completas (tema + 2 áreas, sólo tema, sólo conversación), pregunta obligatoria al examinador en el tema, variedad entre charlas y nota en su propia clave |

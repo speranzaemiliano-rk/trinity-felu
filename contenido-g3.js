@@ -534,6 +534,7 @@ const CLOSE={q:CLOSE_Q[0],a:"Goodbye, have a nice day!",
 // ⚠️ Cada frase del examinador necesita su audio grabado (en iPhone con manos libres no hay otra voz): al agregar o cambiar preguntas
 // hay que volver a generar los audios (README, «Audios grabados»; tools/audio/).
 const GRUPOS=["casa","barrio","escuela","rutina","libre","familia","clima","fecha","pasado"];
+MIDDLE.forEach(s=>{s.escucha=true});   // preguntas de contenido: el examinador escucha la respuesta (escucha.js)
 const VISTAS_KEY="trinity_vistas",PROB_REPREGUNTA=.65;
 // arma una charla que pasa por casi todos los temas del Grade 3, en orden distinto cada vez, con dibujos, y termina con la pregunta del candidato
 function armarPasos(){
@@ -584,6 +585,80 @@ function planIA(esExamen){
   vistasGuardar(V);
   return "SESSION PLAN (the page drew these topics and question ideas at random so that every exam is different; for the turns listed here it REPLACES the order of topics in the AGENDA above; turns 1, 2, 9, 13, max and max+1 stay exactly as in the AGENDA):\n"+lineas.join("\n");
 }
+// ---- El examinador escucha (ver escucha.js): preguntas «de interés» para cuando se menciona algo, y qué repreguntas ya quedaron contestadas.
+// ESC_SEG[tema]: lo que pregunta el examinador cuando se mencionó ese tema (de nivel Grade 3: presente, can/can't, there is/are). ya: qué palabras muestran que ya lo contó.
+const S3=(q,a,hs,ya)=>({q,a,need:[],corta:true,hints:hs.map(([es,en])=>H(es,en)),react:R(),ya});
+const SN3=(q,a,need,hs,ya)=>({q,a,need:[[need,"Contestá con una oración corta: <i>"+a.split(".")[0]+".</i>"]],hints:hs.map(([es,en])=>H(es,en)),react:R(),ya});
+const ESC_SEG={
+ perro:[S3("What's your dog's name?","My dog's name is Max. He is brown and very friendly.",[["se llama","its name is"],["es marrón","he is brown"],["muy simpático","very friendly"]],/\b(named|called|name)\b/)],
+ gato:[S3("What's your cat's name?","My cat's name is Luna. She is small and soft.",[["se llama","its name is"],["es chiquita","she is small"],["es suave","she is soft"]],/\b(named|called|name)\b/)],
+ mascota:[S3("What's your pet's name?","My pet's name is Coco. It is very small.",[["se llama","its name is"],["es muy chico","it is very small"],["me gusta","I like it"]],/\b(named|called|name)\b/)],
+ futbol:[S3("Who's your favourite player?","My favourite player is Messi.",[["mi jugador favorito","my favourite player"],["es","is"],["juega muy bien","plays very well"]],/\b(favou?rite|player|messi)\b/)],
+ natacion:[S3("Where do you swim?","I swim in a pool near my house.",[["nado en","I swim in"],["una pileta","a pool"],["cerca de mi casa","near my house"]],/\b(pool|sea|river|club|beach|lake)\b/)],
+ deporte:[S3("Where do you play it?","I play it at school and in the park.",[["lo juego en","I play it at"],["la escuela","school"],["el parque","the park"]],/\b(school|park|club|garden|gym)\b/)],
+ musica:[SN3("Can you play an instrument?","Yes, I can. I can play the guitar.",/\bcan\b|can't|cannot|yes|no/,[["sé tocar","I can play"],["la guitarra","the guitar"],["no sé tocar","I can't play"]],/\b(piano|guitar|violin|drums|flute|instrument)\b/)],
+ dibujo:[S3("What do you like to draw?","I like drawing animals and cars.",[["me gusta dibujar","I like drawing"],["animales","animals"],["autos","cars"]],/\bdrawing? (a|an|my|animals|cars|people|flowers|houses)\b/)],
+ lectura:[S3("What's your favourite book?","My favourite book is about a dragon.",[["mi libro favorito","my favourite book"],["trata de","is about"],["un dragón","a dragon"]],/\bfavou?rite book\b/)],
+ juegos:[S3("What's your favourite game?","My favourite game is Minecraft.",[["mi juego favorito","my favourite game"],["es","is"],["con mis amigos","with my friends"]],/\bfavou?rite game\b/)],
+ peliculas:[S3("What's your favourite film?","My favourite film is about animals.",[["mi película favorita","my favourite film"],["trata de","is about"],["animales","animals"]],/\bfavou?rite (film|movie)\b/)],
+ pizza:[S3("What do you like on your pizza?","I like cheese and tomato on my pizza.",[["me gusta con","I like … on it"],["queso","cheese"],["jamón","ham"]],/\b(cheese|tomato|ham|onions?|mushrooms?|olives)\b/)],
+ pasta:[S3("Who cooks pasta at your house?","My dad cooks pasta. It's delicious.",[["cocina","cooks"],["mi papá","my dad"],["es riquísima","it's delicious"]],/\b(cooks?|makes?)\b/)],
+ helado:[S3("What's your favourite flavour?","My favourite flavour is chocolate.",[["mi sabor favorito","my favourite flavour"],["chocolate","chocolate"],["frutilla","strawberry"]],/\b(flavou?r|chocolate|vanilla|strawberry|lemon)\b/)],
+ dulces:[SN3("Do you eat sweets every day?","No, I don't. I eat sweets at the weekend.",/yes|no|i do|i don't|weekend|sometimes|every/,[["no los como todos los días","I don't eat them every day"],["el fin de semana","at the weekend"],["a veces","sometimes"]],/\b(every day|weekend|sometimes|never)\b/)],
+ fruta:[S3("What's your favourite fruit?","My favourite fruit is the banana.",[["mi fruta favorita","my favourite fruit"],["manzana","apple"],["frutilla","strawberry"]],/\bfavou?rite fruit\b/)],
+ asado:[S3("Who cooks it?","My dad cooks it. He is very good.",[["lo cocina","cooks it"],["mi papá","my dad"],["muy bueno","very good"]],/\b(cooks?|makes?)\b/)],
+ playa:[SN3("Do you like swimming in the sea?","Yes, I do. I like swimming in the sea.",/yes|no|i do|i don't|swim|like/,[["me gusta nadar","I like swimming"],["en el mar","in the sea"],["la arena","the sand"]],/\bswim(ming)?\b/)],
+ montana:[SN3("Is it cold in the mountains?","Yes, it is. It's very cold in winter.",/yes|no|is|isn't|cold|hot|warm|snow/,[["hace frío","it's cold"],["en invierno","in winter"],["hay nieve","there is snow"]],/\bcold\b/)],
+ campo:[S3("What can you do there?","I can ride a horse and walk by the river.",[["puedo","I can"],["andar a caballo","ride a horse"],["caminar","walk"]],/\bi can\b/)],
+ abuelos:[S3("Where do your grandparents live?","They live in a small town near my city.",[["viven en","they live in"],["un pueblo","a town"],["cerca de","near"]],/\b(live|lives) (in|near|far)\b/)],
+ cumple:[SN3("Do you have a party on your birthday?","Yes, I do. I have a party with my family.",/yes|no|i do|i don't|party|cake|family|friends/,[["hago una fiesta","I have a party"],["con mi familia","with my family"],["una torta","a cake"]],/\bparty\b/)],
+ viaje:[S3("Where do you go on holiday?","I go to the beach in summer.",[["voy a","I go to"],["la playa","the beach"],["en verano","in summer"]],/\b(go|went) to\b/)],
+ cocina:[S3("What can you cook?","I can cook eggs and pasta.",[["sé cocinar","I can cook"],["huevos","eggs"],["pastas","pasta"]],/\bcan cook\b/)],
+ baile:[SN3("Do you dance at parties?","Yes, I do. I love dancing with my friends.",/yes|no|i do|i don't|dance|love|like/,[["me gusta bailar","I like dancing"],["con mis amigos","with my friends"],["en las fiestas","at parties"]],/\bparties\b/)],
+ mates:[SN3("Is maths difficult for you?","No, it isn't. It's easy for me.",/yes|no|is|isn't|easy|difficult|hard/,[["es difícil","it's difficult"],["es fácil","it's easy"],["para mí","for me"]],/\b(easy|difficult|hard)\b/)],
+ ingles:[SN3("Do you like English?","Yes, I do. English is fun.",/yes|no|i do|i don't|like|fun/,[["me gusta","I like"],["es divertido","it's fun"],["aprendo","I learn"]],/\b(like|love) english|english (is|was) (fun|easy|difficult|great)\b/)],
+ tarea:[S3("When do you do your homework?","I do my homework after school.",[["hago la tarea","I do my homework"],["después de la escuela","after school"],["a la tarde","in the afternoon"]],/\b(after school|before dinner|in the (afternoon|evening|morning))\b/)],
+ amigos:[S3("What do you do with your friends?","We play football and we watch films.",[["jugamos","we play"],["miramos películas","we watch films"],["charlamos","we talk"]],/\bwe (play|watch|go|talk|ride|eat|study)\b/)]
+};
+// repreguntas que ya quedaron contestadas si la respuesta trae estas palabras (pregunta → palabras): el examinador no las hace
+const ESC_YA={
+ "And what is in your bedroom?":/\b(bed|desk|wardrobe|lamp|chair|toys?|tv|bookcase|carpet|curtains?)\b/,
+ "What can you see near your house? A park? Some shops?":/\b(park|shops?|supermarket|bakery|square|library|church)\b/,
+ "What time does school finish?":/\bfinish(es)?\b/,
+ "And what do you do after school?":/after school/,
+ "What do you do before you go to bed?":/\b(brush|before (i )?(go|bed)|read a book)\b/,
+ "Can you swim?":/\bswim\b/,
+ "What can't you do?":/\b(can't|cannot)\b/,
+ "And what do you want to be?":/\b(want to be|would like to be|i'?d like to be)\b/,
+ "What's your favourite season? Why?":/\bseason\b/,
+ "And when is your birthday?":/\bbirthday\b/,
+ "And what day is it today?":/\b(today is|it'?s) (monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/,
+ "Was it fun?":/\b(fun|boring|great|good|nice|bad)\b/,
+ "Who was with you?":/\b(with (my|me|him|her|them)|alone|my (mum|mom|dad|friends?|brother|sister|family))\b/,
+ "Is it big or small?":/\b(big|small|large|little)\b/,
+ "Do you have your own bedroom?":/\b(own (bedroom|room)|share)\b/,
+ "Do you have a pet?":/\b(pets?|dogs?|cats?|fish|birds?|rabbits?|hamsters?|turtles?)\b/,
+ "Do you like your street?":/\b(street|quiet|noisy)\b/,
+ "What do you do in the park?":/\bpark\b/,
+ "Is your school far from your house?":/\b(far|near|close)\b/,
+ "What do you do at break time?":/\bbreak\b/,
+ "Who is your best friend in your class?":/\bbest friend\b/,
+ "What do you have for lunch?":/\blunch\b/,
+ "What do you have for breakfast?":/\bbreakfast\b/,
+ "Who do you have dinner with?":/\bdinner with\b/,
+ "Do you play it with your friends?":/\bwith (my )?(friends?|brother|sister|dad|team)\b/,
+ "Do you like singing?":/\bsing(ing)?\b/,
+ "Who are they?":/\b(mum|mom|dad|mother|father|brother|sister|grand\w+|aunt|uncle|cousin)\b/,
+ "What do you like doing with your family?":/\bwith (my )?family\b/,
+ "Do you have a pet at home?":/\b(pets?|dogs?|cats?|fish|birds?|rabbits?|hamsters?|turtles?)\b/,
+ "Why?":/\bbecause\b/,
+ "What do you do in summer?":/\bin summer\b/,
+ "What season is it now?":/\b(it'?s|season is) (summer|winter|spring|autumn)\b/,
+ "Was it a good day?":/\b(good|great|fun|nice|bad|boring)\b/,
+ "Were your friends there?":/\bfriends\b/,
+ "Were you with them?":/\bwith (them|my friends|my family)\b/,
+ "Was it hot?":/\b(hot|cold|warm)\b/
+};
 // Herramienta para generar los audios (no la usa la página): todas las frases que puede decir el examinador de siempre. Ver tools/audio/.
 window.rkTextosGuion=function(){
   const out=new Set(),add=t=>{t=String(t||"").replace(/\s+/g," ").trim();if(t&&/[a-z]/i.test(t))out.add(t)};
@@ -593,6 +668,7 @@ window.rkTextosGuion=function(){
     if(nivel<2)seguidas(s).forEach(f=>paso(f("x"),nivel+1))};
   [...OPEN,...CALENT,...MIDDLE,CLOSE,QSTEP].forEach(s=>paso(s,0));
   SALUDOS.concat(NOMBRES,QSTEP_Q,CLOSE_Q,REPITE,NO_OIGO,SIGAMOS,GEN).forEach(add);
+  escuchaFrases().forEach(add);ELICITAR.forEach(s=>paso(s,0));Object.keys(ESC_SEG).forEach(k=>ESC_SEG[k].forEach(s=>paso(s,0)));   // lo que dice el examinador cuando escucha (escucha.js)
   JOBS_PIC.forEach(j=>PIC_INTROS.forEach(i=>jobQs(j).forEach(q=>paso(stepJobPic(j,i,q),0))));
   ACT_PIC.forEach(x=>PIC_INTROS.forEach(i=>actQs(x).forEach(q=>paso(stepActionPic(x,i,q),0))));
   return [...out];
@@ -623,6 +699,10 @@ STYLE
 - If the child did not understand or asks you to repeat, repeat more slowly with simpler words.
 - NEVER say goodbye and NEVER set "end" to true before turn = max+1, even if his answer is short or is a question. If he asks you something earlier, answer in one short sentence and then continue with the next topic of the agenda. Do not skip topics.
 - All Spanish text you write ("tip", "help", the "es" of hints) must be Argentine Spanish with "vos" (decí, probá, podés), never "puedes" or "di".
+LISTEN LIKE A REAL EXAMINER (inside the topic of each turn; still one short reaction + ONE question)
+- Your short reaction must show that you LISTENED: mention ONE concrete detail of his last answer (a person, an animal, a food, a place or an activity) instead of a generic "Very good!" (for example "A dog! What a nice pet." or "Football, nice!").
+- If his answer was sad, negative or "I don't know", do NOT cheer ("That sounds wonderful!"): show a little empathy ("Oh, I'm sorry to hear that." / "That's OK, don't worry.") and make the next question easy.
+- Never ask something he has already told you in this conversation. Once or twice, refer back to something he said earlier ("You told me you like football.").
 AGENDA (the real Grade 3 syllabus). "turn" is the number of this turn and "max" is the last question turn. On each turn you MUST cover exactly the topic of that turn, in this order, and link it naturally to the previous one. Never merge two topics in one turn and never skip a topic:
  1: greeting, "How are you today?" (warm-up, not assessed)
  2: his name (warm-up)

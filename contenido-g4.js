@@ -437,7 +437,7 @@ const PREG4=PREG4_Q.map(([q,si])=>({g:"tema",rotulo:"Tu tema",q,a:si+" Do you li
 function pasoPunto(pt,V,n){
   const T=TIPOS[pt.tipo]||TIPOS.otro;
   const v=elegirNuevo(T.preg,claveP,V,n);V[claveP(v)]=n;
-  return {g:"tema",tipo:pt.tipo,rotulo:"Tu tema",intro:v.intro,q:v.q,contexto:"📌 "+pt.texto,a:T.a,need:T.need,hints:T.hints,react:T.react,follow:T.seg.map(s=>()=>s)};
+  return {g:"tema",escucha:true,tipo:pt.tipo,rotulo:"Tu tema",intro:v.intro,q:v.q,contexto:"📌 "+pt.texto,a:T.a,need:T.need,hints:T.hints,react:T.react,follow:T.seg.map(s=>()=>s)};
 }
 // ---- La conversación: el examinador anuncia el tema («Let's talk about food.») y hace 4 preguntas de funciones distintas
 const CLOSE_Q4=["Thank you. That's the end of our conversation. Goodbye!","Thank you very much. That's all. Goodbye!","OK, that's the end of the exam. Thank you. Goodbye!","Thank you, that's all. Goodbye!","OK, that's all. Thank you very much. Goodbye!"];
@@ -454,16 +454,6 @@ function pideDePregunta(){return _g4Modo!=="conv"}
 function areasAlAzar(V,cuantas){   // el primero es el que hace más que no sale; el segundo se sortea entre los 3 siguientes (así los pares cambian y no quedan «parejas fijas»)
   const orden=AREAS_KEYS.map(k=>({k,u:V["g:"+k]||0,r:Math.random()})).sort((a,b)=>a.u-b.u||a.r-b.r).map(x=>x.k);
   return cuantas<2?[orden[0]]:shuffleA([orden[0],pick(orden.slice(1,4))]);
-}
-// Si lo que se contó es triste (se enfermó, se rompió, lloró…) el examinador no festeja con un «That sounds wonderful!»: lo acompaña y sigue.
-const TRISTE=/\b(sad|cried|cry|crying|died|dead|sick|ill|hurt|broke|broken|accident|angry|scared|afraid|upset|worried|terrible|awful)\b/;
-const TRIST=["Oh, I'm sorry to hear that.","Oh dear. I see."];
-function conCompasion(s){
-  if(!s||s._comp||s.solo||s.react===reaccionPregunta||s.g==="saludo"||s.g==="cierre")return s;   // (la pregunta de Raphina y el saludo ya tienen su propia respuesta)
-  s._comp=true;
-  if(typeof s.react==="function"){const r=s.react;s.react=t=>TRISTE.test(String(t||"").toLowerCase())?_reac(TRIST):r(t)}
-  if(Array.isArray(s.follow))s.follow=s.follow.map(f=>(...a)=>conCompasion(f(...a)));
-  return s;
 }
 function armarPasos(vista){
   const V=vistasLeer(),n=(V._n||0)+1;V._n=n;
@@ -489,10 +479,64 @@ function armarPasos(vista){
     });
   }
   pasos.push(Object.assign({},CLOSE4,{q:pick(CLOSE_Q4)}));
-  pasos.forEach(conCompasion);
   vistasGuardar(V);return pasos;
 }
 
+CONV4.forEach(s=>{s.escucha=true});   // preguntas de contenido: el examinador escucha la respuesta (escucha.js)
+// ---- El examinador escucha (ver escucha.js): preguntas «de interés» para cuando se menciona algo, y qué repreguntas ya quedaron contestadas.
+// ESC_SEG[tema]: lo que pregunta el examinador cuando se mencionó ese tema, con el lenguaje del Grade 4 (pasado, going to, comparar, gustos, cada cuánto y cómo).
+const S4=(q,a,need,hs,ya)=>({q,a,need,hints:hs.map(([es,en])=>H(es,en)),react:R(),ya});
+const ESC_SEG={
+ perro:[S4("How did you get your dog?","We got him from my aunt when he was a puppy.",[N_PAS],[["lo conseguimos","we got him"],["de mi tía","from my aunt"],["cuando era cachorro","when he was a puppy"]],/\b(got|bought|found|adopted)\b/)],
+ gato:[S4("What does your cat like to do?","She likes sleeping and playing with a ball.",[N_GUS],[["le gusta dormir","she likes sleeping"],["jugar con una pelota","playing with a ball"],["todo el día","all day"]],/\b(likes?|loves?)\b/)],
+ mascota:[S4("How often do you take care of your pet?","I feed it every day and I play with it at the weekend.",[N_FRE],[["todos los días","every day"],["le doy de comer","I feed it"],["los fines de semana","at the weekend"]],/\b(every day|always|usually|often|twice|once)\b/)],
+ futbol:[S4("Who is your favourite player?","My favourite player is Messi. He plays very well.",[[/favou?rite|is\s+\w+|messi/,"Decí quién es: <i>My favourite player is…</i>"]],[["mi jugador favorito","my favourite player"],["juega muy bien","he plays very well"],["es el mejor","he is the best"]],/\b(favou?rite|player)\b/)],
+ natacion:[S4("How often do you go swimming?","I go swimming twice a week. I swim quite quickly.",[N_FRE],[["dos veces por semana","twice a week"],["voy a nadar","I go swimming"],["bastante rápido","quite quickly"]],/\b(twice|every|once|times|always|usually|often)\b/)],
+ deporte:[S4("Is it more difficult than football?","Yes, it is. It is more difficult than football, but it is more exciting.",[N_COM],[["más difícil que","more difficult than"],["pero","but"],["más emocionante","more exciting"]],/\b(more|\w+er than|harder|easier)\b/)],
+ musica:[S4("Are you going to learn a new song?","Yes, I am. I'm going to learn a new song this week.",[N_FUT],[["voy a aprender","I'm going to learn"],["una canción nueva","a new song"],["esta semana","this week"]],/\bgoing to\b/)],
+ dibujo:[S4("What are you going to draw next?","I'm going to draw my dog and my house.",[N_FUT],[["voy a dibujar","I'm going to draw"],["mi perro","my dog"],["mi casa","my house"]],/\bgoing to\b/)],
+ lectura:[S4("What was the best book you read?","The best book was about a magic school. It was the most interesting.",[N_PAS],[["el mejor libro fue","the best book was"],["trataba de","it was about"],["el más interesante","the most interesting"]],/\bbest book\b/)],
+ juegos:[S4("Which is more fun, a video game or a board game?","A video game is more fun than a board game, but board games are better with family.",[N_COM],[["más divertido que","more fun than"],["pero","but"],["mejor con la familia","better with family"]],/\bmore fun\b/)],
+ peliculas:[S4("What was the last film you watched?","I watched an animal film last week. It was very funny.",[N_PAS],[["miré","I watched"],["la semana pasada","last week"],["fue muy graciosa","it was very funny"]],/\b(watched|saw)\b/)],
+ pizza:[S4("What is the best pizza you ate?","The best pizza was at my grandma's house. It was delicious.",[N_PAS],[["la mejor pizza fue","the best pizza was"],["en la casa de mi abuela","at my grandma's house"],["estaba riquísima","it was delicious"]],/\bbest pizza\b/)],
+ pasta:[S4("Which is tastier, pasta or pizza?","Pizza is tastier than pasta, but pasta is healthier.",[N_COM],[["más rica que","tastier than"],["pero","but"],["más saludable","healthier"]],/\btastier\b/)],
+ helado:[S4("What flavour did you try last time?","I tried chocolate and strawberry. They were delicious.",[N_PAS],[["probé","I tried"],["chocolate y frutilla","chocolate and strawberry"],["estaban riquísimos","they were delicious"]],/\b(tried|ate|had)\b/)],
+ dulces:[S4("How often do you eat sweets?","I eat sweets once a week, usually at the weekend.",[N_FRE],[["una vez por semana","once a week"],["generalmente","usually"],["el fin de semana","at the weekend"]],/\b(every day|once|twice|never|sometimes|usually|often|weekend)\b/)],
+ fruta:[S4("Which fruit is the tastiest?","The strawberry is the tastiest. It is sweeter than an apple.",[N_COM],[["la más rica","the tastiest"],["más dulce que","sweeter than"],["la frutilla","the strawberry"]],/\btastiest\b/)],
+ asado:[S4("Who cooked it last time?","My dad cooked it. We ate at my grandma's house.",[N_PAS],[["lo cocinó","he cooked it"],["mi papá","my dad"],["comimos en","we ate at"]],/\b(cooked|made)\b/)],
+ playa:[S4("What did you do at the beach?","We played in the sea and we built a sandcastle.",[N_PAS],[["jugamos en el mar","we played in the sea"],["hicimos un castillo","we built a sandcastle"],["caminamos","we walked"]],/\b(played|swam|built|walked|went)\b/)],
+ montana:[S4("Is it colder in the mountains than in the city?","Yes, it is. The mountains are much colder than the city.",[N_COM],[["más frío que","colder than"],["mucho más","much more"],["en las montañas","in the mountains"]],/\bcolder\b/)],
+ campo:[S4("What are you going to do there next time?","I'm going to ride a horse and I'm going to walk by the river.",[N_FUT],[["voy a andar a caballo","I'm going to ride a horse"],["voy a caminar","I'm going to walk"],["la próxima vez","next time"]],/\bgoing to\b/)],
+ abuelos:[S4("How often do you visit your grandparents?","I visit them every Sunday. Sometimes I stay there.",[N_FRE],[["todos los domingos","every Sunday"],["a veces","sometimes"],["los visito","I visit them"]],/\b(every|once|twice|sometimes|usually|often|always)\b/)],
+ cumple:[S4("What are you going to do on your next birthday?","I'm going to have a party with my family and friends.",[N_FUT],[["voy a hacer una fiesta","I'm going to have a party"],["con mi familia","with my family"],["mi próximo cumpleaños","my next birthday"]],/\bgoing to\b/)],
+ viaje:[S4("Where are you going to travel next?","I'm going to travel to the mountains with my family.",[N_FUT],[["voy a viajar a","I'm going to travel to"],["las montañas","the mountains"],["con mi familia","with my family"]],/\bgoing to\b/)],
+ cocina:[S4("What did you cook last time?","I cooked pasta with my mum. It was delicious.",[N_PAS],[["cociné","I cooked"],["con mi mamá","with my mum"],["estaba riquísimo","it was delicious"]],/\b(cooked|made|baked)\b/)],
+ baile:[S4("How often do you dance?","I dance twice a week at my dance class.",[N_FRE],[["dos veces por semana","twice a week"],["bailo","I dance"],["mi clase de baile","my dance class"]],/\b(every|once|twice|sometimes|usually|often|always)\b/)],
+ mates:[S4("What did you learn in maths this week?","We learned about fractions. It was a little difficult.",[N_PAS],[["aprendimos","we learned"],["fracciones","fractions"],["fue un poco difícil","it was a little difficult"]],/\b(learned|learnt|studied)\b/)],
+ ingles:[S4("What did you do in English last week?","We watched a video and we played a game.",[N_PAS],[["miramos un video","we watched a video"],["jugamos","we played"],["la semana pasada","last week"]],/\b(watched|played|learned|wrote|read)\b/)],
+ tarea:[S4("How often do you do your homework?","I do my homework every day after school.",[N_FRE],[["todos los días","every day"],["hago la tarea","I do my homework"],["después de la escuela","after school"]],/\b(every|always|usually|often|sometimes)\b/)],
+ amigos:[S4("What did you do with your friends last weekend?","We played football and we watched a film.",[N_PAS],[["jugamos al fútbol","we played football"],["miramos una película","we watched a film"],["el fin de semana pasado","last weekend"]],/\b(played|watched|went|ate)\b/)]
+};
+// repreguntas que ya quedaron contestadas si la respuesta trae estas palabras (pregunta → palabras): el examinador no las hace
+const ESC_YA={
+ "Who did you go with?":/\bwith\b/,
+ "How did you travel there?":/\b(by (car|bus|plane|train|boat)|drove|flew|travell?ed)\b/,
+ "What did you eat there?":/\b(ate|had|drank)\b/,
+ "Who are you going to go with?":/\bwith\b|\balone\b/,
+ "Is there anything you don't like about holidays?":/\b(don'?t like|hate|boring)\b/,
+ "Where did you buy it?":/\b(at|in|from) (the|a|an) (shop|shops|store|centre|supermarket|kiosk|market)\b|\bonline\b/,
+ "Was it expensive?":/\b(expensive|cheap)\b/,
+ "How much is it going to cost?":/\b(cost|expensive|cheap|\d+)\b/,
+ "Who were you with at break?":/\b(with|alone)\b/,
+ "Did you do your homework?":/\bhomework\b/,
+ "Are you going to study English at university?":/\buniversity\b/,
+ "Did you like it at the beginning?":/\b(difficult|at the beginning)\b/,
+ "How did you feel?":/\b(felt|happy|sad|tired|nervous|excited)\b/,
+ "Did you like it?":/\b(delicious|tasty|liked|loved)\b/,
+ "Who do you cook with?":/\bwith\b/,
+ "Did you have a good time?":/\b(great|good time|fun|lovely|enjoyed)\b/,
+ "Are you going to go out or stay at home?":/\b(go out|stay at home)\b/
+};
 // ======== Examinador con IA ========
 const TIPOS_EN={pasado:"talking about past events",futuro:"talking about future plans and intentions",gustos:"expressing likes and dislikes",comparar:"expressing simple comparisons",frecuencia:"describing manner and frequency",otro:"describing"};
 // «plan de la charla» que la página sortea y le pasa a la IA: la hoja del tema (o un tema de ejemplo) y los dos temas de la conversación con preguntas-idea
@@ -522,6 +566,11 @@ STYLE
 - If the child did not understand or asks you to repeat, repeat more slowly with simpler words.
 - NEVER say goodbye and NEVER set "end" to true before turn = max+1, even if the answer is short or is a question. If the child asks you something, answer in one short sentence and continue.
 - All Spanish text you write ("tip", "help", the "es" of hints) must be Argentine Spanish with "vos" (decí, probá, podés), never "puedes" or "di".
+LISTEN LIKE A REAL EXAMINER
+- Your short reaction must show that you LISTENED: mention ONE concrete detail of the child's last answer (a person, an animal, a food, a place or an activity) instead of a generic "Very good!" (for example "A dog! What a nice pet." or "Football, nice!").
+- If the answer was sad, negative or "I don't know", do NOT cheer ("That sounds wonderful!"): show a little empathy ("Oh, I'm sorry to hear that." / "That's OK, don't worry.") and make the next question easier (a yes/no or an either/or question).
+- If the answer was very short (one word, "yes" or "no") do not move on yet: invite a little more ("Can you tell me a little more?") or ask an easy either/or question. If the child answered with several sentences, move on and make the next question a little more demanding (the past, the future or a comparison).
+- Never ask something the child has already told you. Once or twice in the conversation refer back to something said earlier ("You told me you like football.").
 STRUCTURE. "turn" is the number of this turn and "max" is the last question turn. The SESSION PLAN (below) gives the topic form and the two conversation areas of THIS exam:
  turn 1: greeting, "Hello! Come in and sit down, please. How are you today?" (warm-up, not assessed)
  turn 2: say "We're going to start with your topic. Can I have your topic form, please?"
@@ -810,7 +859,8 @@ window.rkTextosGuion=function(){
     if(nivel<2)seguidas(s).forEach(f=>paso(f("x"),nivel+1))};
   SALUDOS4.forEach(add);paso(SALUDO4,0);
   FORMA4.concat(TITULO4,PREG4,CONV4,[CLOSE4]).forEach(s=>paso(s,0));
-  PREGUNTAS_MUESTRA.forEach(q=>{for(let n=0;n<14;n++)add(reaccionPregunta(q))});TRIST.forEach(add);
+  PREGUNTAS_MUESTRA.forEach(q=>{for(let n=0;n<14;n++)add(reaccionPregunta(q))});
+  escuchaFrases().forEach(add);ELICITAR.forEach(s=>paso(s,0));Object.keys(ESC_SEG).forEach(k=>ESC_SEG[k].forEach(s=>paso(s,0)));   // lo que dice el examinador cuando escucha (escucha.js)
   Object.keys(TIPOS).forEach(k=>{const T=TIPOS[k];T.preg.forEach(v=>paso({intro:v.intro,q:v.q,a:T.a,hints:T.hints,react:T.react,follow:T.seg.map(s=>()=>s)},0))});
   AREAS_KEYS.forEach(a=>[0,1].forEach(pos=>[true,false].forEach(ht=>add(pasoAbre(a,pos,ht).q))));
   CLOSE_Q4.concat(REPITE,NO_OIGO,SIGAMOS,GEN).forEach(add);

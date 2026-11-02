@@ -63,8 +63,8 @@ chk('si la memoria está rota (texto cualquiera) se ignora',await p.evaluate(()=
 // ---- 3) repreguntas
 const rep=await p.evaluate(()=>{const pre=new Set();let hechas=0,tot=0;
   localStorage.removeItem('trinity_vistas');
-  for(let i=0;i<400;i++){const st=MIDDLE.filter(s=>seguidas(s).length)[i%MIDDLE.filter(s=>seguidas(s).length).length];tot++;if(elegirSeguida(st,'x',new Set()))hechas++}
-  const s0=MIDDLE.find(s=>seguidas(s).length);const yaPreguntada=new Set(seguidas(s0).map(f=>_audioKey(f('x').q)));let nada=0;for(let i=0;i<100;i++)if(elegirSeguida(s0,'x',yaPreguntada))nada++;
+  for(let i=0;i<400;i++){const st=MIDDLE.filter(s=>seguidas(s).length)[i%MIDDLE.filter(s=>seguidas(s).length).length];tot++;if(elegirSeguida(st,'it is a nice place for me',new Set()))hechas++}   // (una respuesta de largo común y sin nada de lo que el examinador comenta: ni cortita ni larga)
+  const s0=MIDDLE.find(s=>seguidas(s).length);const yaPreguntada=new Set(seguidas(s0).map(f=>_audioKey(f('x').q)));let nada=0;for(let i=0;i<100;i++)if(elegirSeguida(s0,'it is a nice place for me',yaPreguntada))nada++;
   return {frac:hechas/tot,yaPreguntadaNunca:nada===0}});
 chk('las repreguntas salen más o menos el 65% de las veces ('+Math.round(rep.frac*100)+'%)',rep.frac>.5&&rep.frac<.8);
 chk('una repregunta que ya se hizo en la charla no se vuelve a hacer',rep.yaPreguntadaNunca);

@@ -19,6 +19,7 @@ Nada se compila: son archivos que el navegador carga en este orden. **El motor n
 |---|---|
 | `estilos.css` | los estilos de todos los módulos (cada página sólo cambia los colores) |
 | `comun.js` | lo que usan todos: `BASE`, ayudas (`$`, `esc`, `pick`, `shuffleA`…), las frases de siempre (`REPITE`, `NO_OIGO`…) y la memoria de «lo ya preguntado» (`vistasLeer`/`vistasGuardar`/`elegirNuevo`) |
+| `escucha.js` | **el examinador que escucha** (ver más abajo): qué reacciona, qué repregunta, por qué se interesa y de qué se acuerda el examinador del guion grabado. Compartido por los dos módulos |
 | `contenido-g3.js` · `contenido-g4.js` | **todo lo que es de un grado**: el objeto `MOD` (id, nombre, minutos, claves de almacenamiento), el guion del examinador, los textos de la IA, el vocabulario con sus dibujos y el banco del repaso escrito |
 | `motor.js` | voz, micrófono, iPhone manos libres, revisión de sonido, IA, nota, repaso escrito y aviso de versión nueva. Lee a `MOD` y a los ganchos del contenido |
 | `index.html` | **el inicio**: el menú para entrar al Trinity 3 o al 4. Es una página sola (sin el motor), con su `manifest.json` y sus íconos en la raíz |
@@ -38,9 +39,21 @@ node tools/version.js "2026-11-03 · lo que cambió"
 **Para sumar otro módulo** (otro grado u otro chico):
 1. Copiá `contenido-g4.js` como `contenido-gN.js`; cambiá `MOD` y **todas las claves de almacenamiento** (con un prefijo propio) y reescribí el contenido.
 2. Copiá la carpeta `raphina/` con otro nombre; en su `index.html` cambiá textos, paleta y el `<script src="../contenido-gN.js?b=…">` (y el `trinity_ultimo` del `<head>`); en `manifest.json` cambiá `name`, `short_name`, `id` y colores (un `id` distinto es lo que hace que se instale como otra app; el `scope` queda en `../`).
-3. **Sumalo al menú:** una tarjeta más en el `index.html` de la raíz y un enlace más en la barra `.modbar` de **todas** las páginas de módulos (si no, desde los otros módulos no se llega).
-4. Sumá los archivos nuevos a `ARCHIVOS` de `sw.js` (si uno falta, el service worker no se instala; ahí también va la carpeta con la barra final, `./carpeta/`) y la página a `PAGINAS` de `tools/audio/lista.js`.
-5. Generá los audios (ver «Audios grabados»), escribí `tests/gN_*.js`, sumá el módulo a `tests/sitio.js` y corré `node tools/version.js "…"`.
+3. Copiá en la página el `<script src="../escucha.js?b=…">` (va después de `comun.js`) y definí en el contenido `ESC_SEG` y `ESC_YA` y marcá con `escucha:true` las preguntas de contenido (ver «El examinador que escucha»).
+4. **Sumalo al menú:** una tarjeta más en el `index.html` de la raíz y un enlace más en la barra `.modbar` de **todas** las páginas de módulos (si no, desde los otros módulos no se llega).
+5. Sumá los archivos nuevos a `ARCHIVOS` de `sw.js` (si uno falta, el service worker no se instala; ahí también va la carpeta con la barra final, `./carpeta/`) y la página a `PAGINAS` de `tools/audio/lista.js`.
+6. Generá los audios (ver «Audios grabados»), escribí `tests/gN_*.js`, sumá el módulo a `tests/sitio.js` y corré `node tools/version.js "…"`.
+
+### El examinador que escucha (`escucha.js`)
+
+El guion grabado es el examinador de siempre en el iPhone con manos libres (con IA, en cambio, las frases las inventa la IA). Hasta ahora contestaba lo mismo diga lo que diga; ahora **mira qué se dijo** y elige entre frases ya grabadas:
+
+- **Reacciona a lo que se contó** (`escuchaReaccion`): un animal, un deporte, una comida, un lugar… («I have a dog» → «Dogs are great pets!»; 32 temas en `ESC_TEMAS`, una vez cada uno por charla); algo triste («my dog died» → «Oh, I'm sorry to hear that.»); un «no sé» o contestar en español («That's OK. Don't worry.»); un «no»; algo que gustó mucho; una respuesta larga. Si dice «no me gusta…» el tema **no se festeja**. Si no contestó lo que se preguntaba, la reacción es neutra («I see.») en vez de un festejo «de la pregunta» («Wow, yummy!»). Sólo toca los pasos con reacción genérica (`R(...)`): el saludo, el nombre, la respuesta a la pregunta de quien rinde y la despedida tienen la suya.
+- **Repregunta con criterio** (`elegirSeguida`, sólo en los pasos marcados `escucha:true`: el banco `MIDDLE` de Felu y `CONV4` y los puntos del tema de Raphina): no pregunta lo que ya se dijo (`ESC_YA`: «Can you swim?» no sale si dijo «I swim…»); si contestó cortito una pregunta abierta pide un poco más (`ELICITAR`: «Can you tell me a little more?»; no con sí/no ni con datos como la hora o «how often»; hasta 3 por charla, no seguidas); si contó mucho casi no insiste; y con alguien que dijo «no», «I don't know», algo triste, contestó en español o le costó contestar **no apila más preguntas**.
+- **Se interesa** (`ESC_SEG`, cada módulo con las suyas y de su nivel): si menciona algo, pregunta por eso («I have a dog» → Felu: «What's your dog's name?»; Raphina: «How did you get your dog?»). Hasta 2 por charla, separadas.
+- **Se acuerda** (`escuchaRecuerdo`): justo antes de despedirse nombra de qué se habló («It was nice to hear about your dog.»), prefiriendo un tema específico (un perro) a uno general (la familia).
+
+Todo lo que puede decir está en `escucha.js` o en `ESC_SEG` de cada módulo y sale en `escuchaFrases()` / `rkTextosGuion()`: **al tocar estas listas hay que volver a generar los audios** (ver «Audios grabados»). Para agregar un tema: una línea en `ESC_TEMAS` (palabras, 1–2 reacciones y el recuerdo) y, si hace falta, una pregunta en `ESC_SEG` de cada módulo (con su respuesta modelo, 3 ayudas y, si ya contestarla antes la vuelve redundante, un `ya`). Con IA, los prompts (`SISTEMA_IA`) llevan el bloque «LISTEN LIKE A REAL EXAMINER» (mencionar un detalle concreto de lo que dijo, no festejar lo triste, no preguntar lo ya dicho y, en Raphina, invitar a más si contestó cortito).
 
 ## Módulo de Raphina · Trinity GESE Grade 4 (`/raphina/`)
 

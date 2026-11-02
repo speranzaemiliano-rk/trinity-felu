@@ -21,7 +21,7 @@ const H=(es,en)=>({es,en});
 const GEN=["Thank you.","I see.","That's nice!","Very good!","Lovely!","Great!","That's interesting!","OK, thank you.","That sounds good."];
 let _ultReac="";
 function _reac(l){const c=l.filter(x=>x!==_ultReac);const r=pick(c.length?c:l);_ultReac=r;return r}
-const R=(...l)=>()=>_reac(l.length?l:GEN);
+const R=(...l)=>{const f=()=>_reac(l.length?l:GEN);f.generica=true;return f};   // «generica»: no depende de lo que se contestó, así que escucha.js puede cambiarla por una que sí
 const COL_RE=new RegExp(COLOURS.join("|")+"|colou?r");
 const DIAS3={test:t=>(String(t).match(/monday|tuesday|wednesday|thursday|friday|saturday|sunday/g)||[]).length>=3};
 // Frases de relleno (no cuentan como pregunta): repetir, no se oyó y seguir
@@ -42,9 +42,4 @@ function elegirNuevo(lista,clave,V,n){   // una que no haya salido en las últim
   return lista.slice().sort((a,b)=>(V[clave(a)]||0)-(V[clave(b)]||0)||Math.random()-.5)[0];
 }
 const seguidas=s=>Array.isArray(s.follow)?s.follow:s.follow?[s.follow]:[];
-function elegirSeguida(step,low,preguntadas){   // la repregunta de un paso: a veces (no siempre), una que no se haya hecho ya en esta charla ni hace poco
-  const objs=seguidas(step).map(f=>{try{return f(low)}catch(e){return null}}).filter(o=>o&&o.q&&!preguntadas.has(_audioKey(o.q)));
-  if(!objs.length||Math.random()>=PROB_REPREGUNTA)return null;
-  const V=vistasLeer(),n=V._n||1,o=elegirNuevo(objs,claveP,V,n);
-  V[claveP(o)]=n;vistasGuardar(V);return o;
-}
+// (elegirSeguida, la repregunta de un paso, está en escucha.js: elige según lo que se dijo)

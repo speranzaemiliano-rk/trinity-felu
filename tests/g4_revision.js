@@ -78,16 +78,18 @@ const gen=await p.evaluate(()=>TIPOS.pasado.seg.concat(TIPOS.futuro.seg).map(s=>
 chk('«Can you tell me more about that?» ya no se modela en pasado para un plan o un gusto («Yes. I can tell you more…»)',gen.length===0&&await p.evaluate(()=>GEN_SEG[0].a==="Yes. I can tell you more. I like it a lot."));
 chk('«Is there anything you don\'t like?» se modela con «Yes, there is. I don\'t like…»',await p.evaluate(()=>TIPOS.gustos.seg[0].a.startsWith("Yes, there is.")));
 
-// ---- 5) compasión: si lo que se cuenta es triste, el examinador no festeja
+// ---- 5) compasión: si lo que se cuenta es triste, el examinador no festeja (escucha.js: vale para todos los pasos con reacción genérica)
 const comp=await p.evaluate(()=>{const pasos=armarPasos("practice");
   const conv=pasos.filter(s=>!s.solo&&s.g!=="saludo"&&s.g!=="cierre"&&s.react!==reaccionPregunta);   // los del tema y los de las 2 áreas (g:"food", "hobbies"…)
-  const triste=conv.slice(0,12).map(s=>s.react("my dog died last year and we were very sad"));
-  const alegre=new Set();conv.slice(0,12).forEach(s=>{for(let i=0;i<5;i++)alegre.add(s.react("we went to the beach and it was great"))});
+  const tx="my dog died last year and we were very sad",an=escuchaAnalizar(tx),mem=escuchaNueva();
+  const triste=conv.slice(0,12).map(s=>escuchaReaccion(s,tx,an,mem));
+  const tx2="we went to the beach and it was great",an2=escuchaAnalizar(tx2);
+  const alegre=new Set();conv.slice(0,12).forEach(s=>{for(let i=0;i<5;i++)alegre.add(escuchaReaccion(s,tx2,an2,escuchaNueva()))});
   const saludo=pasos.find(s=>s.g==="saludo"),preg=pasos.find(s=>s.react===reaccionPregunta);
-  return {n:conv.length,triste,alegre:[...alegre],todosEnvueltos:conv.every(s=>s._comp),saludoSinEnvolver:!saludo._comp,pregSinEnvolver:preg?!preg._comp:true,
-    pregResponde:preg?preg.react("do you like football"):'',trist:TRIST}});
+  return {n:conv.length,triste,alegre:[...alegre],saludoNo:escuchaReaccion(saludo,tx,an,mem)===null,pregNo:preg?escuchaReaccion(preg,tx,an,mem)===null:true,
+    pregResponde:preg?preg.react("do you like football"):'',trist:ESC_TRIST}});
 chk('si lo que se contó es triste («my dog died… we were very sad») TODAS las reacciones son de acompañar, y con algo alegre ninguna',comp.n>=12&&comp.triste.every(x=>comp.trist.includes(x))&&comp.alegre.every(x=>!comp.trist.includes(x)),JSON.stringify([comp.triste,comp.alegre]));
-chk('el saludo y la pregunta obligatoria no se envuelven (siguen con su propia respuesta)',comp.saludoSinEnvolver&&comp.pregSinEnvolver&&/^Yes, I do\./.test(comp.pregResponde));
+chk('el saludo y la pregunta obligatoria no se tocan (siguen con su propia respuesta)',comp.saludoNo&&comp.pregNo&&/^Yes, I do\./.test(comp.pregResponde));
 
 // ---- 6) saludo y despedida: una respuesta corta o distinta no traba la charla
 await p.evaluate(()=>{temaGuardar({t:"My dog Pipa",p:[["How we got her","pasado"],["What she likes to eat","gustos"],["How often we walk","frecuencia"],["Pipa and my cat: who is faster?","comparar"]]})});

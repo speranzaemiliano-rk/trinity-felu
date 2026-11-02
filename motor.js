@@ -1045,12 +1045,13 @@ function mountConv(rootId,mode){
 
   let avisoSinVoz=false;
   let pts=0,total=0,review=[],registro=[],iaCaida=false;
+  let _ultTurno={ok:true};   // cómo le fue en la última pregunta: {ok:false} si no contestó o hubo que ayudarla (el examinador no insiste con otra pregunta)
   async function turn(step,id,qtxt){   // qtxt: lo que se le preguntó (para repetirlo si lo pide)
-    total++;
+    total++;_ultTurno={ok:true};
     for(let attempt=0;attempt<2;attempt++){
       const t=await escuchar();if(run!==id)return null;
       if(t===null){
-        registro.push({r:"K",t:"(no answer)"});
+        _ultTurno.ok=false;registro.push({r:"K",t:"(no answer)"});
         if(attempt===0){await examiner(pick(NO_OIGO),{relleno:true});if(run!==id)return null;continue}
         await examiner(pick(SIGAMOS),{relleno:true});review.push(step);return "";
       }
@@ -1058,6 +1059,7 @@ function mountConv(rootId,mode){
       const {low,tips}=check(step,t);
       // pidió que se repita: «Of course.» y la misma pregunta, cada una con su audio grabado (juntas no tenían)
       if(/repeat|sorry|don't understand/.test(low)&&attempt===0){total--;await examiner(pick(REPITE),{relleno:true});if(run!==id)return null;await examiner(qtxt||curQ);if(run!==id)return null;total++;continue}
+      if(tips.length)_ultTurno.ok=false;
       if(!tips.length){pts+=attempt===0?1:.6;return low}
       if(E){pts+=.4;review.push(step);return low}
       if(attempt===0){bubble("tip","<b>Casi.</b> "+tips.join(" ")+`<br>Ejemplo: <i>${esc(step.a)}</i>`);
@@ -1110,19 +1112,23 @@ function mountConv(rootId,mode){
     if(PERSISTENTE)bubble("tip","🎙️ <b>Charla manos libres.</b> El examinador usa preguntas grabadas y vos contestás hablando, sin tocar nada. Si no entendés, decí <i>“Sorry, can you repeat, please?”</i>"+(avisoManosLibres?" (El examinador con IA habla con la voz del celular, que en iPhone no anda con el micrófono abierto: para usarlo tildá «Tocar 🎤 para hablar».)":""));
     if(IA_ON&&el("ia")&&el("ia").checked){const ok=await conversationIA(id);if(ok===false)return;if(ok===true){el("bar").style.width="100%";finish();return}}
     // el guion de siempre: preguntas distintas cada vez (banco grande, orden al azar, sin repetir lo reciente; ver armarPasos)
-    const steps=armarPasos(E?"exam":"practice"),preguntadas=new Set();
+    const steps=armarPasos(E?"exam":"practice"),preguntadas=new Set(),mem=escuchaNueva();   // mem: de qué se habló (escucha.js)
     for(let k=0;k<steps.length;k++){
       const step=steps[k];
       el("n").textContent=`${step.rotulo||(E?"Examen oral":"Tema")} · ${k+1} de ${steps.length}`;el("bar").style.width=(k/steps.length*100)+"%";
       const q=(step.intro||"")+(step.last&&kidName?step.q.replace("Thank you.",`Thank you, ${kidName}.`):step.q);
       preguntadas.add(_audioKey(step.q));
+      if(step.last){const rec=escuchaRecuerdo(mem);if(rec){await examiner(rec,{relleno:true});if(run!==id)return}}   // «It was nice to hear about your dog.» y recién después la despedida
       await examiner(q,{picture:step.picture,hints:step.hints,contexto:step.contexto,relleno:!!step.solo});if(run!==id)return;
       if(step.solo)continue;   // el examinador habla (p. ej. «Now let's talk about food.») y no se espera respuesta
       const low=await turn(step,id,q);if(run!==id||low===null)return;
-      const fol=low?elegirSeguida(step,low,preguntadas):null;   // la repregunta sale a veces, no siempre
-      if(low)await examiner(step.react(low));
+      const an=low?escuchaAnalizar(low):null,flojo=!_ultTurno.ok;
+      if(an){mem.n++;escuchaRecordar(mem,an)}
+      const fol=low?elegirSeguida(step,low,preguntadas,{an,mem,flojo}):null;   // la repregunta sale según lo que dijo (escucha.js)
+      if(low)await examiner(escuchaReaccion(step,low,an,mem,flojo)||step.react(low));
       if(run!==id)return;
-      if(fol){preguntadas.add(_audioKey(fol.q));await examiner(fol.q,{hints:fol.hints});if(run!==id)return;const l2=await turn(fol,id,fol.q);if(run!==id||l2===null)return;if(l2)await examiner(fol.react(l2));if(run!==id)return}
+      if(fol){preguntadas.add(_audioKey(fol.q));await examiner(fol.q,{hints:fol.hints});if(run!==id)return;const l2=await turn(fol,id,fol.q);if(run!==id||l2===null)return;
+        if(l2){const a2=escuchaAnalizar(l2);escuchaRecordar(mem,a2);await examiner(escuchaReaccion(fol,l2,a2,mem,!_ultTurno.ok)||fol.react(l2))}if(run!==id)return}
     }
     el("bar").style.width="100%";finish();
   }
@@ -1335,7 +1341,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-02 · módulos 3";
+const BUILD="2026-11-02 · examinador que escucha";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};

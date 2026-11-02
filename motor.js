@@ -182,7 +182,7 @@ const _blobB64=blob=>new Promise((ok,ko)=>{const f=new FileReader();f.onload=()=
 async function iaTranscribir(blob){
   let t;
   if(fbListo()){
-    t=await _fbGenerar({partes:[PROMPT_TRANSCRIBIR,{inlineData:{mimeType:"audio/wav",data:await _blobB64(blob)}}],temp:0,tokens:400,ms:12000,hedge:3000});
+    t=await _fbGenerar({partes:[PROMPT_TRANSCRIBIR,{inlineData:{mimeType:"audio/wav",data:await _blobB64(blob)}}],temp:0,tokens:400,ms:12000+Math.min(30000,Math.round(blob.size/32000*400)),hedge:3000});   // (más tiempo cuanto más largo el audio)
   }else{
     t=(await _iaWorker({audio:await _blobB64(blob),mime:"audio/wav"},25000)).text;
   }
@@ -765,6 +765,14 @@ function tapPoner(on){document.querySelectorAll('input[id$="-tap"]').forEach(x=>
 function recordarTap(on){try{localStorage.setItem(TAP_KEY,on?"1":"0")}catch(e){}tapPoner(on)}   // la persona lo eligió: se guarda
 let _tapAuto=false;   // la casilla la tildó la app sola (un corte del micrófono): en la próxima charla se vuelve a probar sin tocar
 let LISTO_TARDE_MS=10000;   // «Listo» aparece recién cuando el micrófono lleva tanto escuchando (la respuesta termina sola con una pausa)
+// Cuándo se da por terminada una respuesta (listenRec). Antes bastaba 1,25 s de silencio y quien armaba la frase en inglés con una pausa para buscar una palabra quedaba cortado a la mitad.
+// Ahora: pausa de 2 s; si lo que dijo parece una frase a medias («…and», «…with my», «…um») se espera hasta 3,5 s; y una vez que habló, la voz que se apaga también cuenta como voz.
+let SIL_ADELANTO_MS=1000,SIL_FIN_MS=2000,SIL_FIN_MAX_MS=3500,SIL_TEXTO_MS=3200,TOPE_RESP_MS=45000;
+// «⏳ Pausas» (Normal / Más paciencia): quien todavía se siente cortado le da más tiempo al micrófono. Se guarda en el aparato (trinity_pausa) y vale para los dos módulos.
+const PAUSA_KEY="trinity_pausa";
+const pausaLarga=()=>{try{return localStorage.getItem(PAUSA_KEY)==="larga"}catch(e){return false}};
+function pausaAplicar(larga){SIL_FIN_MS=larga?3200:2000;SIL_FIN_MAX_MS=larga?5000:3500;SIL_TEXTO_MS=larga?4200:3200}
+pausaAplicar(pausaLarga());
 const SONIDO_OK=(function(){const r=leerSonido();return !!(r&&modoDe(r)!=="lectura")})();   // ya se confirmó que se oyen las dos voces
 const MSG_MIC_DENEGADO=()=>IS_IOS?"El iPhone no dejó usar el micrófono. Arreglalo así: en Safari tocá <b>aA</b> (a la izquierda de la dirección) → <b>Configuración del sitio web</b> → <b>Micrófono → Permitir</b>. Después tocá <b>🎤 Probar el micrófono otra vez</b>, acá abajo. (Si abriste el link desde WhatsApp, Instagram o un mail, abrilo en <b>Safari</b>.) Mientras tanto, escribí o dictá con el 🎤 del teclado:":"No hay permiso para el micrófono. Tocá el candado junto a la dirección → Micrófono → Permitir. Después tocá <b>🎤 Probar el micrófono otra vez</b>, acá abajo. Mientras tanto, escribí:";
 async function prepMic(){
@@ -788,6 +796,7 @@ function mountConv(rootId,mode){
     <label class="chk"><input type="checkbox" id="${P}txt" ${(!E||(IS_IOS&&!SONIDO_OK))?"checked":""}> Ver lo que dice el examinador</label>
     <label class="chk"><input type="checkbox" id="${P}help" ${E?"":"checked"}> 💡 Ayudas (cómo se dice)</label>
     <label class="chk">⏩ Velocidad <select id="${P}vel"><option value="normal">Normal</option><option value="rapida">Rápida</option></select></label>
+    <label class="chk" title="Cuánto espera el micrófono cuando hacés una pausa, antes de darse cuenta de que terminaste de hablar">⏳ Pausas <select id="${P}pausa"><option value="normal">Normal</option><option value="larga">Más paciencia</option></select></label>
     ${IS_IOS&&fbListo()?`<label class="chk">🔊 Voz <select id="${P}voz"><option value="celu">Del celular (rápida)</option><option value="ia">Natural (IA, 10 por día)</option></select></label>`:""}
     <label class="chk"><input type="checkbox" id="${P}tap" ${TAP_GUARDADO?"checked":""}> Tocar 🎤 para hablar</label>
     ${IA_ON?`<label class="chk"><input type="checkbox" id="${P}ia" ${IS_IOS?"":"checked"}> 🤖 Examinador con IA${IS_IOS?" <small>(en iPhone, con «tocar 🎤»)</small>":""}</label>`:""}</div>
@@ -889,14 +898,18 @@ function mountConv(rootId,mode){
           if(m>pk)pk=m;el("lvl").style.width=Math.min(100,m*260)+"%";
           const now=performance.now();
           if(now-t0<500){if(m>nf)nf=m;th=Math.min(0.04,Math.max(0.008,nf*3))}   // los primeros 0,5 s miden el ruido de fondo
-          else if(m>th){if(!spoke)el("heard").textContent="🎙️ te escucho…";spoke=true;lastVoice=now}
-          if(spoke&&m>th&&adelanto)adelanto=null;   // volvió a hablar: se descarta la transcripción adelantada
-          if(spoke&&!adelanto&&now-lastVoice>650){const lote=chunks.slice();adelanto={p:iaTranscribir(_aWav(lote,rate))};adelanto.p.catch(()=>{})}   // 0,65 s de silencio: se empieza ya
-          if(spoke&&now-lastVoice>1250)terminar();
-          else if(!spoke&&now-t0>12000)terminar();
+          else if(m>(spoke?Math.min(th,Math.max(th*.7,nf*2)):th)){if(!spoke)el("heard").textContent="🎙️ te escucho…";spoke=true;lastVoice=now;adelanto=null}   // (ya hablando, la voz que se apaga —el final de una palabra— también cuenta: umbral al 70 %, pero nunca por debajo del doble del ruido de fondo medido, así un cuarto ruidoso no «sigue hablando» para siempre; y si volvió a hablar se descarta la transcripción adelantada)
+          const sil=now-lastVoice;
+          if(spoke&&!adelanto&&sil>SIL_ADELANTO_MS){   // 1 s de silencio: se empieza a pasar a texto ya (si sigue hablando, se descarta)
+            const a={texto:undefined};a.p=iaTranscribir(_aWav(chunks.slice(),rate)).then(x=>{a.texto=x||"";return x},e=>{a.texto=null;throw e});a.p.catch(()=>{});adelanto=a}
+          if(spoke&&sil>SIL_FIN_MS){
+            // pausa larga: se da por terminada la respuesta… salvo que lo dicho parezca una frase a la mitad («I went to the beach with my…»): ahí se espera un poco más
+            const tx=adelanto?adelanto.texto:null;
+            if(sil>=SIL_FIN_MAX_MS||(tx===undefined&&sil>=SIL_TEXTO_MS)||(tx!==undefined&&!escuchaIncompleta(tx)))terminar();
+          }else if(!spoke&&now-t0>12000)terminar();
         };
         micUI(true,"Te escucho… hablá ahora");
-        finishNow=()=>terminar();capT=setTimeout(terminar,20000);listoTarde();
+        finishNow=()=>terminar();capT=setTimeout(terminar,TOPE_RESP_MS);listoTarde();
       }catch(e){
         if(e&&e.name==="Cancelado"){if(!done){done=true;cleanup();micUI(false);res(null)}return}
         caer(e);
@@ -931,14 +944,14 @@ function mountConv(rootId,mode){
           status(pk<2?"Casi no llega sonido del micrófono: hablá más cerca y más fuerte, o subí el volumen de entrada en Windows (Sistema → Sonido → Entrada). Mientras, tocá <b>⌨️ Escribir</b>.":"El micrófono sí capta tu voz, pero el servicio de voz de Chrome no devuelve texto"+(lastErr?" (error: <b>"+lastErr+"</b>)":"")+". Suele ser la red, una VPN, un antivirus o el navegador. Probá en <b>Microsoft Edge</b> (PC) o <b>Chrome</b> (Android). En iPhone ningún navegador trae dictado confiable: ahí hace falta la IA o el 🎤 del teclado. Mientras, tocá <b>⌨️ Escribir</b>.")},6000)};
       rec.onresult=e=>{let s="";for(let r=0;r<e.results.length;r++)s+=e.results[r][0].transcript+" ";text=(base+" "+s).replace(/\s+/g," ").trim();
         el("heard").textContent=text;status("");clearTimeout(noSound);clearTimeout(silence);
-        silence=setTimeout(()=>fin(text),2600)};
+        silence=setTimeout(()=>fin(text),escuchaIncompleta(text)?4500:3000)};
       rec.onerror=e=>{lastErr=e.error;
         if(e.error==="not-allowed"||e.error==="service-not-allowed"){done=true;rec=null;micUI(false);if(IS_IOS)return typeMode("En iPhone el dictado de Safari necesita <b>Ajustes → General → Teclado → Activar dictado</b> (y Siri activado). Mientras, escribí o dictá con el 🎤 del teclado:"),void listen().then(res);typeMode("No hay permiso para el micrófono. Tocá el ícono del micrófono o del candado junto a la dirección → Permitir, y recargá. Mientras tanto, escribí:");listen().then(res)}
         else if(e.error==="audio-capture"){done=true;rec=null;micUI(false);typeMode("No se encontró micrófono. Escribí la respuesta:");listen().then(res)}
         else if(e.error==="network"){status("El reconocimiento de voz necesita internet. Revisá la conexión.");fin(text)}
         else if(e.error!=="no-speech"&&e.error!=="aborted")status("Error del micrófono: "+e.error)};
       rec.onend=()=>{if(!done){ if(text){base=text;try{rec.start()}catch(e){fin(text)}} else { restarts++;try{rec.lang=restarts%2?"en-US":"en-GB";rec.start()}catch(e){fin(null)} } }};
-      cap=setTimeout(()=>fin(text),20000);
+      cap=setTimeout(()=>fin(text),TOPE_RESP_MS);
       micUI(true,"Preparando el micrófono…");
       setTimeout(()=>{if(!started&&!done){done=true;try{rec.abort()}catch(e){}rec=null;micUI(false);typeMode("El micrófono no arrancó. Escribí la respuesta (o probá con <b>Chrome</b> / <b>Edge</b>):");listen().then(res)}},9000);
       try{rec.start()}catch(e){done=true;rec=null;typeMode();listen().then(res)}
@@ -1253,6 +1266,8 @@ function mountConv(rootId,mode){
     if(typedResolve){cambioDeModo=true;const r=typedResolve;typedResolve=null;micUI(false);r(null)}   // retoma la pregunta ahora con el micrófono
   };
   el("tap").onchange=()=>recordarTap(el("tap").checked);
+  el("pausa").value=pausaLarga()?"larga":"normal";
+  el("pausa").onchange=()=>{const l=el("pausa").value==="larga";try{if(l)localStorage.setItem(PAUSA_KEY,"larga");else localStorage.removeItem(PAUSA_KEY)}catch(e){}pausaAplicar(l);document.querySelectorAll('select[id$="-pausa"]').forEach(x=>x.value=l?"larga":"normal")};
   if(el("ia"))el("ia").onchange=()=>{if(IS_IOS&&el("ia").checked)document.querySelectorAll('input[id$="-tap"]').forEach(x=>x.checked=true)};   // la voz del celular sólo anda tocando 🎤 (con el micrófono abierto se corta)
   el("txt").onchange=e=>el("chat").querySelectorAll(".msg.ex").forEach(m=>m.classList.toggle("hide",!e.target.checked));
 }
@@ -1323,20 +1338,47 @@ const N=30, ex=document.getElementById("exam");
 let qs=[],i=0,score=0,wrong=[];
 const shuffle=a=>{a=a.slice();for(let k=a.length-1;k>0;k--){const j=Math.floor(Math.random()*(k+1));[a[k],a[j]]=[a[j],a[k]]}return a};
 function intro(){
-  ex.innerHTML=`<div class="card"><div class="tag">Antes de empezar</div><p>Elegí la respuesta correcta. Vas a ver enseguida si está bien. Al final aparece tu nota y las que tenés que repasar.</p><button class="btn alt" id="start">Empezar examen</button></div>`;
+  ex.innerHTML=`<div class="card"><div class="tag">Antes de empezar</div><p>Elegí la respuesta correcta. Vas a ver enseguida si está bien. Al final aparece tu nota y las que tenés que repasar.</p><p class="es">Cada examen trae preguntas distintas: el banco tiene ${bank.length} y cada examen usa ${N}, empezando por las que hace más que no te salen.</p><button class="btn alt" id="start">Empezar examen</button></div>`;
   document.getElementById("start").onclick=start;
 }
+// ---- Qué preguntas salen en cada examen. Antes eran 30 al azar de un banco chico y sin memoria, así que de un examen al siguiente se repetían muchas.
+// Ahora se recuerda qué examen vio cada pregunta (localStorage, una memoria por módulo) y se eligen primero las que NUNCA salieron y después las que hace más que no salen;
+// siempre una de cada tema (la más vieja de ese tema) para que el examen cubra todo. Se anota que una pregunta se vio recién cuando se la muestra: si dejás el examen a medias, las que no llegaste a ver siguen siendo «nuevas».
+const ESC_KEY=VISTAS_KEY+"_esc";
+function escMemLeer(){try{const o=JSON.parse(localStorage.getItem(ESC_KEY)||"{}");return o&&typeof o==="object"&&!Array.isArray(o)?o:{}}catch(e){return {}}}
+function escMemGuardar(o){try{const ks=Object.keys(o).filter(k=>k!=="_n");if(ks.length>900)ks.sort((a,b)=>(o[a]||0)-(o[b]||0)).slice(0,ks.length-700).forEach(k=>delete o[k]);localStorage.setItem(ESC_KEY,JSON.stringify(o))}catch(e){}}
+const escClave=q=>"e"+_audioKey(q[1]+"|"+q[2].join("|"));
+function armarExamen(banco,cant,V){   // → las preguntas de este examen (V: la memoria; V._n = cuántos exámenes se armaron)
+  const n=(V._n||0)+1;
+  const edad=q=>{const u=V[escClave(q)];return u?n-u:1e6};   // hace cuántos exámenes salió (1e6 = nunca)
+  const orden=l=>l.map(q=>[q,edad(q)+Math.random()*.9]).sort((a,b)=>b[1]-a[1]).map(x=>x[0]);   // la que hace más que no sale, primero; entre iguales, al azar
+  const porTema={};banco.forEach(q=>(porTema[q[0]]=porTema[q[0]]||[]).push(q));
+  const base=Object.values(porTema).map(l=>orden(l)[0]);   // una de cada tema (la que hace más que no sale)
+  // el resto: primero las que NUNCA salieron, cuidando que un tema chico no se agote antes que los grandes (cada examen le saca una por la regla de arriba): se le deja una reserva
+  // de sin ver (5 y, si no alcanza, se va aflojando) y recién cuando no queda nada sin ver se completa con las más viejas. Así una pregunta no vuelve antes de los ~6 exámenes.
+  const resto=orden(banco.filter(q=>base.indexOf(q)<0)),falta=cant-base.length,extras=[],sinVer={},gasto={};
+  resto.forEach(q=>{if(edad(q)>=1e6)sinVer[q[0]]=(sinVer[q[0]]||0)+1});
+  for(let reserva=5;reserva>=0&&extras.length<falta;reserva--){
+    for(const q of resto){
+      if(extras.length>=falta)break;
+      if(edad(q)<1e6||extras.indexOf(q)>=0)continue;
+      if((sinVer[q[0]]||0)-(gasto[q[0]]||0)>reserva){extras.push(q);gasto[q[0]]=(gasto[q[0]]||0)+1}
+    }
+  }
+  for(const q of resto){if(extras.length>=falta)break;if(extras.indexOf(q)<0)extras.push(q)}
+  return shuffle(base.concat(extras).slice(0,cant));
+}
+let examNro=0,examNuevas=0;
 function start(){
-  const byTopic={};bank.forEach(q=>(byTopic[q[0]]=byTopic[q[0]]||[]).push(q));
-  // al menos 2 por tema, el resto al azar
-  let pick=[];Object.values(byTopic).forEach(l=>pick.push(...shuffle(l).slice(0,1)));
-  const rest=shuffle(bank.filter(q=>!pick.includes(q)));
-  pick=shuffle(pick.concat(rest).slice(0,N));
-  qs=pick.map(([t,q,o,a])=>{const idx=shuffle(o.map((_,k)=>k));return{t,q,o:idx.map(k=>o[k]),a:idx.indexOf(a)}});
+  const V=escMemLeer(),pick=armarExamen(bank,N,V);
+  examNuevas=pick.filter(q=>!V[escClave(q)]).length;examNro=(V._n||0)+1;
+  V._n=examNro;escMemGuardar(V);
+  qs=pick.map(([t,q,o,a])=>{const idx=shuffle(o.map((_,k)=>k));return{t,q,o:idx.map(k=>o[k]),a:idx.indexOf(a),k:escClave([t,q,o,a])}});
   i=0;score=0;wrong=[];show();
 }
 function show(){
   const q=qs[i];
+  {const V=escMemLeer();V[q.k]=V._n||examNro||1;escMemGuardar(V)}   // desde ahora esta pregunta cuenta como «ya vista»
   ex.innerHTML=`<div class="row" style="margin:0"><span class="tag">Pregunta ${i+1} de ${qs.length}</span><span class="tag">Correctas: ${score}</span></div>
   <div class="bar"><i style="width:${i/qs.length*100}%"></i></div>
   <div class="card"><div class="tag">${q.t}</div><div class="qtext">${q.q}</div><button class="link qsay" id="qsay">🔊 Escuchar la pregunta</button>
@@ -1359,7 +1401,7 @@ function result(){
   const pct=Math.round(score/qs.length*100);
   const msg=pct>=90?"¡Excelente! Estás listo/a para el examen.":pct>=70?"¡Muy bien! Repasá los temas que fallaste.":pct>=50?"Vas bien, pero conviene repasar.":"Volvé a la pestaña Estudiar y probá de nuevo.";
   const topics=[...new Set(wrong.map(q=>q.t))];
-  ex.innerHTML=`<div class="card"><div class="tag">Resultado</div><div class="score">${score} / ${qs.length}</div><p><b>${pct}%</b> — ${msg}</p>
+  ex.innerHTML=`<div class="card"><div class="tag">Resultado</div><div class="score">${score} / ${qs.length}</div><p><b>${pct}%</b> — ${msg}</p>${examNro>1?`<p class="es">🆕 ${examNuevas} de las ${qs.length} preguntas de este examen eran nuevas para vos.</p>`:""}
   ${topics.length?`<h3>Temas para repasar</h3><p>${topics.join(" · ")}</p><h3>Tus errores</h3><ol class="review">${wrong.map(q=>`<li>${q.q}<br><span class="r">✓ ${q.o[q.a]}</span></li>`).join("")}</ol>`:"<p>¡Sin errores!</p>"}
   <div class="row"><button class="btn alt" id="again">Hacer otro examen</button></div></div>`;
   document.getElementById("again").onclick=start;
@@ -1377,7 +1419,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-02 · contesta preguntas y sin tocar";
+const BUILD="2026-11-02 · pausas y examen escrito";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};

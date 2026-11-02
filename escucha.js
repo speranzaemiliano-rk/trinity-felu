@@ -265,6 +265,20 @@ function escuchaPregunta(raw){   // → {pregunta: ¿hay una pregunta para el ex
   const despues=cl.slice(hay.ci+1).reduce((n,k)=>n+k.w.length,0);
   return {pregunta:true,solo:prev.every(w=>ESC_FILLER.test(w))&&despues<4,q:cl[hay.ci].w.slice(hay.s).concat(...cl.slice(hay.ci+1).map(k=>k.w)).join(" ")};
 }
+// ¿Lo que se dijo parece una frase CORTADA a la mitad? (termina en una palabra que pide otra: «and», «with my», «because», «I'm»…, en una coma, en «…» o en un «um»).
+// Sirve para esperar un poco más antes de dar la respuesta por terminada: quien arma la frase en inglés hace pausas para buscar una palabra y no tiene que quedar cortado.
+// Hay palabras que no pueden cerrar una frase (siempre pide más) y otras que sí («Yes, it is.», «I like it.»): esas sólo cuentan si no cerró con punto o signo.
+const ESC_COLGADA=/^(and|but|or|because|if|when|while|than|as|the|a|an|my|your|his|her|our|their|of|with|for|from|by|at|in|on|about|also|very|i|um|uh|uhm|er|eh|ehh|mm|hmm)$|'(m|s|re|ve|ll|d)$/;
+const ESC_COLGADA_FLOJA=/^(to|is|are|was|were|like|have|has|had)$/;
+function escuchaIncompleta(t){
+  t=String(t||"").trim();if(!t)return false;
+  if(/(,|…|\.\.\.|–|—|-|:)\s*$/.test(t))return true;                  // se quedó en una coma, en puntos suspensivos o en un guion
+  const fin=/[.!?]["')\]]*\s*$/.test(t),ws=t.toLowerCase().replace(/[’`]/g,"'").replace(/[^a-z' ]+/g," ").split(/\s+/).filter(Boolean),u=ws[ws.length-1]||"";
+  if(!u)return false;
+  if(ESC_COLGADA.test(u))return true;
+  if(ESC_COLGADA_FLOJA.test(u))return !fin&&!/^(yes|yeah|yep|no|nope)$/.test(ws[0]);
+  return false;
+}
 function escuchaResponder(raw){const e=escuchaPregunta(raw);return e.pregunta?reaccionPregunta(e.q):null}   // lo que contesta el examinador, o null si no le preguntaron nada
 
 // todas las frases sueltas que puede decir (para grabar los audios); los pasos (ELICITAR y ESC_SEG) los recorre rkTextosGuion de cada módulo

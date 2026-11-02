@@ -30,6 +30,8 @@ La IA (Firebase AI Logic) y el audio del iPhone **se simulan**: App Check no dej
 | `nota.js`, `topes.js` | nota con IA y sus topes |
 | `pics.js` | dibujos del examinador con IA |
 | `guion.js`, `ia_ui.js` | charla de siempre y pantalla con IA |
+| `pausa.js` | que no corte la oración al hacer una pausa (micrófono falso con una pausa de 1,6 s), esperar más si la frase parece cortada y el selector «⏳ Pausas» |
+| `examen_escrito.js` | el examen escrito: banco grande, 30 preguntas de todos los temas, que no se repitan con el examen anterior (ni al recargar) y que cuente cuántas eran nuevas |
 | `pregunta.js` | el examinador contesta lo que le preguntan en cualquier momento (y no toma por pregunta una respuesta normal: «I have a dog», «it is a house»…), en los dos módulos |
 | `sin_tocar.js` | que no haga falta apretar «Hablar» ni «Listo»: «Listo» escondido y tardío, un corte del micrófono no queda guardado, «Probar manos libres» |
 | `escucha.js` | el examinador que escucha (los dos módulos): reconoce de qué se habló, reacciona (animales, deportes, comidas…, lo triste, el «no sé», lo largo), repregunta con criterio (no lo ya dicho, pide más si fue cortito, no apila sobre quien no pudo), se interesa por lo que se mencionó, se acuerda antes de despedirse, tiene audio para todo y se nota en una charla tecleada completa |

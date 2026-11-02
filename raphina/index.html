@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trinity GESE Grade 4 · Raphina</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<script src="../firebase-config.js"></script>
+<script src="../audio/manifest.js"></script>
+<script>window.RK_BASE="../";</script>
+<meta name="theme-color" content="#6d3fc4">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="../estilos.css?b=2026-11-02-modulos-2">
+<style>
+/* Módulo de Raphina: mismos estilos que el de Felu, con otra paleta (violeta) */
+:root{--bg:#f8f6fd;--ink:#2b1d5c;--muted:#66608f;--line:#e5dff3;--blue:#6d3fc4}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#161229;--paper:#201a3f;--ink:#ece8ff;--muted:#b0a7d9;--line:#352d66;--blue:#b79cff}}
+:root[data-theme="dark"]{--bg:#161229;--paper:#201a3f;--ink:#ece8ff;--muted:#b0a7d9;--line:#352d66;--blue:#b79cff}
+header{background:linear-gradient(135deg,var(--blue),color-mix(in srgb,var(--blue) 55%,#e4569a))}
+header::before{content:"🌟"}
+/* hoja del tema */
+.tema-in,.tema-pt input{width:100%;box-sizing:border-box;font:600 1rem var(--body);padding:11px 12px;border-radius:12px;border:2px solid var(--line);background:var(--paper);color:var(--ink)}
+.tema-pt{display:grid;grid-template-columns:1fr;gap:6px;margin:10px 0;padding:10px;border:1px dashed var(--line);border-radius:14px}
+.tema-pt select{font:600 .95rem var(--body);padding:9px;border-radius:10px;border:2px solid var(--line);background:var(--paper);color:var(--ink);max-width:100%}
+#temaIdeas{margin:8px 0}#temaAviso{margin:8px 0 0}
+.modo-row{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.modo-row select{font:600 .95rem var(--body);padding:8px;border-radius:10px;border:2px solid var(--line);background:var(--paper);color:var(--ink);max-width:100%}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <h1>Trinity GESE <span>Grade 4</span></h1>
+  <p>Módulo de Raphina: guía de estudio, tema preparado, práctica oral y examen de práctica.</p>
+  <button id="instalar" class="btn alt" hidden style="grid-column:1/3;margin-top:10px">⬇️ Instalar en esta PC</button>
+  <p id="instalarIos" hidden style="grid-column:1/3;margin:10px 0 0;font-size:.92rem">📲 Para instalarla en el iPhone: tocá <b>Compartir</b> (el cuadrado con la flecha hacia arriba) y elegí <b>«Añadir a pantalla de inicio»</b>.</p>
+</header>
+
+<nav role="tablist">
+  <button role="tab" id="t-study" aria-selected="true" data-v="study">Estudiar</button>
+  <button role="tab" id="t-speak" aria-selected="false" data-v="speak">Speaking</button>
+  <button role="tab" id="t-exam" aria-selected="false" data-v="exam">Examen</button>
+</nav>
+
+<details id="diagSonido" style="margin-bottom:14px;border-color:var(--accent)">
+  <summary>🔧 ¿No suena? Diagnóstico de sonido</summary>
+  <p class="es">En el iPhone, primero revisá que <b>no haya una campanita tachada 🔕</b> arriba junto a la hora (modo silencio) y que el volumen esté arriba. Después tocá los botones <b>de a uno</b>, en orden, y fijate si suena. Abajo aparece qué pasó. Si algo falla, tocá <b>📋 Copiar informe</b> (abajo) y pegalo en el chat: no hace falta sacar captura.</p>
+  <div class="sbtns"><button class="btn" id="dsA">1) Audio del sitio</button><button class="btn alt" id="dsB">2) Voz del navegador</button><button class="btn ghost" id="dsC">3) Voz de la IA</button><button class="btn" id="dsD" style="background:var(--good)">4) Micrófono</button><button class="btn ghost" id="dsCopy">📋 Copiar informe</button></div>
+  <ol id="dsLog" class="log"></ol>
+  <p class="es" id="dsCopiado"></p>
+  <textarea id="dsInforme" readonly hidden rows="10" aria-label="Informe" style="width:100%;font:12px/1.4 ui-monospace,Menlo,monospace;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)"></textarea>
+</details>
+
+<!-- ESTUDIAR -->
+<section id="v-study">
+<h2>Temas del examen</h2>
+<p class="lead">Tocá cada tema para abrirlo. Todo lo que está en inglés se puede escuchar: tocalo.</p>
+<div class="stack">
+
+<details open><summary>🎯 El examen en una mirada <span class="es">· Grade 4 (A2.2)</span></summary>
+<ul class="plano">
+<li>Dura <b>10 minutos</b> y tiene <b>dos partes</b> que se evalúan. Solo se habla: no se escribe nada.</li>
+<li><b>1ª parte · Tu tema (hasta 5 minutos).</b> Elegís un tema <i>tuyo</i> y lo preparás antes. Le das al examinador tu <b>hoja del tema</b> con <b>4 puntos</b> para charlar. Él te pregunta (en cualquier orden) y te pide más datos y detalles. <b>Vos también tenés que hacerle al menos una pregunta</b> sobre tu tema.</li>
+<li><b>2ª parte · Conversación (hasta 5 minutos).</b> El examinador elige <b>2 de estos 6 temas</b>: <i>Holidays</i> · <i>Shopping</i> · <i>School and work</i> · <i>Hobbies and sports</i> · <i>Food</i> · <i>Weekend and seasonal activities</i>. Acá no hace falta que le hagas preguntas.</li>
+<li>Al principio te saluda para que te sientas a gusto (eso no se evalúa) y al final se despide.</li>
+<li>Para contestar bien usá el lenguaje del grado: <b>pasado</b> (<i>I went</i>, <i>we played</i>), <b>planes</b> con <i>going to</i>, <b>comparar</b> (<i>bigger than</i>, <i>the best</i>), <b>gustos</b> (<i>I like playing</i>), <b>cada cuánto y cómo</b> (<i>twice a week</i>, <i>quickly</i>) y la palabra <b>but</b>.</li>
+<li>No se aprende un texto de memoria: si recitás, el examinador te interrumpe amablemente y se tiene en cuenta en la nota.</li>
+<li>Se califica con letras: A (Distinction), B (Merit), C (Pass) o D.</li>
+</ul>
+<div class="tip">Fuente: guía oficial de Trinity para el <i>Elementary stage</i> (Grades 4–6). En <b>Speaking</b> completás tu hoja del tema y practicás las dos partes.</div>
+</details>
+
+<h3 class="sec">La parte del tema</h3>
+<details open><summary>The topic phase <span class="es">· Tu tema y la hoja</span></summary>
+<p class="es"><b>Cómo elegir el tema:</b> algo <b>tuyo</b>, que te guste y que hayas vivido: un cumpleaños, un viaje, tu deporte, tu mascota, una película. Tiene que dejarte usar pasado, planes, gustos, comparaciones y «cada cuánto». <b>No</b> sirve uno de los 6 temas de la conversación (<i>Holidays</i>, <i>Food</i>…) ni temas muy grandes (el medio ambiente, la política): mejor <i>My trip to Bariloche</i> que <i>Holidays</i>.</p>
+<p class="es"><b>La hoja:</b> un título y <b>4 puntos</b> para charlar (como la hoja de ejemplo de Trinity: <i>My best birthday present</i> → <i>Who gave it to me and when?</i> · <i>What did we do and see?</i> · <i>What I liked best on the day</i> · <i>Plans for my next birthday</i>). Conviene que cada punto use una función distinta del grado.</p>
+<div class="tbl"><table>
+<tr><th>Si el punto es…</th><th>Usá</th><th>Ejemplo</th></tr>
+<tr><td>algo que pasó</td><td><b>past simple</b></td><td>Last summer we went to the beach.</td></tr>
+<tr><td>un plan</td><td><b>going to</b></td><td>I'm going to visit my grandma.</td></tr>
+<tr><td>lo que te gusta</td><td><b>like + -ing</b></td><td>I like playing the guitar, but I don't like practising scales.</td></tr>
+<tr><td>comparar</td><td><b>comparativo / superlativo</b></td><td>Football is more exciting than tennis.</td></tr>
+<tr><td>cada cuánto o cómo</td><td><b>adverbios</b></td><td>I practise twice a week and I play quickly.</td></tr>
+</table></div>
+<div class="tip">Podés llevar <b>fotos</b> o dibujos, pero no un texto para leer. El examinador te va a preguntar los puntos <b>en cualquier orden</b>.</div>
+</details>
+
+<details><summary>Questions to ask the examiner <span class="es">· Preguntas para hacerle sobre tu tema</span></summary>
+<ul class="ex">
+<li><b>Do you like football?</b> <span class="es">— ¿Te gusta el fútbol?</span></li>
+<li><b>When did you start playing football?</b> <span class="es">— ¿Cuándo empezaste a jugar al fútbol?</span></li>
+<li><b>What is your favourite sport?</b> <span class="es">— ¿Cuál es tu deporte favorito?</span></li>
+<li><b>Did you go on holiday last summer?</b> <span class="es">— ¿Fuiste de vacaciones el verano pasado?</span></li>
+<li><b>Where did you celebrate your last birthday?</b> <span class="es">— ¿Dónde festejaste tu último cumpleaños?</span></li>
+<li><b>Are you going to travel this year?</b> <span class="es">— ¿Vas a viajar este año?</span></li>
+<li><b>How often do you play sport?</b> <span class="es">— ¿Cada cuánto hacés deporte?</span></li>
+</ul>
+<div class="tip">En la práctica, el examinador te da el momento para preguntar. En el examen real <b>no siempre te lo piden</b>: animate vos y preguntá algo <b>del tema</b> en cualquier momento (por ejemplo cuando terminás un punto) y escuchá la respuesta.</div>
+</details>
+
+<details><summary>Useful phrases <span class="es">· Frases útiles</span></summary>
+<ul class="ex">
+<li><b>Let me think…</b> <span class="es">— Dejame pensar…</span></li>
+<li><b>Well, I think…</b> <span class="es">— Bueno, creo que…</span></li>
+<li><b>Another thing is…</b> <span class="es">— Otra cosa es…</span></li>
+<li><b>And then…</b> <span class="es">— Y después…</span></li>
+<li><b>What about you?</b> <span class="es">— ¿Y vos?</span></li>
+<li><b>Sorry, can you repeat, please?</b> <span class="es">— Perdón, ¿podés repetir, por favor?</span></li>
+<li><b>Can you say that again, please?</b> <span class="es">— ¿Podés decirlo de nuevo?</span></li>
+<li><b>What does … mean?</b> <span class="es">— ¿Qué significa …?</span></li>
+<li><b>I don't know the word, but…</b> <span class="es">— No sé la palabra, pero…</span></li>
+<li><b>Yes, I do. And you?</b> <span class="es">— Sí. ¿Y vos?</span></li>
+</ul>
+<div class="tip">Si no entendés, <b>pedí que lo repitan</b>: es lo que se espera. Quedarte en silencio es lo peor.</div>
+</details>
+
+<h3 class="sec">Gramática del grado</h3>
+<details><summary>Past simple <span class="es">· Pasado simple: verbos regulares</span></summary>
+<p class="es">Para hablar de algo que <b>ya pasó</b>. Al verbo le agregás <b>-ed</b>.</p>
+<div class="tbl"><table>
+<tr><th>Regla</th><th>Infinitive</th><th>Past simple</th></tr>
+<tr><td>+ <b>-ed</b></td><td>play</td><td><b>played</b></td></tr>
+<tr><td>+ <b>-ed</b></td><td>visit</td><td><b>visited</b></td></tr>
+<tr><td>termina en e: + <b>-d</b></td><td>live</td><td><b>lived</b></td></tr>
+<tr><td>termina en e: + <b>-d</b></td><td>dance</td><td><b>danced</b></td></tr>
+<tr><td>consonante + y: <b>-ied</b></td><td>study</td><td><b>studied</b></td></tr>
+<tr><td>verbo corto (una sílaba) que termina en vocal + consonante: <b>doble consonante</b></td><td>stop</td><td><b>stopped</b></td></tr>
+</table></div>
+<p class="es">La consonante se duplica sólo en verbos <b>cortos</b> (<i>stop → stopped</i>, <i>plan → planned</i>). En los largos no se duplica: <i>visit → visited</i>, <i>listen → listened</i>.</p>
+<ul class="ex">
+<li><b>Yesterday I played football with my friends.</b> <span class="es">— Ayer jugué al fútbol con mis amigos.</span></li>
+<li><b>We visited my grandma on Sunday.</b> <span class="es">— Visitamos a mi abuela el domingo.</span></li>
+<li><b>She studied English last night.</b> <span class="es">— Estudió inglés anoche.</span></li>
+<li><b>It was a great day.</b> <span class="es">— Fue un gran día. (was / were: el pasado de «to be»)</span></li>
+</ul>
+<div class="tip">El verbo en pasado es <b>igual para todas las personas</b>: I played, you played, she played, we played.</div>
+</details>
+
+<details><summary>Irregular past verbs <span class="es">· Pasado simple: verbos irregulares</span></summary>
+<p class="es">Estos no llevan -ed: hay que <b>aprenderlos de memoria</b>. Son los más usados.</p>
+<div class="tbl"><table>
+<tr><th>Infinitive</th><th>Past simple</th><th>Español</th></tr>
+<tr><td>go</td><td><b>went</b></td><td>ir</td></tr>
+<tr><td>have</td><td><b>had</b></td><td>tener / comer</td></tr>
+<tr><td>see</td><td><b>saw</b></td><td>ver</td></tr>
+<tr><td>eat</td><td><b>ate</b></td><td>comer</td></tr>
+<tr><td>drink</td><td><b>drank</b></td><td>tomar</td></tr>
+<tr><td>buy</td><td><b>bought</b></td><td>comprar</td></tr>
+<tr><td>make</td><td><b>made</b></td><td>hacer</td></tr>
+<tr><td>take</td><td><b>took</b></td><td>tomar / sacar</td></tr>
+<tr><td>come</td><td><b>came</b></td><td>venir</td></tr>
+<tr><td>get</td><td><b>got</b></td><td>conseguir / llegar</td></tr>
+<tr><td>give</td><td><b>gave</b></td><td>dar</td></tr>
+<tr><td>say</td><td><b>said</b></td><td>decir</td></tr>
+<tr><td>tell</td><td><b>told</b></td><td>contar</td></tr>
+<tr><td>think</td><td><b>thought</b></td><td>pensar</td></tr>
+<tr><td>find</td><td><b>found</b></td><td>encontrar</td></tr>
+<tr><td>leave</td><td><b>left</b></td><td>irse / dejar</td></tr>
+<tr><td>meet</td><td><b>met</b></td><td>encontrarse con</td></tr>
+<tr><td>sit</td><td><b>sat</b></td><td>sentarse</td></tr>
+<tr><td>swim</td><td><b>swam</b></td><td>nadar</td></tr>
+<tr><td>write</td><td><b>wrote</b></td><td>escribir</td></tr>
+<tr><td>read</td><td><b>read</b></td><td>leer (se escribe igual, se dice «red»)</td></tr>
+<tr><td>run</td><td><b>ran</b></td><td>correr</td></tr>
+<tr><td>sleep</td><td><b>slept</b></td><td>dormir</td></tr>
+<tr><td>ride</td><td><b>rode</b></td><td>andar (en bici, a caballo)</td></tr>
+<tr><td>sing</td><td><b>sang</b></td><td>cantar</td></tr>
+<tr><td>win</td><td><b>won</b></td><td>ganar</td></tr>
+<tr><td>lose</td><td><b>lost</b></td><td>perder</td></tr>
+<tr><td>feel</td><td><b>felt</b></td><td>sentir</td></tr>
+<tr><td>know</td><td><b>knew</b></td><td>saber / conocer</td></tr>
+<tr><td>fly</td><td><b>flew</b></td><td>volar</td></tr>
+<tr><td>draw</td><td><b>drew</b></td><td>dibujar</td></tr>
+<tr><td>wear</td><td><b>wore</b></td><td>usar (ropa)</td></tr>
+<tr><td>spend</td><td><b>spent</b></td><td>pasar (tiempo) / gastar</td></tr>
+<tr><td>pay</td><td><b>paid</b></td><td>pagar</td></tr>
+<tr><td>do</td><td><b>did</b></td><td>hacer</td></tr>
+<tr><td>be</td><td><b>was / were</b></td><td>ser / estar</td></tr>
+</table></div>
+<ul class="ex">
+<li><b>Last summer we went to the beach.</b> <span class="es">— El verano pasado fuimos a la playa.</span></li>
+<li><b>I bought a T-shirt and some shoes.</b> <span class="es">— Compré una remera y zapatillas.</span></li>
+<li><b>We ate pizza and we drank orange juice.</b> <span class="es">— Comimos pizza y tomamos jugo de naranja.</span></li>
+</ul>
+</details>
+
+<details><summary>Past simple questions <span class="es">· Preguntas y negativos en pasado</span></summary>
+<p class="es">Con <b>did</b> y <b>didn't</b> el verbo vuelve al infinitivo (sin -ed): <i>Did you <b>play</b>?</i>, <i>I didn't <b>play</b></i>.</p>
+<div class="tbl"><table>
+<tr><th>Tipo</th><th>Estructura</th><th>Ejemplo</th></tr>
+<tr><td>Pregunta</td><td><b>Did</b> + sujeto + verbo</td><td>Did you go to school yesterday?</td></tr>
+<tr><td>Con What / Where / When</td><td>What / Where + <b>did</b> + sujeto + verbo</td><td>Where did you go on holiday?</td></tr>
+<tr><td>Negativo</td><td>sujeto + <b>didn't</b> + verbo</td><td>I didn't watch the match.</td></tr>
+<tr><td>Respuesta corta</td><td>Yes, I <b>did</b>. / No, I <b>didn't</b>.</td><td>Did you like it? Yes, I did.</td></tr>
+<tr><td>Con was / were</td><td>Was it fun? / Were you there?</td><td>Yes, it was. / No, I wasn't.</td></tr>
+</table></div>
+<div class="tip">Cuidado: <b>Did you went?</b> está mal. Es <b>Did you go?</b>. Si usás <i>did</i>, el verbo no va en pasado.</div>
+</details>
+
+<details><summary>Going to (plans) <span class="es">· Planes: voy a…</span></summary>
+<p class="es">Para hablar de <b>planes</b> y cosas que vas a hacer. Se arma con <b>am / is / are + going to + verbo</b>.</p>
+<div class="tbl"><table>
+<tr><th>Tipo</th><th>Estructura</th><th>Ejemplo</th></tr>
+<tr><td>Afirmativo</td><td>I <b>am going to</b> + verbo</td><td>I'm going to visit my grandma.</td></tr>
+<tr><td>Afirmativo</td><td>he / she / it <b>is going to</b> + verbo</td><td>She's going to buy a new bike.</td></tr>
+<tr><td>Afirmativo</td><td>we / you / they <b>are going to</b> + verbo</td><td>We're going to go to the beach.</td></tr>
+<tr><td>Negativo</td><td>am / is / are <b>not</b> going to</td><td>They aren't going to come.</td></tr>
+<tr><td>Pregunta</td><td>Am / Is / Are + sujeto + going to + verbo?</td><td>What are you going to do next summer?</td></tr>
+</table></div>
+<ul class="ex">
+<li><b>Tomorrow I'm going to play tennis.</b> <span class="es">— Mañana voy a jugar al tenis.</span></li>
+<li><b>Next weekend we're going to have a barbecue.</b> <span class="es">— El fin de semana que viene vamos a hacer un asado.</span></li>
+<li><b>Are you going to travel this year?</b> <span class="es">— ¿Vas a viajar este año?</span></li>
+<li><b>I'm not going to study tonight.</b> <span class="es">— No voy a estudiar esta noche.</span></li>
+</ul>
+<div class="tip">Palabras de futuro: <b>tomorrow</b>, <b>tonight</b>, <b>this weekend</b>, <b>next week</b>, <b>next month</b>, <b>next summer</b>, <b>in two weeks</b>.</div>
+</details>
+
+<details><summary>Like + -ing <span class="es">· Gustos: me gusta…</span></summary>
+<p class="es">Con <b>like, love, enjoy, hate, prefer</b> el verbo que sigue va en <b>-ing</b> (también se puede usar <b>to + verbo</b> con like, love, hate y prefer).</p>
+<ul class="ex">
+<li><b>I like swimming.</b> <span class="es">— Me gusta nadar.</span></li>
+<li><b>I like to read books.</b> <span class="es">— Me gusta leer libros.</span></li>
+<li><b>She loves playing the guitar.</b> <span class="es">— Le encanta tocar la guitarra.</span></li>
+<li><b>We enjoy going to the beach.</b> <span class="es">— Disfrutamos ir a la playa.</span></li>
+<li><b>I don't like waiting in line.</b> <span class="es">— No me gusta esperar en la cola.</span></li>
+<li><b>He hates getting up early.</b> <span class="es">— Odia levantarse temprano.</span></li>
+<li><b>I like cooking, but I don't like washing the dishes.</b> <span class="es">— Me gusta cocinar, pero no me gusta lavar los platos.</span></li>
+</ul>
+<div class="tip">Contestá con algo más que «Yes, I do.»: <b>Yes, I do. I like playing football with my friends.</b></div>
+</details>
+
+<details><summary>Adverbs of frequency and manner <span class="es">· Cada cuánto y cómo</span></summary>
+<p class="es"><b>Cada cuánto:</b> los adverbios van <b>antes del verbo</b> (<i>I always play</i>) y <b>después de «to be»</b> (<i>She is never late</i>). <i>Sometimes</i> también puede ir al principio (<i>Sometimes I go…</i>). Las frases como <i>twice a week</i> o <i>every day</i> van al final.</p>
+<div class="tbl"><table>
+<tr><th>Adverbio</th><th>Significa</th><th>Ejemplo</th></tr>
+<tr><td><b>always</b></td><td>siempre (100%)</td><td>I always do my homework.</td></tr>
+<tr><td><b>usually</b></td><td>generalmente</td><td>We usually have lunch at one.</td></tr>
+<tr><td><b>often</b></td><td>seguido</td><td>I often play video games.</td></tr>
+<tr><td><b>sometimes</b></td><td>a veces</td><td>Sometimes I go to my cousin's house.</td></tr>
+<tr><td><b>hardly ever</b></td><td>casi nunca</td><td>I hardly ever eat fish.</td></tr>
+<tr><td><b>never</b></td><td>nunca (0%)</td><td>He never gets up early.</td></tr>
+</table></div>
+<ul class="ex">
+<li><b>I play football twice a week.</b> <span class="es">— Juego al fútbol dos veces por semana.</span></li>
+<li><b>We go on holiday once a year.</b> <span class="es">— Vamos de vacaciones una vez por año.</span></li>
+<li><b>She practises every day.</b> <span class="es">— Practica todos los días.</span></li>
+<li><b>I visit my grandma on Sundays.</b> <span class="es">— Visito a mi abuela los domingos.</span></li>
+</ul>
+<p class="es"><b>Cómo:</b> los adverbios de modo dicen <b>cómo</b> se hace algo. Casi siempre son el adjetivo + <b>-ly</b>: <i>quick → quickly</i>, <i>slow → slowly</i>, <i>careful → carefully</i>. Tres son especiales: <b>good → well</b>, <b>fast → fast</b>, <b>hard → hard</b>.</p>
+<ul class="ex">
+<li><b>She runs quickly.</b> <span class="es">— Corre rápido.</span></li>
+<li><b>He plays the guitar well.</b> <span class="es">— Toca bien la guitarra.</span></li>
+<li><b>Please walk carefully.</b> <span class="es">— Caminá con cuidado, por favor.</span></li>
+<li><b>They work hard at school.</b> <span class="es">— Trabajan duro en la escuela.</span></li>
+</ul>
+</details>
+
+<details><summary>Comparatives and superlatives <span class="es">· Comparar: más que / el más…</span></summary>
+<p class="es">Con <b>-er than</b> o <b>more … than</b> comparás dos cosas. Con <b>the -est</b> o <b>the most</b> decís cuál es el número uno.</p>
+<div class="tbl"><table>
+<tr><th>Adjetivo</th><th>Comparativo</th><th>Superlativo</th></tr>
+<tr><td>corto: tall</td><td><b>taller than</b></td><td><b>the tallest</b></td></tr>
+<tr><td>termina en e: nice</td><td><b>nicer than</b></td><td><b>the nicest</b></td></tr>
+<tr><td>una sílaba, vocal + consonante: big</td><td><b>bigger than</b></td><td><b>the biggest</b></td></tr>
+<tr><td>termina en y: happy</td><td><b>happier than</b></td><td><b>the happiest</b></td></tr>
+<tr><td>largo: expensive</td><td><b>more expensive than</b></td><td><b>the most expensive</b></td></tr>
+<tr><td>largo: interesting</td><td><b>more interesting than</b></td><td><b>the most interesting</b></td></tr>
+<tr><td>irregular: good</td><td><b>better than</b></td><td><b>the best</b></td></tr>
+<tr><td>irregular: bad</td><td><b>worse than</b></td><td><b>the worst</b></td></tr>
+</table></div>
+<ul class="ex">
+<li><b>My dog is bigger than my cat.</b> <span class="es">— Mi perro es más grande que mi gato.</span></li>
+<li><b>Football is more exciting than tennis.</b> <span class="es">— El fútbol es más emocionante que el tenis.</span></li>
+<li><b>This is the best pizza in town.</b> <span class="es">— Esta es la mejor pizza de la ciudad.</span></li>
+<li><b>Summer is hotter than winter.</b> <span class="es">— El verano es más caluroso que el invierno.</span></li>
+<li><b>Lucas is the tallest student in my class.</b> <span class="es">— Lucas es el alumno más alto de mi clase.</span></li>
+</ul>
+<div class="tip">Tres reglas: 1) cuando decís con qué comparás, va <b>than</b> después del comparativo (<i>bigger than my cat</i>); 2) no se dice <i>more bigger</i>: o <b>-er</b> o <b>more</b>; 3) el superlativo lleva <b>the</b> (o <i>my</i> / <i>your</i>): <i>the best pizza</i>, <i>my best friend</i>.</div>
+</details>
+
+<details><summary>The link word but <span class="es">· Para unir ideas: pero</span></summary>
+<p class="es"><b>But</b> une dos ideas que se oponen. Sirve para <b>alargar una respuesta corta</b>: en vez de decir solo «No.», decí «No, but…».</p>
+<ul class="ex">
+<li><b>I like pizza, but I don't like pasta.</b> <span class="es">— Me gusta la pizza, pero no la pasta.</span></li>
+<li><b>No, I can't cook, but I can make a sandwich.</b> <span class="es">— No, no sé cocinar, pero puedo hacer un sándwich.</span></li>
+<li><b>It was sunny, but it was cold.</b> <span class="es">— Hacía sol, pero hacía frío.</span></li>
+<li><b>Football is exciting, but tennis is easier.</b> <span class="es">— El fútbol es emocionante, pero el tenis es más fácil.</span></li>
+</ul>
+</details>
+
+<details><summary>Pronunciation of -ed <span class="es">· Los 3 sonidos del -ed</span></summary>
+<p class="es">En el pasado regular, el <b>-ed</b> final suena de <b>tres maneras</b>. No se dice «ed» siempre: se dice según el sonido anterior.</p>
+<div class="tbl"><table>
+<tr><th>Suena</th><th>Cuándo</th><th>Palabras</th></tr>
+<tr><td><b>/t/</b></td><td>después de sonidos «secos» (p, k, f, s, sh, ch)</td><td>walked · watched · jumped · cooked · helped · danced · washed</td></tr>
+<tr><td><b>/d/</b></td><td>después de sonidos «con voz» (b, g, l, m, n, r, v, z, vocales)</td><td>played · listened · called · cleaned · stayed · lived · travelled</td></tr>
+<tr><td><b>/id/</b> (una sílaba más)</td><td>después de t o d</td><td>wanted · visited · needed · painted · decided · started</td></tr>
+</table></div>
+<ul class="ex">
+<li><b>I walked to school.</b> <span class="es">— (walked termina en /t/)</span></li>
+<li><b>I played with my friends.</b> <span class="es">— (played termina en /d/)</span></li>
+<li><b>We visited my grandma.</b> <span class="es">— (visited termina en /id/: «VI-zi-tid»)</span></li>
+</ul>
+<div class="tip">Practicá <b>una palabra de cada sonido</b> en voz alta: walked · played · wanted. Que la voz suba y baje: no hables como robot.</div>
+</details>
+
+<h3 class="sec">Vocabulario por tema</h3>
+<div class="stack" id="vocab"></div>
+
+</div>
+</section>
+
+<!-- SPEAKING -->
+<section id="v-speak" hidden>
+<h2>Speaking</h2>
+<p class="lead">Practicá las <b>dos partes</b> del Trinity GESE Grade 4 con el examinador. Primero <b>tu tema</b>, con tu hoja de 4 puntos, y después una <b>conversación</b> sobre dos de los 6 temas: <i>Holidays</i>, <i>Shopping</i>, <i>School and work</i>, <i>Hobbies and sports</i>, <i>Food</i> y <i>Weekend and seasonal activities</i>. Él pregunta en voz alta y vos contestás hablando.</p>
+
+<div class="card" id="temaCard" style="margin-bottom:14px">
+  <h3 style="margin-top:0">📝 Mi tema <span class="es">· la hoja que le das al examinador</span></h3>
+  <p class="es">Elegí un tema <b>tuyo</b> (un cumpleaños, un viaje, tu deporte, tu mascota…) y escribí en inglés el título y los <b>4 puntos</b> de los que querés charlar. En cada punto elegí de qué trata: así el examinador te pregunta con el lenguaje del grado. Se guarda solo en este equipo.</p>
+  <label class="es" for="temaTitulo"><b>Title of my topic</b></label>
+  <input id="temaTitulo" class="tema-in" type="text" autocomplete="off" maxlength="60" placeholder="My best birthday">
+  <div class="tema-pt"><label class="es" for="temaP1"><b>Point 1</b></label><input id="temaP1" type="text" autocomplete="off" maxlength="80" placeholder="Who came and what we did"><select id="temaT1" aria-label="De qué trata el punto 1"></select><span class="es" id="temaA1"></span></div>
+  <div class="tema-pt"><label class="es" for="temaP2"><b>Point 2</b></label><input id="temaP2" type="text" autocomplete="off" maxlength="80" placeholder="What I liked best on the day"><select id="temaT2" aria-label="De qué trata el punto 2"></select><span class="es" id="temaA2"></span></div>
+  <div class="tema-pt"><label class="es" for="temaP3"><b>Point 3</b></label><input id="temaP3" type="text" autocomplete="off" maxlength="80" placeholder="Is it better than my other birthdays?"><select id="temaT3" aria-label="De qué trata el punto 3"></select><span class="es" id="temaA3"></span></div>
+  <div class="tema-pt"><label class="es" for="temaP4"><b>Point 4</b></label><input id="temaP4" type="text" autocomplete="off" maxlength="80" placeholder="Plans for my next birthday"><select id="temaT4" aria-label="De qué trata el punto 4"></select><span class="es" id="temaA4"></span></div>
+  <div class="sbtns"><button class="btn alt" id="temaIdeasBtn">💡 Ideas de temas</button><button class="btn ghost" id="temaImprimir">🖨️ Imprimir la hoja</button><button class="btn ghost" id="temaBorrar">🧹 Borrar</button></div>
+  <div class="chips" id="temaIdeas" hidden></div>
+  <p class="es" id="temaAviso" role="status"></p>
+</div>
+
+<div class="card" style="margin-bottom:14px">
+  <h3 style="margin-top:0">🎯 ¿Qué querés practicar?</h3>
+  <div class="modo-row">
+    <label class="es">Práctica <select id="g4modo"><option value="completo">Examen completo: tema + conversación</option><option value="tema">Sólo mi tema</option><option value="conv">Sólo la conversación</option></select></label>
+    <label class="es">Conversación <select id="g4area"></select></label>
+  </div>
+  <p class="es" style="margin-bottom:0">La pestaña <b>Examen</b> y el examinador con IA siempre hacen el examen completo.</p>
+</div>
+
+<ul class="plano">
+<li><b>💡 Ayudas:</b> entre las preguntas aparece <i>cómo se dice</i> en inglés lo que vas a necesitar. Tocá una para escucharla.</li>
+<li><b>📌 Tu punto:</b> mientras charlan de uno de tus 4 puntos, lo ves escrito arriba de la pregunta.</li>
+<li><b>❓ ¿Cómo se dice…?</b> escribí una palabra en español y te digo cómo se dice en inglés.</li>
+<li>Si la respuesta queda corta o le falta el lenguaje del grado (pasado, <i>going to</i>, comparar…), te da un ejemplo y te deja intentar de nuevo.</li>
+</ul>
+<details class="diag" id="diag"><summary>¿No anda la voz o el micrófono? Probar</summary>
+  <p class="es">1) Tocá <b>Probar</b> y hablá: la barra tiene que moverse. 2) Después decí <b>"hello, my name is…"</b> y fijate si aparece escrito.</p>
+  <div class="sbtns"><button class="btn" id="dgVoice">Probar voz</button><button class="btn alt" id="dgGo">Probar micrófono</button></div>
+  <div class="meter"><i id="dgLvl"></i></div>
+  <div id="dgHeard" class="heard" hidden></div>
+  <ol id="dgLog" class="log"></ol>
+</details>
+<div id="practice"></div>
+</section>
+
+<!-- EXAMEN -->
+<section id="v-exam" hidden>
+<h2>Examen oral</h2>
+<p class="lead">Simulacro del Trinity GESE Grade 4 (A2.2): <b>tu tema</b>, con tu hoja, y una conversación sobre <b>dos temas</b> que elige el examinador, hasta 10 minutos, sin ayudas y con preguntas distintas cada vez. Al final ves la nota: Distinction, Merit o Pass.</p>
+<div id="oral"></div>
+<h2 style="margin-top:32px">Repaso escrito</h2>
+<p class="lead">30 preguntas de gramática y vocabulario del grado. Cambian cada vez que empezás.</p>
+<div id="exam"></div>
+</section>
+</div>
+<p class="es" style="text-align:center;margin:22px 0 0">Otros módulos: <a href="../">Felu · Trinity Grade 3</a></p>
+<p id="buildInfo" class="es" style="text-align:center;margin:10px 0 40px;font-size:.78rem;opacity:.7"></p>
+<div id="rkVer" aria-hidden="true"></div>
+
+<script src="../comun.js?b=2026-11-02-modulos-2"></script>
+<script src="../contenido-g4.js?b=2026-11-02-modulos-2"></script>
+<script src="../motor.js?b=2026-11-02-modulos-2"></script>
+</body>
+</html>

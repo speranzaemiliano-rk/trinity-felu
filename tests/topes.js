@@ -38,7 +38,7 @@ const corre=async(nombre)=>{
   await ctx.close();return {n,errs}};
 let r;
 r=await corre('fuerte');chk('FUERTE: sin topes → nota 9 (A) y sin ajustes',r.n.num==='9'&&r.n.letra==='A'&&!r.n.aj&&r.errs.length===0);
-chk('FUERTE: la IA recibe los datos contados (7 respuestas, 0 sueltas, promedio de palabras)',/FACTS COUNTED BY THE APP: Felu answered 7 times; 0 answers were a single word; he stayed silent 0 times; 0 answers had Spanish words/.test(r.n.txt)&&/TRANSCRIPT:\nEXAMINER:/.test(r.n.txt));
+chk('FUERTE: la IA recibe los datos contados (7 respuestas, 0 sueltas, promedio de palabras)',/FACTS COUNTED BY THE APP: Felu answered 7 times; 0 answers were a single word; there was no answer 0 times; 0 answers had Spanish words; "I don't know" was said 0 times/.test(r.n.txt)&&/TRANSCRIPT:\nEXAMINER:/.test(r.n.txt));
 r=await corre('medio');chk('MEDIO (1 palabra suelta de 7): no se aplica ningún tope',r.n.num==='9'&&!r.n.aj);
 r=await corre('flojo');chk('FLOJO (4 de 7 respuestas de una palabra): fluidez ≤3, resto ≤5 → nota 4,5 y letra D',r.n.c[3]===3&&r.n.c[1]<=5&&r.n.c[0]<=5&&r.n.c[2]<=5&&r.n.num==='4,5'&&r.n.letra==='D');
 chk('FLOJO: la tarjeta explica el tope',/una sola palabra o silencio/.test(r.n.aj)&&/Fluidez \(máx\. 3\)/.test(r.n.aj));

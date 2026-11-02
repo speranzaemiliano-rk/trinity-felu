@@ -4,7 +4,7 @@
 const ord=["first","second","third","fourth","fifth","sixth","seventh","eighth","ninth","tenth","eleventh","twelfth","thirteenth","fourteenth","fifteenth","sixteenth","seventeenth","eighteenth","nineteenth","twentieth","twenty-first","twenty-second","twenty-third","twenty-fourth","twenty-fifth","twenty-sixth","twenty-seventh","twenty-eighth","twenty-ninth","thirtieth","thirty-first"];
 const irr=new Set([1,2,3,5,8,9,12,20,30]);
 const suf=n=>(n%10==1&&n!=11)?"st":(n%10==2&&n!=12)?"nd":(n%10==3&&n!=13)?"rd":"th";
-document.getElementById("ordinals").innerHTML=ord.map((w,i)=>{const n=i+1;return `<div role="button" tabindex="0" data-say="${w}" class="${irr.has(n)?'irr':''}"><span class="n">${n}${suf(n)}</span><span>${w}</span></div>`}).join("");
+{const _ord=document.getElementById("ordinals");if(_ord)_ord.innerHTML=ord.map((w,i)=>{const n=i+1;return `<div role="button" tabindex="0" data-say="${w}" class="${irr.has(n)?'irr':''}"><span class="n">${n}${suf(n)}</span><span>${w}</span></div>`}).join("");}
 
 // ---- conversación con el examinador (práctica y examen oral)
 document.addEventListener("click",e=>{if(e.target.id!=="dgVoice")return;
@@ -166,7 +166,7 @@ async function iaPedirReintentos(h,k,max,nota){   // a mitad de la charla se rei
 }
 async function iaPedir(messages,turn,max,nota){
   if(fbListo()){
-    const txt=await _fbGenerar({system:SISTEMA_IA+(_planIA?"\nSESSION PLAN (the page drew these topics and question ideas at random so that every exam is different; for the turns listed here it REPLACES the order of topics in the AGENDA above; turns 1, 2, 9, 13, max and max+1 stay exactly as in the AGENDA):\n"+_planIA:"")+"\nPICTURES AVAILABLE:\n"+PIC_LISTA.map(x=>x.e+" = "+x.d).join("\n")+"\nturn="+turn+" max="+max+(nota?"\nNOTE: "+nota:""),contents:_iaContents(messages),json:true,temp:.8,tokens:1500,
+    const txt=await _fbGenerar({system:SISTEMA_IA+(_planIA?"\n"+_planIA:"")+(PIC_LISTA.length?"\nPICTURES AVAILABLE:\n"+PIC_LISTA.map(x=>x.e+" = "+x.d).join("\n"):"")+"\nturn="+turn+" max="+max+(nota?"\nNOTE: "+nota:""),contents:_iaContents(messages),json:true,temp:.8,tokens:1500,
       schema:S=>S.object({properties:{reply:S.string(),ok:S.boolean(),tip:S.string(),model:S.string(),end:S.boolean(),picture:S.string(),hints:S.array({items:S.object({properties:{es:S.string(),en:S.string()}})}),help:S.string()}})});
     let o;
     try{o=_jsonDe(txt)}
@@ -229,8 +229,8 @@ function _evalTopes(c,h,pct){
 // lo que se le manda a la IA para corregir: los datos contados + la charla completa, con lo que mostraba cada dibujo
 function transcripcion(reg){
   const h=_evalHechos(reg);
-  const hechos="FACTS COUNTED BY THE APP: Felu answered "+h.n+" times; "+h.suelta+" answers were a single word; he stayed silent "+h.callado+" times; "+h.espanol+" answers had Spanish words; he said \"I don't know\" "+h.nose+" times; the average answer has "+h.prom+" words.\n\nTRANSCRIPT:\n";
-  return hechos+reg.map(x=>x.r==="E"?"EXAMINER: "+x.t+(x.pic?" [picture shown to the child: "+x.pic+"]":"")+(x.coach?" [the examiner helped the child here]":""):"FELU: "+x.t).join("\n").slice(0,7000);
+  const hechos="FACTS COUNTED BY THE APP: "+MOD.nombre+" answered "+h.n+" times; "+h.suelta+" answers were a single word; there was no answer "+h.callado+" times; "+h.espanol+" answers had Spanish words; \"I don't know\" was said "+h.nose+" times; the average answer has "+h.prom+" words."+(typeof evalExtra==="function"?" "+evalExtra(reg):"")+"\n\nTRANSCRIPT:\n";
+  return hechos+reg.map(x=>x.r==="E"?"EXAMINER: "+x.t+(x.pic?" [picture shown to the child: "+x.pic+"]":"")+(x.coach?" [the examiner helped the child here]":""):MOD.nombre.toUpperCase()+": "+x.t).join("\n").slice(0,7000);
 }
 // La nota la calcula la página (promedio de los 4 criterios), no la IA: así es siempre coherente con las barras que se ven.
 // Las frases que la IA dice que el chico dijo se comprueban contra lo que dijo de verdad (si inventó una, se descarta).
@@ -240,7 +240,7 @@ function _evalNorm(o,reg,pct){
   EVAL_CRIT.forEach(([k])=>{c[k]=ent(o&&o[k]);if(c[k]===null)throw new Error("la corrección vino incompleta")});
   const h=_evalHechos(reg);
   const pregunto=!!o.pregunto&&h.parecePregunta;   // la IA lo afirma Y hay alguna frase del chico que parece pregunta (si no, se lo inventó)
-  if(!pregunto)c.comprension=Math.min(c.comprension,6);   // en el Grade 3 el candidato tiene que hacerle al menos una pregunta al examinador
+  if(!pregunto&&(typeof pideDePregunta!=="function"||pideDePregunta()))c.comprension=Math.min(c.comprension,6);   // el candidato tiene que hacerle al menos una pregunta al examinador (Grade 3: en la charla; Grade 4: en el tema; si el módulo practicó sin esa parte, no se espera)
   const ajustes=_evalTopes(c,h,pct);
   const nota=Math.round(EVAL_CRIT.reduce((a,[k])=>a+c[k],0)/EVAL_CRIT.length*10)/10;
   const nrm=x=>String(x||"").toLowerCase().replace(/[^a-z0-9' ]+/g," ").replace(/\s+/g," ").trim();
@@ -784,7 +784,7 @@ function mountConv(rootId,mode){
     ${IA_ON?`<label class="chk"><input type="checkbox" id="${P}ia" ${IS_IOS?"":"checked"}> 🤖 Examinador con IA${IS_IOS?" <small>(en iPhone, con «tocar 🎤»)</small>":""}</label>`:""}</div>
   <div class="bar"><i id="${P}bar"></i></div>
   <div class="chat" id="${P}chat" aria-live="polite"><div class="msg tip">${E
-    ?"Como en el Trinity: el examinador charla con vos hasta 7 minutos y no te ayuda. Si no entendés, podés decir <b>\"Sorry, can you repeat, please?\"</b>"
+    ?"Como en el Trinity: el examinador charla con vos hasta "+MOD.minutos+" minutos y no te ayuda. Si no entendés, podés decir <b>\"Sorry, can you repeat, please?\"</b>"
     :"Tocá <b>Empezar</b>. Cuando veas <b>Te escucho</b>, contestá en voz alta y cuando termines tocá <b>Listo</b> (o hacé una pausa)."}</div></div>
   <div class="mic" id="${P}mic" hidden><span class="dot"></span><div class="live"><b id="${P}mict">Te escucho…</b><span id="${P}heard"></span><div class="meter lvl"><i id="${P}lvl"></i></div></div><button class="btn alt" id="${P}talk" hidden>🎤 Hablar</button><button class="btn" id="${P}done">Listo</button></div>
   <div class="status" id="${P}st" role="status" hidden></div>
@@ -1029,7 +1029,8 @@ function mountConv(rootId,mode){
     if(!extra.relleno)curQ=text;   // lo de relleno («Of course.», «Good try…») no reemplaza a la pregunta que «Repetir pregunta» tiene que decir
     registro.push({r:"E",t:String(text),pic:extra.picture&&picInfo(extra.picture)?picInfo(extra.picture).d:"",coach:/^Good try! You can say:/.test(text)});
     const pic=extra.picture?`<span class="bigpic" role="img" aria-label="dibujo">${esc(extra.picture)}</span><span class="piccap">🖼️ Mirá el dibujo</span>`:"";
-    const burbuja=bubble("ex"+(el("txt").checked?"":" hide"),`<span class="who">Examinador</span>${pic}${esc(text)}`);
+    const ctx=extra.contexto?`<span class="ctx">${esc(extra.contexto)}</span>`:"";   // p. ej. el punto de la hoja del tema que se está charlando (no se esconde aunque el texto del examinador sí)
+    const burbuja=bubble("ex"+(el("txt").checked?"":" hide"),`<span class="who">Examinador</span>${pic}${ctx}${esc(text)}`);
     mostrarAyudas(extra.hints);
     const sono=PERSISTENTE&&_cap?await decirManosLibres(text,burbuja):await say(text,status,{ex:true});
     rklog("examinador: "+(sono===false?"NINGUNA voz sonó":"voz ok"));
@@ -1040,7 +1041,7 @@ function mountConv(rootId,mode){
     }
     await new Promise(r=>setTimeout(r,120))}
   const check=(step,t)=>{const low=t.toLowerCase().replace(/[.,!?]/g,"");const tips=step.need.filter(([re])=>!re.test(low)).map(m=>m[1]);
-    if(!step.last&&low.split(/\s+/).filter(Boolean).length<3&&!tips.length)tips.push("Contestá con una oración completa.");return{low,tips}};
+    if(!step.last&&!step.corta&&low.split(/\s+/).filter(Boolean).length<3&&!tips.length)tips.push("Contestá con una oración completa.");return{low,tips}};
 
   let avisoSinVoz=false;
   let pts=0,total=0,review=[],registro=[],iaCaida=false;
@@ -1067,8 +1068,8 @@ function mountConv(rootId,mode){
   // Charla con IA: el examinador inventa las preguntas y reacciona a lo que dice el chico.
   // La IA juzga cada respuesta (ok/tip/model) en la vuelta SIGUIENTE, por eso se anota con "prev".
   async function conversationIA(id){
-    const max=14;let hist=[],prev=null;
-    _planIA=planIA();   // temas y preguntas-idea distintos en cada examen (ver planIA)
+    const max=MOD.iaMax||14;let hist=[],prev=null;
+    _planIA=planIA(E);   // temas y preguntas-idea distintos en cada examen (ver planIA)
     try{return await conversationIA2(id,max,hist,prev)}finally{_planIA=""}
   }
   async function conversationIA2(id,max,hist,prev){
@@ -1089,7 +1090,7 @@ function mountConv(rootId,mode){
         else{pts+=.4;review.push({q:prev,a:r.model||"…"});
           if(!E&&(r.tip||r.model))bubble("tip",`<b>Casi.</b> ${esc(r.tip||"")}${r.model?`<br>Ejemplo: <i>${esc(r.model)}</i>`:""}`)}}
       // dibujo: sólo de la lista; si habla de un dibujo y no mandó ninguno, se pone uno; si manda uno sin hablar de él, no se muestra
-      const habla=/picture|photo|image|drawing|look at (this|the)/i.test(r.reply);
+      const habla=PIC_LISTA.length>0&&/picture|photo|image|drawing|look at (this|the)/i.test(r.reply);
       let pic=picInfo(r.picture)?r.picture:"";
       if(!pic&&habla)pic=elegirDibujo(r.reply).e;
       if(pic&&!habla)pic="";
@@ -1109,13 +1110,14 @@ function mountConv(rootId,mode){
     if(PERSISTENTE)bubble("tip","🎙️ <b>Charla manos libres.</b> El examinador usa preguntas grabadas y vos contestás hablando, sin tocar nada. Si no entendés, decí <i>“Sorry, can you repeat, please?”</i>"+(avisoManosLibres?" (El examinador con IA habla con la voz del celular, que en iPhone no anda con el micrófono abierto: para usarlo tildá «Tocar 🎤 para hablar».)":""));
     if(IA_ON&&el("ia")&&el("ia").checked){const ok=await conversationIA(id);if(ok===false)return;if(ok===true){el("bar").style.width="100%";finish();return}}
     // el guion de siempre: preguntas distintas cada vez (banco grande, orden al azar, sin repetir lo reciente; ver armarPasos)
-    const steps=armarPasos(),preguntadas=new Set();
+    const steps=armarPasos(E?"exam":"practice"),preguntadas=new Set();
     for(let k=0;k<steps.length;k++){
       const step=steps[k];
-      el("n").textContent=`${E?"Examen oral":"Tema"} · ${k+1} de ${steps.length}`;el("bar").style.width=(k/steps.length*100)+"%";
+      el("n").textContent=`${step.rotulo||(E?"Examen oral":"Tema")} · ${k+1} de ${steps.length}`;el("bar").style.width=(k/steps.length*100)+"%";
       const q=(step.intro||"")+(step.last&&kidName?step.q.replace("Thank you.",`Thank you, ${kidName}.`):step.q);
       preguntadas.add(_audioKey(step.q));
-      await examiner(q,{picture:step.picture,hints:step.hints});if(run!==id)return;
+      await examiner(q,{picture:step.picture,hints:step.hints,contexto:step.contexto,relleno:!!step.solo});if(run!==id)return;
+      if(step.solo)continue;   // el examinador habla (p. ej. «Now let's talk about food.») y no se espera respuesta
       const low=await turn(step,id,q);if(run!==id||low===null)return;
       const fol=low?elegirSeguida(step,low,preguntadas):null;   // la repregunta sale a veces, no siempre
       if(low)await examiner(step.react(low));
@@ -1139,9 +1141,9 @@ function mountConv(rootId,mode){
     if(ev){guardarNota(ev,id);mostrarNota(ev);return}
     finishViejo("No pude conectarme con la IA para ponerte la nota ("+esc(_iaMsg(err))+"). Te dejo el resumen simple:");
   }
-  function notasGuardadas(){try{const a=JSON.parse(localStorage.getItem("trinity_notas")||"[]");return Array.isArray(a)?a:[]}catch(e){return[]}}
+  function notasGuardadas(){try{const a=JSON.parse(localStorage.getItem(MOD.notasKey)||"[]");return Array.isArray(a)?a:[]}catch(e){return[]}}
   const modoNota=()=>E?"examen":"charla";
-  function guardarNota(ev){try{const a=notasGuardadas();a.push({f:Date.now(),m:modoNota(),n:ev.nota});localStorage.setItem("trinity_notas",JSON.stringify(a.slice(-40)))}catch(e){}}
+  function guardarNota(ev){try{const a=notasGuardadas();a.push({f:Date.now(),m:modoNota(),n:ev.nota});localStorage.setItem(MOD.notasKey,JSON.stringify(a.slice(-40)))}catch(e){}}
   function mostrarNota(ev){
     const prev=notasGuardadas().filter(x=>x&&x.m===modoNota()&&isFinite(x.n)).slice(0,-1).slice(-4);   // la última es la que se acaba de guardar
     const col=v=>v>=7?"var(--good)":v>=5.5?"var(--accent)":"var(--bad)";
@@ -1333,7 +1335,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-02 · módulos 1";
+const BUILD="2026-11-02 · módulos 2";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};
@@ -1350,7 +1352,7 @@ const BUILD="2026-11-02 · módulos 1";
   function informe(n){
     const ua=navigator.userAgent,ios=(/OS (\d+[_\d]*) like Mac OS X/.exec(ua)||[])[1];
     let tap="(sin guardar)";try{tap=localStorage.getItem("trinity_tap2")||tap}catch(e){}
-    const l=["Informe Trinity · "+BUILD+" · "+new Date().toLocaleString("es-AR"),
+    const l=["Informe Trinity · "+MOD.id+" · "+BUILD+" · "+new Date().toLocaleString("es-AR"),
       "Dispositivo: "+(IS_IOS?"iPhone/iPad"+(()=>{const v=IOS_VER>=26?(/Version\/([\d.]+)/.exec(ua)||[])[1]:(ios?ios.replace(/_/g,"."):(IOS_VER||""));return v?" · iOS "+v:""})():/Android/i.test(ua)?"Android":"PC")+" · abierto en: "+modo()+" · pantalla "+innerWidth+"x"+innerHeight,
       (n?null:"Navegador: "+ua)+(n?"":(IOS_VER?" · iOS/Safari "+IOS_VER:"")+" · app instalada: "+(esInstalada()?"sí":"no")),
       "audioSession: "+((navigator.audioSession&&navigator.audioSession.type)||"no disponible")+" · IA conectada: "+(fbListo()?"sí":"no")+" · tocar 🎤: "+tap+" · velocidad: "+VEL_EX+" · voz iPhone: "+VOZ_IOS,
@@ -1493,7 +1495,8 @@ pastilla();
   async function revisar(alAbrir){
     const ahora=Date.now();if(avisado||ahora-ultimo<8000)return;ultimo=ahora;   // (varios eventos seguidos no repiten la consulta)
     try{
-      const r=await fetch(BASE+"motor.js?c="+ahora,{cache:"no-store"});   // la versión vive en motor.js (la comparten todos los módulos)if(!r.ok)return;
+      const r=await fetch(BASE+"motor.js?c="+ahora,{cache:"no-store"});   // la versión vive en motor.js (la comparten todos los módulos)
+      if(!r.ok)return;
       const m=/const BUILD="([^"]+)"/.exec(await r.text());
       if(!m||m[1]===BUILD)return;
       let yaProbo="";try{yaProbo=sessionStorage.getItem("rk_recarga")||""}catch(e){}

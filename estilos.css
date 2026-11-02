@@ -251,3 +251,5 @@ ul.plano{margin:.3rem 0;padding-left:1.15rem}ul.plano li{margin:.4rem 0}
 .hchip:active,.hchip.pressed{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 30%,var(--paper))}
 .bigpic{display:block;font-size:3.6rem;line-height:1.15;margin:2px 0 2px;color:var(--ink);-webkit-text-fill-color:initial;text-shadow:none;user-select:none}
 .piccap{display:block;font-size:.75rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);-webkit-text-fill-color:initial;margin-bottom:6px}
+/* el punto de la hoja del tema que se está charlando: queda a la vista aunque el texto del examinador esté escondido */
+.ctx{display:block;margin:4px 0 6px;padding:6px 10px;border-radius:10px;background:color-mix(in srgb,var(--accent) 22%,var(--paper));border:1px dashed color-mix(in srgb,var(--accent) 70%,var(--ink));font-size:.92rem;font-weight:700;color:var(--ink);-webkit-text-fill-color:initial;text-shadow:none;user-select:text}

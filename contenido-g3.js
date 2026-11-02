@@ -1,6 +1,6 @@
 // MÓDULO 1 · Trinity GESE Grade 3 (Felu). Contenido: preguntas del examinador, dibujos, textos para la IA, vocabulario y examen escrito.
 // El motor (motor.js) es el mismo para todos los módulos y lee de acá lo que necesita (ver README, «Módulos»).
-const MOD={id:"g3",grado:3,nombre:"Felu",titulo:"Trinity GESE Grade 3",minutos:7,notasKey:"trinity_notas"};
+const MOD={id:"g3",grado:3,nombre:"Felu",titulo:"Trinity GESE Grade 3",minutos:7,notasKey:"trinity_notas",iaMax:14};
 const OPEN=[
  {q:"Hello! Come in and sit down, please. How are you today?",a:"I'm fine, thank you. And you?",
   need:[[/fine|\bgood\b|great|\bok\b|okay|\bwell\b|happy/,"Decí cómo estás: \"I'm fine, thank you\"."]],
@@ -573,7 +573,7 @@ const TEMAS_IA={
  pasado:"PAST (was / were: where he was yesterday or last weekend, was it fun, who was with him)"
 };
 let _planIA="";
-function planIA(){
+function planIA(esExamen){
   const V=vistasLeer(),n=(V._n||0)+1;V._n=n;
   const turnos=[3,4,5,6,7,8,10,11,12],orden=shuffleA(["casa","barrio","barrio","escuela","rutina","libre","clima","fecha","pasado"]),usadas=new Set();
   const lineas=turnos.map((t,i)=>{
@@ -582,7 +582,7 @@ function planIA(){
     return " turn "+t+": "+TEMAS_IA[g]+'\n   Question idea (say it naturally in your own simple words; react to his last answer first): "'+x.q+'"';
   });
   vistasGuardar(V);
-  return lineas.join("\n");
+  return "SESSION PLAN (the page drew these topics and question ideas at random so that every exam is different; for the turns listed here it REPLACES the order of topics in the AGENDA above; turns 1, 2, 9, 13, max and max+1 stay exactly as in the AGENDA):\n"+lineas.join("\n");
 }
 // Herramienta para generar los audios (no la usa la página): todas las frases que puede decir el examinador de siempre. Ver tools/audio/.
 window.rkTextosGuion=function(){

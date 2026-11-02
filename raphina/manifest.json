@@ -1,0 +1,30 @@
+{
+  "name": "Trinity GESE Grade 4 · Raphina",
+  "short_name": "Trinity 4",
+  "description": "Guía de estudio, tema preparado, práctica oral y examen de práctica para Trinity GESE Grade 4.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8f6fd",
+  "theme_color": "#6d3fc4",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "id": "/trinity-felu/raphina/"
+}

@@ -30,3 +30,13 @@ La IA (Firebase AI Logic) y el audio del iPhone **se simulan**: App Check no dej
 | `nota.js`, `topes.js` | nota con IA y sus topes |
 | `pics.js` | dibujos del examinador con IA |
 | `guion.js`, `ia_ui.js` | charla de siempre y pantalla con IA |
+| `g4_banco.js` | Raphina (Grade 4): el banco del examinador —preguntas por función, áreas, tema, hoja de ejemplo—, los textos para la IA y que cada respuesta modelo cumpla lo que pide |
+| `g4_charla.js` | Raphina: charlas completas (tema + 2 áreas, sólo tema, sólo conversación), pregunta obligatoria al examinador en el tema, variedad entre charlas y nota en su propia clave |
+| `g4_cobertura.js` | Raphina: todo lo que puede decir el examinador, lo que se toca para estudiar y las preguntas del repaso escrito tienen audio grabado |
+| `g4_ia.js` | Raphina con IA (simulada): plan de la sesión, turnos, nota y topes |
+| `g4_hoja.js` | la hoja del tema: se completa, se guarda, avisa lo que falta, ideas, imprimir, modo de práctica |
+| `g4_estudio.js` | la pantalla de estudio de Raphina (todo se toca para escuchar) y el repaso escrito de 30 preguntas |
+| `g4_revision.js` | lo que salió de la revisión independiente del inglés de Raphina: la respuesta del examinador a la pregunta de quien rinde (sí/no según el auxiliar, datos generales para where/when/who/how), el repaso escrito con UNA respuesta posible y sin pista de «a/an», saludo y despedida que no traban, reacciones que valen para cualquier respuesta (y que acompañan si lo que se cuenta es triste), expresiones del pasado/comparativos/adverbios sin falsos positivos, y los textos de la IA |
+| `g4_sitio.js` | el sitio completo como en GitHub Pages: rutas de las páginas, `/raphina/` pide el motor y los audios de la raíz, manifiesto e íconos, service worker simulado (instala todo, sin internet cada módulo abre SU página), aviso de versión nueva y datos de Felu y Raphina separados |
+
+Antes de publicar: correr **todas** (`for f in tests/*.js; do node $f | tail -1; done`), porque los dos módulos comparten el motor. Después de subir, probar el sitio publicado con `URL=https://speranzaemiliano-rk.github.io/trinity-felu/raphina/ node tests/g4_<nombre>.js` (todas las `g4_` menos `g4_sitio.js` —que arma su propio «sitio»— aceptan `URL`).

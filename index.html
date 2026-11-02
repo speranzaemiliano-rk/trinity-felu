@@ -147,6 +147,7 @@ h3.sec{font-family:var(--display);font-weight:800;font-size:1.2rem;color:var(--m
 .rk-chip{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font:800 1.05rem var(--body);padding:14px 8px;border-radius:14px;border:2px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
 .rk-chip small{font-weight:600;color:var(--muted);font-size:.75rem}
 .rk-chip[aria-pressed="true"]{border-color:var(--good);background:var(--good-bg)}
+.rk-pwa{background:color-mix(in srgb,var(--accent) 22%,var(--paper));color:var(--ink);border:2px solid var(--accent);border-radius:14px;padding:12px 14px;margin:0 0 12px;font-size:.92rem;line-height:1.4}
 #rkVer{position:fixed;left:8px;bottom:calc(env(safe-area-inset-bottom,0px) + 4px);z-index:40;font:700 10px/1 var(--body);color:var(--muted);background:color-mix(in srgb,var(--paper) 82%,transparent);padding:3px 7px;border-radius:8px;opacity:.85;pointer-events:none}
 .rk-nuevo{position:fixed;left:10px;right:10px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:70;display:flex;align-items:center;gap:10px;background:var(--accent);color:var(--accent-ink);padding:10px 12px;border-radius:14px;font-weight:800;box-shadow:0 8px 24px var(--shadow)}
 .rk-nuevo span{flex:1;font-size:.95rem;line-height:1.25}
@@ -866,6 +867,9 @@ const IA_ON=fbListo()||!!IA_URL;
 const IS_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
 // Con IA, la voz se graba y se transcribe: anda igual en PC, Android e iPhone (el dictado del navegador falla en muchos equipos).
 let sttRec=IA_ON;
+// iOS 26 o más nuevo + app instalada: Apple tiene un error abierto (WebKit 295518 y 291892) que deja mudo el audio de las apps instaladas: play() responde bien y no suena
+const IOS_VER=(function(){const m=/Version\/(\d+)/.exec(navigator.userAgent);return IS_IOS&&m?parseInt(m[1],10):0})();
+const esInstalada=()=>!!(navigator.standalone||(window.matchMedia&&matchMedia("(display-mode: standalone)").matches));
 
 // Dibujos que puede mostrar el examinador. La IA elige SOLO de esta lista y sabe qué muestra cada uno,
 // así puede corregir si la respuesta del chico coincide con el dibujo (antes no lo sabía y aprobaba cualquier cosa).
@@ -1226,10 +1230,15 @@ if(synth){pickVoice();if(synth.addEventListener)synth.addEventListener("voicesch
 // "touchstart" y "pointerdown" no cuentan. Por eso se reintenta en cada toque hasta que una voz arranque de verdad (_voiceOk).
 let _voiceOk=false,_unlockPend=false,_localMuda=false,_iaVozAgotada=false;
 let MP3_OK=true,SIN_VOZ=false;   // los pone la «Revisión de sonido» según lo que la persona dice que escucha (ver abrirSonido)
-function unlockVoice(){
+let _unlockN=0;
+function unlockVoice(forzar){
+  forzar=forzar===true;   // (como oyente de eventos recibe el evento: sólo cuenta el true explícito)
   unlockAudioEl();
   if(!synth||_voiceOk||_unlockPend)return;
-  _unlockPend=true;setTimeout(()=>{_unlockPend=false},2500);
+  // la voz silenciosa de «desbloqueo» no puede arrancar con un audio sonando: en Safari, speechSynthesis.speak interrumpe los demás medios (WebKit 218815) y cortaba al examinador (AbortError)
+  if(_audioSonando())return;
+  if(_unlockN>=3&&!forzar)return;   // no se repite en cada toque
+  _unlockN++;_unlockPend=true;setTimeout(()=>{_unlockPend=false},2500);
   try{const u=new SpeechSynthesisUtterance("ok");u.volume=0;u.lang="en-GB";u.onstart=()=>{_voiceOk=true};u.onend=()=>{_voiceOk=true};synth.speak(u)}catch(e){}
 }
 ["click","touchend","keydown"].forEach(ev=>document.addEventListener(ev,unlockVoice,{capture:true,passive:true}));
@@ -1255,8 +1264,16 @@ const velVoz=()=>VEL_EX==="rapida"?1.12:.95;    // voz del navegador
 let _aud=null,_audOk=false,_playCorta=null;
 const _SILENCIO="audio/silencio.mp3";
 function unlockAudioEl(){   // iPhone: el primer play() tiene que ocurrir dentro de un toque; después el mismo elemento puede sonar solo
-  if(_audOk)return;_audOk=true;
-  try{_aud=_aud||new Audio();_aud.src=_SILENCIO;const p=_aud.play();if(p&&p.catch)p.catch(()=>{_audOk=false})}catch(e){_audOk=false}
+  if(_audOk||_playCorta)return;   // (con un audio de verdad sonando no se le cambia el origen)
+  _audOk=true;
+  try{_aud=_aud||new Audio();_aud.src=_SILENCIO;const p=_aud.play();
+    if(p&&p.catch)p.catch(e=>{if(e&&e.name==="AbortError")return;_audOk=false})}   // AbortError = otro audio lo reemplazó: no es un rechazo del navegador
+  catch(e){_audOk=false}
+}
+const _audioSonando=()=>!!(_playCorta||(_aud&&!_aud.paused&&!_aud.ended));
+function _pararAudio(){   // un audio grabado sonando se corta antes de hablar con la voz del celular (en Safari se interrumpen entre sí)
+  if(_playCorta){_playCorta();_playCorta=null}
+  try{if(_aud&&!_aud.paused)_aud.pause()}catch(e){}
 }
 let _audErr="";
 // Registro corto de lo que pasó con la voz y el micrófono: se copia desde 🔧 Diagnóstico → 📋 Copiar informe (para revisar sin consola ni capturas)
@@ -1269,9 +1286,18 @@ function _playUrl(url,vel){
     const cortar=()=>ok(true);_playCorta=cortar;
     const a=_aud||(_aud=new Audio());a.onended=()=>ok(true);a.onerror=()=>{_audErr="error del reproductor "+(a.error?a.error.code:"?");ok(false)};
     t=setTimeout(()=>ok(false),20000);
-    a.src=url;try{a.defaultPlaybackRate=vel||1;a.playbackRate=vel||1}catch(e){}
-    rklog("audio play "+String(url).replace(/^.*\//,"").slice(0,22));
-    const pl=a.play();if(pl&&pl.catch)pl.catch(e=>{_audErr=e&&e.name?e.name:"no se pudo reproducir";ok(false)});
+    let intentos=0;
+    const arrancar=()=>{
+      intentos++;
+      try{if(synth&&(synth.speaking||synth.pending))synth.cancel()}catch(e){}   // una voz pendiente (p. ej. la de desbloqueo) interrumpiría este audio
+      a.src=url;try{a.defaultPlaybackRate=vel||1;a.playbackRate=vel||1}catch(e){}
+      rklog("audio play "+String(url).replace(/^.*\//,"").slice(0,22)+(intentos>1?" (reintento "+intentos+")":""));
+      const pl=a.play();
+      if(pl&&pl.catch)pl.catch(e=>{
+        if(e&&e.name==="AbortError"&&intentos<3&&!fin){setTimeout(()=>{if(!fin)arrancar()},150);return}   // algo interrumpió el arranque: se vuelve a intentar
+        _audErr=e&&e.name?e.name:"no se pudo reproducir";ok(false)});
+    };
+    arrancar();
   });
 }
 const TTS_MODELOS=["gemini-2.5-flash-preview-tts","gemini-3.1-flash-tts-preview"];
@@ -1323,11 +1349,17 @@ function sayOnline(t){
   partes.forEach(x=>{if((cur+x).length>180&&cur){trozos.push(cur);cur=x}else cur+=x});if(cur.trim())trozos.push(cur);
   return trozos.reduce((pr,tr)=>pr.then(ok=>ok===false?false:_playUrl("https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en-GB&q="+encodeURIComponent(tr.trim()))),Promise.resolve(true));
 }
+// clave del audio grabado de una frase; si lleva un nombre («Thank you, Felu.») y sólo existe grabada SIN el nombre, se usa ésa (en pantalla queda el nombre)
+function _claveAudio(t){
+  const k=_audioKey(t);if(_AUDIO_SET.has(k))return k;
+  const k2=_audioKey(String(t).replace(/,\s+[A-ZÁÉÍÓÚÑ][\wáéíóúñ]+(?=[.!?]|$)/,""));
+  return _AUDIO_SET.has(k2)?k2:null;
+}
 function say(t,status,op){   // op.ex = lo dice el examinador (velocidad configurable)
-  const k=_audioKey(t);
+  const k=_claveAudio(t);
   if(SIN_VOZ){rklog("say [sin voz: en este equipo no se oye nada] "+String(t).slice(0,44));return Promise.resolve(false)}
-  rklog("say "+(_AUDIO_SET.has(k)&&MP3_OK?"[mp3] ":"[voz] ")+String(t).slice(0,44));
-  if(_AUDIO_SET.has(k)&&MP3_OK){unlockVoice();return _playUrl("audio/"+k+".mp3",op&&op.ex?velAudio():1).then(ok=>{if(ok)return true;if(status)status("⚠️ El audio no pudo sonar ("+_audErr+"). Probando otra voz…");return _sayResto(t,status,op)})}
+  rklog("say "+(k&&MP3_OK?"[mp3] ":"[voz] ")+String(t).slice(0,44));
+  if(k&&MP3_OK){unlockVoice();return _playUrl("audio/"+k+".mp3",op&&op.ex?velAudio():1).then(ok=>{if(ok)return true;if(status)status("⚠️ El audio no pudo sonar ("+_audErr+"). Probando otra voz…");return _sayResto(t,status,op)})}
   return _sayResto(t,status,op);
 }
 async function _sayResto(t,status,op){   // devuelve true si algo sonó
@@ -1359,7 +1391,12 @@ function pastilla(){   // rincón de la pantalla: versión + qué se oyó en la 
   const r=leerSonido(),e=document.getElementById("rkVer");if(!e)return;
   e.textContent=BUILD+" · sonido: "+(r?(r.tts&&r.mp3?"ok":r.mp3?"sólo grabado":r.tts?"sólo celular":"no se oye"):"sin revisar");
 }
-function leerSonido(){try{return JSON.parse(localStorage.getItem("trinity_sonido")||"null")}catch(e){return null}}
+function leerSonido(){
+  try{const r=JSON.parse(localStorage.getItem("trinity_sonido")||"null");if(!r)return null;
+    const edad=r.t?Date.now()-r.t:0,vence=(r.tts&&r.mp3)?30*864e5:(!r.tts&&!r.mp3)?10*60e3:864e5;   // «no se oye nada» suele ser pasajero (silencio, volumen, Bluetooth): no se guarda para siempre
+    return edad>vence?null:r}
+  catch(e){return null}
+}
 function aplicarSonido(r){
   if(!r)return;
   MP3_OK=r.mp3!==0;_localMuda=r.tts===0;SIN_VOZ=r.tts===0&&r.mp3===0;
@@ -1390,7 +1427,7 @@ function abrirSonido(alTerminar){
     caja().querySelector("#rkSnPlay").onclick=jugar;caja().querySelector("#rkSnCerrar").onclick=cerrar;
   }
   async function jugar(){
-    unlockVoice();unlockAudioEl();   // dentro del toque
+    unlockVoice(true);unlockAudioEl();   // dentro del toque
     const pTts=sayLocal("Monday",()=>{},{});   // la voz del celular tiene que EMPEZAR dentro del toque
     caja().innerHTML='<h3>🔊 Escuchando…</h3><p>Prestá atención: primero «Monday», después «Tuesday».</p>';
     rklog("prueba de sonido: empieza");
@@ -1422,7 +1459,8 @@ function abrirSonido(alTerminar){
     else if(r.tts){ico="🗣️";txt="Se oye la voz del celular pero <b>no el audio grabado</b>: el examinador va a hablar sólo con la voz del celular."}
     else{ico="😕";txt="No se oyó nada. Revisá el <b>volumen</b>, el <b>modo silencio</b> 🔕 y que no haya <b>auriculares, Bluetooth o AirPlay</b> conectados (Centro de control → ícono de audio) y probá de nuevo. Mientras tanto vas a poder <b>leer</b> las preguntas en pantalla."}
     pastilla();
-    caja().innerHTML=`<h3>${ico} Resultado</h3><p>${txt}</p>
+    const pwa=(IS_IOS&&esInstalada()&&!(r.tts&&r.mp3))?'<p><b>Estás en la app instalada:</b> en iOS 26 y 27 el audio de las apps instaladas puede fallar (error de Apple, ver WebKit 295518). Probá abriendo el sitio en <b>Safari</b>, no desde el ícono.</p>':'';
+    caja().innerHTML=`<h3>${ico} Resultado</h3><p>${txt}</p>${pwa}
       <p class="es">Si seguís sin oír al examinador, sacá una captura de esta pantalla: acá abajo está el informe.</p>
       <textarea class="rk-inf" readonly rows="8" aria-label="Informe">${esc(window.rkInforme?window.rkInforme(12):"")}</textarea><p class="es" id="rkSnMsg"></p>
       <div class="sbtns"><button class="btn" id="rkSnGo">${alTerminar?"Empezar":"Cerrar"}</button><button class="btn ghost" id="rkSnOtra">🔁 Escuchar de nuevo</button><button class="btn ghost" id="rkSnCopiar">📋 Copiar informe</button></div>`;
@@ -1436,7 +1474,7 @@ function sayLocal(t,status,op){
   return new Promise(res=>{
     const fallback=()=>setTimeout(res,Math.min(6000,600+t.length*55));
     if(!synth){return sayOnline(t).then(ok=>{if(!ok)status("Este navegador no puede leer en voz alta. Abrí el link en <b>Chrome</b> o <b>Edge</b>.");return !!ok})}
-    unlockVoice();if(!_cap)audioSesion("playback");   // sólo mientras habla la voz del navegador (con el micrófono abierto no se toca el modo)
+    _pararAudio();unlockVoice();if(!_cap)audioSesion("playback");   // sólo mientras habla la voz del navegador (con el micrófono abierto no se toca el modo)
     let started=false,ended=false,tries=0;
     const maxMs=Math.max(12000,t.length*160+6000);
     const fin=()=>{if(ended)return;ended=true;ttsKeepAlive(false);if(!_cap)audioSesion("auto");rklog("voz del navegador: fin"+(started?"":" SIN haber empezado"));res(started)};
@@ -1471,7 +1509,7 @@ let micPermState="unknown";
 // «Tocar 🎤 para hablar»: se recuerda en el equipo (en un iPhone donde Safari no deja abrir el micrófono solo, queda activado)
 const TAP_GUARDADO=(function(){try{return localStorage.getItem("trinity_tap")==="1"}catch(e){return false}})();
 function recordarTap(on){try{localStorage.setItem("trinity_tap",on?"1":"0")}catch(e){}document.querySelectorAll('input[id$="-tap"]').forEach(x=>x.checked=!!on)}
-const SONIDO_OK=(function(){try{const r=JSON.parse(localStorage.getItem("trinity_sonido")||"null");return !!(r&&r.tts&&r.mp3)}catch(e){return false}})();   // ya se confirmó que se oyen las dos voces
+const SONIDO_OK=(function(){const r=leerSonido();return !!(r&&r.tts&&r.mp3)})();   // ya se confirmó que se oyen las dos voces
 const MSG_MIC_DENEGADO=()=>IS_IOS?"El iPhone no dejó usar el micrófono. Arreglalo así: en Safari tocá <b>aA</b> (a la izquierda de la dirección) → <b>Configuración del sitio web</b> → <b>Micrófono → Permitir</b>. Después tocá <b>🎤 Probar el micrófono otra vez</b>, acá abajo. (Si abriste el link desde WhatsApp, Instagram o un mail, abrilo en <b>Safari</b>.) Mientras tanto, escribí o dictá con el 🎤 del teclado:":"No hay permiso para el micrófono. Tocá el candado junto a la dirección → Micrófono → Permitir. Después tocá <b>🎤 Probar el micrófono otra vez</b>, acá abajo. Mientras tanto, escribí:";
 async function prepMic(){
   if(micPermState==="ok")return "ok";
@@ -2128,7 +2166,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-01 · voz arreglada 7";
+const BUILD="2026-11-02 · voz arreglada 9";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};
@@ -2147,7 +2185,7 @@ const BUILD="2026-11-01 · voz arreglada 7";
     let tap="(sin guardar)";try{tap=localStorage.getItem("trinity_tap")||tap}catch(e){}
     const l=["Informe Trinity · "+BUILD+" · "+new Date().toLocaleString("es-AR"),
       "Dispositivo: "+(IS_IOS?"iPhone/iPad"+(ios?" · iOS "+ios.replace(/_/g,"."):""):/Android/i.test(ua)?"Android":"PC")+" · abierto en: "+modo()+" · pantalla "+innerWidth+"x"+innerHeight,
-      "Navegador: "+ua,
+      "Navegador: "+ua+(IOS_VER?" · iOS/Safari "+IOS_VER:"")+" · app instalada: "+(esInstalada()?"sí":"no"),
       "audioSession: "+((navigator.audioSession&&navigator.audioSession.type)||"no disponible")+" · IA conectada: "+(fbListo()?"sí":"no")+" · tocar 🎤: "+tap+" · velocidad: "+VEL_EX+" · voz iPhone: "+VOZ_IOS,
       "Voz del navegador desbloqueada: "+(_voiceOk?"sí":"no")+" · voz del celular descartada: "+(_localMuda?"sí":"no")+" · voz de la IA agotada: "+(_iaVozAgotada?"sí":"no")+" · permiso de micrófono: "+micPermState+" · revisión de sonido: "+(localStorage.getItem("trinity_sonido")||"(sin hacer)")+" · audio grabado usado: "+(MP3_OK?"sí":"no")+" · sin voz: "+(SIN_VOZ?"sí":"no"),
       "--- registro (lo último, abajo) ---"].concat(_RK.length?_RK.slice(-(n||80)):["(todavía no pasó nada: hacé una charla y volvé a copiar)"]);
@@ -2230,6 +2268,18 @@ if("serviceWorker"in navigator&&location.protocol==="https:")navigator.serviceWo
 // ---- ¿Hay una versión nueva? En el iPhone una app que vuelve del fondo NO se recarga sola: puede quedar horas o días con la versión vieja en memoria
 // («sigue igual» aunque ya esté arreglado). Al abrir se recarga sola si quedó una versión vieja; al volver del fondo sólo avisa, para no cortar lo que se estaba haciendo.
 pastilla();
+(function(){   // iPhone con iOS 26+ y la app instalada: se avisa del error de Apple y se explica cómo usarla en Safari
+  if(!(IS_IOS&&IOS_VER>=26&&esInstalada()))return;
+  const hoy=new Date().toISOString().slice(0,10);let visto="";try{visto=localStorage.getItem("trinity_aviso_pwa")||""}catch(e){}
+  if(visto===hoy)return;
+  const d=document.createElement("div");d.className="rk-pwa";d.setAttribute("role","note");
+  d.innerHTML='<b>⚠️ Estás usando la app instalada.</b> En iPhone con iOS 26 o más nuevo, las apps instaladas <b>pueden quedarse sin audio</b> (error de Apple, todavía sin arreglar). Si no escuchás al examinador, abrí este sitio en <b>Safari</b> (no desde el ícono).<div class="sbtns" style="margin-top:8px"><button class="btn ghost" id="rkPwaCopiar">📋 Copiar dirección</button><button class="btn ghost" id="rkPwaOk">Entendido</button></div><p class="es" id="rkPwaMsg" style="margin:6px 0 0"></p>';
+  const nav=document.querySelector("nav");if(!nav)return;nav.parentNode.insertBefore(d,nav);
+  d.querySelector("#rkPwaCopiar").onclick=async()=>{let ok=false;const url=location.origin+location.pathname;
+    try{await navigator.clipboard.writeText(url);ok=true}catch(e){}
+    d.querySelector("#rkPwaMsg").textContent=ok?"✅ Dirección copiada: abrí Safari, pegala en la barra y listo.":"Abrí Safari y escribí: "+url};
+  d.querySelector("#rkPwaOk").onclick=()=>{try{localStorage.setItem("trinity_aviso_pwa",hoy)}catch(e){}d.remove()};
+})();
 (function(){
   if(location.protocol!=="https:")return;
   let avisado=false,ultimo=0;

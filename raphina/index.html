@@ -7,14 +7,14 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <script src="../firebase-config.js"></script>
 <script src="../audio/manifest.js"></script>
-<script>window.RK_BASE="../";</script>
+<script>window.RK_BASE="../";try{localStorage.setItem("trinity_ultimo","4")}catch(e){}</script>
 <meta name="theme-color" content="#6d3fc4">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@400;600;800&display=swap">
-<link rel="stylesheet" href="../estilos.css?b=2026-11-02-modulos-2">
+<link rel="stylesheet" href="../estilos.css?b=2026-11-02-modulos-3">
 <style>
 /* Módulo de Raphina: mismos estilos que el de Felu, con otra paleta (violeta) */
 :root{--bg:#f8f6fd;--ink:#2b1d5c;--muted:#66608f;--line:#e5dff3;--blue:#6d3fc4}
@@ -34,6 +34,11 @@ header::before{content:"🌟"}
 <body>
 
 <div class="wrap">
+<nav class="modbar" aria-label="Módulos">
+  <a class="home" href="../">🏠 Inicio</a>
+  <a href="../felu/">Trinity 3</a>
+  <a class="on" href="./" aria-current="page">Trinity 4</a>
+</nav>
 <header>
   <h1>Trinity GESE <span>Grade 4</span></h1>
   <p>Módulo de Raphina: guía de estudio, tema preparado, práctica oral y examen de práctica.</p>
@@ -370,12 +375,12 @@ header::before{content:"🌟"}
 <div id="exam"></div>
 </section>
 </div>
-<p class="es" style="text-align:center;margin:22px 0 0">Otros módulos: <a href="../">Felu · Trinity Grade 3</a></p>
+<p class="es" style="text-align:center;margin:22px 0 0"><a href="../">🏠 Inicio</a> · Otros módulos: <a href="../felu/">Felu · Trinity Grade 3</a></p>
 <p id="buildInfo" class="es" style="text-align:center;margin:10px 0 40px;font-size:.78rem;opacity:.7"></p>
 <div id="rkVer" aria-hidden="true"></div>
 
-<script src="../comun.js?b=2026-11-02-modulos-2"></script>
-<script src="../contenido-g4.js?b=2026-11-02-modulos-2"></script>
-<script src="../motor.js?b=2026-11-02-modulos-2"></script>
+<script src="../comun.js?b=2026-11-02-modulos-3"></script>
+<script src="../contenido-g4.js?b=2026-11-02-modulos-3"></script>
+<script src="../motor.js?b=2026-11-02-modulos-3"></script>
 </body>
 </html>

@@ -16,7 +16,7 @@ export function getGenerativeModel(ai,params){return {async generateContent(req)
   return {response:{text:()=>'hi'}};}}}`)));
 await p.addInitScript(()=>{try{localStorage.setItem('trinity_sonido3','{"tts":1,"mp3":1,"mp3d":1,"ttsd":1,"mp3a":1}')}catch(e){};Object.defineProperty(window,'webkitSpeechRecognition',{value:undefined,configurable:true});Object.defineProperty(window,'SpeechRecognition',{value:undefined,configurable:true});
   speechSynthesis.speak=u=>{setTimeout(()=>u.onstart&&u.onstart(),20);setTimeout(()=>u.onend&&u.onend(),120)}});
-await p.goto('file://'+require('path').resolve(__dirname,'..','index.html'));
+await p.goto('file://'+require('path').resolve(__dirname,'..','felu','index.html'));
 await p.click('#t-speak');await p.click('#practice-start');
 await p.waitForFunction(()=>window.rkInforme&&window.rkInforme().split('\n').filter(l=>/ say \[/.test(l)).length>=4,null,{timeout:170000});   // 4 frases del examinador (manos libres: preguntas grabadas)
 await p.click('#practice-stop');await p.waitForTimeout(400);

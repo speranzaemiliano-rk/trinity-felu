@@ -4,7 +4,7 @@
 const {chromium}=require('playwright');
 const path=require('path');
 const fs=require('fs');
-const PAGINAS=['index.html','raphina/index.html'];   // una por módulo: al sumar un módulo se agrega su página acá
+const PAGINAS=['felu/index.html','raphina/index.html'];   // una por módulo: al sumar un módulo se agrega su página acá
 (async()=>{
   const b=await chromium.launch();
   const todo=new Map();

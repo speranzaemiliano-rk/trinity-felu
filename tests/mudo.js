@@ -42,7 +42,7 @@ async function pagina(b,o){
     AudioBufferSourceNode.prototype.start=function(){const s=this;suena(3,()=>{s.onended&&s.onended()})};
     speechSynthesis.speak=u=>{setTimeout(()=>u.onstart&&u.onstart(),20);setTimeout(()=>u.onend&&u.onend(),80)};
   },o);
-  await p.goto('http://localhost:'+PORT+'/index.html');
+  await p.goto('http://localhost:'+PORT+'/felu/index.html');
   await p.evaluate(()=>{ECO_MIN_MS=300});
   return {p,ctx};
 }

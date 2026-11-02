@@ -1,12 +1,15 @@
 # Trinity GESE · Grade 3 (Felu) y Grade 4 (Raphina)
 
 Sitio de estudio y práctica para el examen oral Trinity GESE, con **un módulo por grado** que comparten el mismo motor. Sin build: se edita y se sube.
-Se publica en GitHub Pages y cada módulo se puede instalar como app aparte (ícono y datos propios).
+Se publica en GitHub Pages. **La dirección de siempre es el INICIO: un menú para entrar al Trinity 3 o al Trinity 4**; cada módulo tiene arriba una barra («🏠 Inicio · Trinity 3 · Trinity 4») para volver o pasar al otro en un toque.
 
-| Módulo | Para | Examen | Dirección |
+| Pantalla | Para | Qué es | Dirección |
 |---|---|---|---|
-| **Grade 3** | Felu | charla de 7 minutos con el examinador | https://speranzaemiliano-rk.github.io/trinity-felu/ |
-| **Grade 4** | Raphina | 10 minutos: tema preparado + conversación | https://speranzaemiliano-rk.github.io/trinity-felu/raphina/ |
+| **Inicio** | todos | el menú con las dos opciones (marca «Última vez» el que se abrió último en ese aparato) | https://speranzaemiliano-rk.github.io/trinity-felu/ |
+| **Trinity 3** (Grade 3) | Felu | charla de 7 minutos con el examinador | https://speranzaemiliano-rk.github.io/trinity-felu/felu/ |
+| **Trinity 4** (Grade 4) | Raphina | 10 minutos: tema preparado + conversación | https://speranzaemiliano-rk.github.io/trinity-felu/raphina/ |
+
+Instalar como app: lo más cómodo es instalar el **Inicio** (queda un solo ícono «Trinity» que abre el menú); los módulos también se pueden instalar solos (cada uno con su ícono y su `id`). Los tres manifiestos tienen alcance sobre todo el sitio, así «Inicio» y el otro módulo abren dentro de la misma app. Hasta la versión «módulos 2» el Grade 3 vivía en la raíz (`/`): quien lo tenga instalado ahora abre el menú y entra con un toque.
 
 ## Cómo está armado
 
@@ -18,8 +21,9 @@ Nada se compila: son archivos que el navegador carga en este orden. **El motor n
 | `comun.js` | lo que usan todos: `BASE`, ayudas (`$`, `esc`, `pick`, `shuffleA`…), las frases de siempre (`REPITE`, `NO_OIGO`…) y la memoria de «lo ya preguntado» (`vistasLeer`/`vistasGuardar`/`elegirNuevo`) |
 | `contenido-g3.js` · `contenido-g4.js` | **todo lo que es de un grado**: el objeto `MOD` (id, nombre, minutos, claves de almacenamiento), el guion del examinador, los textos de la IA, el vocabulario con sus dibujos y el banco del repaso escrito |
 | `motor.js` | voz, micrófono, iPhone manos libres, revisión de sonido, IA, nota, repaso escrito y aviso de versión nueva. Lee a `MOD` y a los ganchos del contenido |
-| `index.html` · `raphina/index.html` | la página de cada módulo (misma estructura; otra paleta y otros textos). `raphina/` también tiene su `manifest.json` y sus íconos |
-| `sw.js` | el service worker, **uno solo para todo el sitio**: guarda las dos páginas para abrirlas sin internet y cada una cae en la suya |
+| `index.html` | **el inicio**: el menú para entrar al Trinity 3 o al 4. Es una página sola (sin el motor), con su `manifest.json` y sus íconos en la raíz |
+| `felu/index.html` · `raphina/index.html` | la página de cada módulo (misma estructura; otra paleta y otros textos), con la barra «Inicio · Trinity 3 · Trinity 4» arriba. Cada carpeta tiene su `manifest.json` y sus íconos |
+| `sw.js` | el service worker, **uno solo para todo el sitio**: guarda el inicio y los dos módulos para abrirlos sin internet y cada uno cae en el suyo |
 
 **Lo que define un contenido** (`contenido-gN.js`): `MOD`, `VISTAS_KEY`, `armarPasos(vista)` (la lista de pasos de la charla), `planIA(esExamen)` (el plan al azar que se le pasa a la IA), `SISTEMA_IA`, `SISTEMA_EVAL`, `PROMPT_TRANSCRIBIR`, `EVAL_CRIT`, `PIC_LISTA`, `VOCAB`, `DIB*`, `bank` y `rkTextosGuion()` (todas las frases que puede decir el examinador, para generar los audios). Opcionales: `evalExtra(reg)` (datos que cuenta la página para corregir) y `pideDePregunta()` (si en ese momento se exige que le pregunte algo al examinador). Un **paso** de la charla es `{g, q, a, need, hints, react, follow, …}`; el Grade 4 sumó `rotulo` (la etiqueta de la burbuja), `contexto` (una línea fija sobre la pregunta, p. ej. el punto del tema), `solo` (el examinador habla y no espera respuesta: «Let's talk about food») y `corta` (acepta una respuesta corta).
 
@@ -27,15 +31,16 @@ Nada se compila: son archivos que el navegador carga en este orden. **El motor n
 ```
 node tools/version.js "2026-11-03 · lo que cambió"
 ```
-(pone el `BUILD`, actualiza la marca `?b=` de todas las páginas y sube el número del caché de `sw.js`).
+(pone el `BUILD`, actualiza la marca `?b=` de todas las páginas y sube el número del caché de `sw.js`). El inicio no carga el motor ni lleva marca: el service worker pide siempre primero la red, así que se actualiza solo.
 
-**Los datos de cada módulo** (mismo sitio = mismo `localStorage`) llevan su propio prefijo: Felu `trinity_notas` y `trinity_vistas`; Raphina `trinity_g4_notas`, `trinity_g4_vistas`, `trinity_g4_tema` (la hoja del tema) y `trinity_g4_modo`. Lo que es **del aparato** se comparte a propósito: la revisión de sonido (`trinity_sonido3`), la voz y la velocidad (`trinity_voz2`, `trinity_vel`), «tocar 🎤» (`trinity_tap2`), la estrategia de audio (`trinity_estr`) y la URL de la IA (`trinity_ia_url`): el celular suena igual en los dos módulos y no tiene sentido hacer la revisión de sonido dos veces.
+**Los datos de cada módulo** (mismo sitio = mismo `localStorage`) llevan su propio prefijo: Felu `trinity_notas` y `trinity_vistas`; Raphina `trinity_g4_notas`, `trinity_g4_vistas`, `trinity_g4_tema` (la hoja del tema) y `trinity_g4_modo`. Lo que es **del aparato** se comparte a propósito: la revisión de sonido (`trinity_sonido3`), la voz y la velocidad (`trinity_voz2`, `trinity_vel`), «tocar 🎤» (`trinity_tap2`), la estrategia de audio (`trinity_estr`) y la URL de la IA (`trinity_ia_url`): el celular suena igual en los dos módulos y no tiene sentido hacer la revisión de sonido dos veces. También es del aparato `trinity_ultimo` (3 o 4): cada módulo anota que se abrió y el inicio marca ese como «Última vez».
 
 **Para sumar otro módulo** (otro grado u otro chico):
 1. Copiá `contenido-g4.js` como `contenido-gN.js`; cambiá `MOD` y **todas las claves de almacenamiento** (con un prefijo propio) y reescribí el contenido.
-2. Copiá la carpeta `raphina/` con otro nombre; en su `index.html` cambiá textos, paleta y el `<script src="../contenido-gN.js?b=…">`; en `manifest.json` cambiá `name`, `short_name`, `id` y colores (un `id` distinto es lo que hace que se instale como otra app).
-3. Sumá los archivos nuevos a `ARCHIVOS` de `sw.js` (si uno falta, el service worker no se instala) y la página a `PAGINAS` de `tools/audio/lista.js`.
-4. Generá los audios (ver «Audios grabados»), escribí `tests/gN_*.js` y corré `node tools/version.js "…"`.
+2. Copiá la carpeta `raphina/` con otro nombre; en su `index.html` cambiá textos, paleta y el `<script src="../contenido-gN.js?b=…">` (y el `trinity_ultimo` del `<head>`); en `manifest.json` cambiá `name`, `short_name`, `id` y colores (un `id` distinto es lo que hace que se instale como otra app; el `scope` queda en `../`).
+3. **Sumalo al menú:** una tarjeta más en el `index.html` de la raíz y un enlace más en la barra `.modbar` de **todas** las páginas de módulos (si no, desde los otros módulos no se llega).
+4. Sumá los archivos nuevos a `ARCHIVOS` de `sw.js` (si uno falta, el service worker no se instala; ahí también va la carpeta con la barra final, `./carpeta/`) y la página a `PAGINAS` de `tools/audio/lista.js`.
+5. Generá los audios (ver «Audios grabados»), escribí `tests/gN_*.js`, sumá el módulo a `tests/sitio.js` y corré `node tools/version.js "…"`.
 
 ## Módulo de Raphina · Trinity GESE Grade 4 (`/raphina/`)
 
@@ -106,7 +111,7 @@ node lista.js      # debe decir «faltan: 0»
 Los modelos a usar están en `firebase-config.js` (`models`); si uno no existe, prueba el siguiente.
 
 ### Alternativa: worker propio
-`ia-worker/` tiene un Cloudflare Worker equivalente (ver su README). Se activa abriendo el sitio una vez con `?ia=<URL del worker>`.
+`ia-worker/` tiene un Cloudflare Worker equivalente (ver su README). Se activa abriendo un módulo una vez con `?ia=<URL del worker>` (por ejemplo `…/trinity-felu/felu/?ia=…`: el inicio no lo lee); queda guardado en el aparato (`trinity_ia_url`) y vale para los dos módulos.
 
 ## Pruebas
-`tests/` tiene las pruebas de punta a punta (Playwright + Chromium con micrófono falso; la IA y el audio del iPhone se simulan, porque Firebase App Check no deja que corra desde un entorno de pruebas). Se corre cada una con `node tests/<nombre>.js` (hace falta `npm i playwright`); ver `tests/README.md`. Las que empiezan con `g4_` son las del módulo de Raphina; `g4_sitio.js` prueba el sitio completo (rutas, service worker sin internet, versión nueva y que los datos de los dos módulos no se mezclen). Antes de publicar conviene correr **todas**: los dos módulos comparten el motor.
+`tests/` tiene las pruebas de punta a punta (Playwright + Chromium con micrófono falso; la IA y el audio del iPhone se simulan, porque Firebase App Check no deja que corra desde un entorno de pruebas). Se corre cada una con `node tests/<nombre>.js` (hace falta `npm i playwright`); ver `tests/README.md`. Las que empiezan con `g4_` son las del módulo de Raphina; `sitio.js` prueba el sitio completo (el menú de inicio y la barra para pasar de un módulo al otro, rutas, service worker sin internet, versión nueva y que los datos de los dos módulos no se mezclen). Antes de publicar conviene correr **todas**: los dos módulos comparten el motor.

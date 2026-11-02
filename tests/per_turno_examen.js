@@ -30,7 +30,7 @@ export function getGenerativeModel(ai,params){return {async generateContent(req)
       window.AudioContext=function(){const c=new Real();if(window.__bloquear){Object.defineProperty(c,'state',{get:()=>'suspended'});c.resume=()=>new Promise(()=>{})}return c};
       window.AudioContext.prototype=Real.prototype;window.webkitAudioContext=window.AudioContext}
   },o||{});
-  await p.goto(process.env.URL||'file://'+require('path').resolve(__dirname,'..','index.html'));
+  await p.goto(process.env.URL||'file://'+require('path').resolve(__dirname,'..','felu','index.html'));
   await p.evaluate(()=>{window.say=async t=>{window.__ev.push(String(t).slice(0,30));
     window.__vivoEnSay.push({vivas:window.__pistas.filter(x=>x.readyState==='live').length,ctx:(typeof _actx!=='undefined'&&_actx)?_actx.state:'cerrado',sesion:navigator.audioSession.type})}});
   return p;

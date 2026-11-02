@@ -17,7 +17,7 @@ export function getGenerativeModel(ai,params){return {async generateContent(req)
     return {response:{text:()=>JSON.stringify({reply:'Nice! Question number '+n+'?',ok:true,tip:'',model:'',end:false,picture:'',hints:[],help:''})}}}
   return {response:{text:()=>'hi'}};}}}`)));
  await p.addInitScript(()=>{try{localStorage.setItem('trinity_sonido3','{"tts":1,"mp3":1,"mp3d":1,"ttsd":1,"mp3a":1}')}catch(e){};Object.defineProperty(window,'webkitSpeechRecognition',{value:undefined,configurable:true});Object.defineProperty(window,'SpeechRecognition',{value:undefined,configurable:true});window.__ev=[]});
- await p.goto('file://'+require('path').resolve(__dirname,'..','index.html'));
+ await p.goto('file://'+require('path').resolve(__dirname,'..','felu','index.html'));
  await p.evaluate(()=>{window.say=async t=>{window.__ev.push(String(t).slice(0,30))}});
  await p.click('#t-speak');
  chk(nombre+': en reposo la caja roja NO se ve',!(await vis(p,'practice-mic')));

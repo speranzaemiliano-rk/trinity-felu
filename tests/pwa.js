@@ -21,7 +21,7 @@ async function pagina(b,o){
       return Promise.resolve()}},o);
   const p=await ctx.newPage();p.errs=[];p.on('pageerror',e=>p.errs.push(e.message));
   await p.route('**/firebase-config.js',r=>r.fulfill({status:200,contentType:'application/javascript',body:'window.TRINITY_FB={config:{},models:[]};'}));
-  await p.goto('file://'+require('path').resolve(__dirname,'..','index.html'));
+  await p.goto('file://'+require('path').resolve(__dirname,'..','felu','index.html'));
   return {p,ctx};
 }
 const banner=p=>p.evaluate(()=>{const e=document.querySelector('.rk-pwa');return !!(e&&getComputedStyle(e).display!=='none'&&e.getBoundingClientRect().height>0)});

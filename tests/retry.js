@@ -16,7 +16,7 @@ await p.addInitScript(()=>{
   const real=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
   navigator.mediaDevices.getUserMedia=async c=>{if(window.__negar)throw new DOMException('denied','NotAllowedError');return real(c)};
   speechSynthesis.speak=u=>{setTimeout(()=>u.onstart&&u.onstart(),5);setTimeout(()=>u.onend&&u.onend(),30)};});
-await p.goto('file://'+require('path').resolve(__dirname,'..','index.html'));
+await p.goto('file://'+require('path').resolve(__dirname,'..','felu','index.html'));
 await p.click('#t-speak');await p.click('#practice-start');
 await p.waitForFunction(()=>!document.getElementById('practice-type').hidden,null,{timeout:30000});
 const txt=()=>p.evaluate(()=>({tmsg:document.getElementById('practice-tmsg').innerText.slice(0,120),kb:document.getElementById('practice-kb').textContent,typeVisible:!document.getElementById('practice-type').hidden}));

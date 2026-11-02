@@ -26,7 +26,7 @@ async function pagina(ctx,o){
     HTMLMediaElement.prototype.play=function(){const src=this.src.split('/').pop();if(!/silencio/.test(src))window.__mp3.push(src);const s=this;
       Object.defineProperty(s,'paused',{value:false,configurable:true});
       setTimeout(()=>{if(s.src.split('/').pop()!==src)return;Object.defineProperty(s,'paused',{value:true,configurable:true});s.onended&&s.onended()},80);return Promise.resolve()}},o);
-  await p.goto(process.env.URL||'file://'+require('path').resolve(__dirname,'..','index.html'));
+  await p.goto(process.env.URL||'file://'+require('path').resolve(__dirname,'..','felu','index.html'));
   return p;
 }
 async function recorrer(p,marcas){   // marcas: [[chips del paso 1],[paso 2],[paso 3]]

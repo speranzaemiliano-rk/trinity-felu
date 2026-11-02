@@ -29,7 +29,7 @@ async function pagina(b,o){
     HTMLMediaElement.prototype.play=function(){const src=this.src.split('/').pop();if(!/silencio/.test(src))window.__mp3.push(src);const s=this;
       Object.defineProperty(s,'paused',{value:false,configurable:true});
       setTimeout(()=>{if(s.src.split('/').pop()!==src)return;Object.defineProperty(s,'paused',{value:true,configurable:true});s.onended&&s.onended()},120);return Promise.resolve()}},o);
-  await p.goto(process.env.URL||'file://'+require('path').resolve(__dirname,'..','index.html'));
+  await p.goto(process.env.URL||'file://'+require('path').resolve(__dirname,'..','felu','index.html'));
   await p.evaluate(()=>{const orig=window.say;window.__say0=orig;
     window.say=function(t,st,op){window.__dichos.push({t:String(t).slice(0,40),vivas:window.__pistas.filter(x=>x.readyState==='live').length,persistente:PERSISTENTE,ctx:(typeof _actx!=='undefined'&&_actx)?_actx.state:'cerrado',sesion:navigator.audioSession.type});return orig(t,st,op)}});
   return {p,ctx};

@@ -1,16 +1,30 @@
 {
-  "name": "Trinity GESE Grade 3",
+  "name": "Trinity GESE",
   "short_name": "Trinity",
-  "description": "Guía de estudio, práctica oral y examen de práctica para Trinity GESE Grade 3.",
+  "description": "Estudio y práctica oral para Trinity GESE: Trinity 3 (Felu) y Trinity 4 (Raphina).",
   "lang": "es",
+  "id": "/trinity-felu/",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f7f8fc",
-  "theme_color": "#3157d5",
+  "background_color": "#f4f3fc",
+  "theme_color": "#4a4fcf",
   "icons": [
-    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
-    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
-    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

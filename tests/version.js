@@ -2,7 +2,7 @@
 const {chromium}=require('playwright');const fs=require('fs');const path=require('path');
 const RAIZ=require('path').resolve(__dirname,'..');const D=require('path').join(__dirname,'assets')+'/';
 // la versión vive en motor.js (lo comparten todos los módulos): el «servidor» sirve el motor real o uno con versión «vieja»
-const INDEX=fs.readFileSync(RAIZ+'/index.html','utf8');
+const INDEX=fs.readFileSync(RAIZ+'/felu/index.html','utf8');   // la página de Felu (el inicio, en la raíz, es sólo un menú)
 const MOTOR=fs.readFileSync(RAIZ+'/motor.js','utf8');const BUILD_REAL=/const BUILD="([^"]+)"/.exec(MOTOR)[1];
 const MOTOR_VIEJO=MOTOR.replace(/const BUILD="[^"]*"/,'const BUILD="vieja"');
 const TIPOS={'.css':'text/css','.js':'application/javascript','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.html':'text/html; charset=utf-8','.mp3':'audio/mpeg'};
@@ -21,9 +21,9 @@ async function nuevo(b,srv){
   await ctx.route('https://www.gstatic.com/firebasejs/**/firebase-ai.js',r=>r.fulfill(js(MOCK_AI)));
   let ultimaEsV=false;   // la última carga del documento fue una recarga con ?v= (el motor que le sigue es el nuevo, salvo ignorarV)
   await ctx.route('https://trinity.test/**',async r=>{
-    const u=new URL(r.request().url());let f=u.pathname==='/'?'/index.html':u.pathname;
+    const u=new URL(r.request().url());let f=u.pathname==='/felu/'?'/felu/index.html':u.pathname;
     if(f==='/firebase-config.js')return r.fulfill(js(`window.TRINITY_FB={config:{apiKey:"k",projectId:"p",appId:"a"},models:["m1"]};`));
-    if(f==='/index.html'){
+    if(f==='/felu/index.html'){
       ultimaEsV=/[?&]v=\d+/.test(u.search);docs.push(u.pathname+u.search);
       return r.fulfill({status:200,contentType:'text/html; charset=utf-8',headers:{'cache-control':'no-store'},body:INDEX});
     }
@@ -46,13 +46,13 @@ const res=[];const chk=(n,v)=>{res.push(!!v);console.log(v?'✓':'✗',n)};
 let t,srv;
 
 // D) misma versión: no pasa nada
-srv={documento:'real',sonda:'real'};t=await nuevo(b,srv);await t.p.goto('https://trinity.test/');await t.p.waitForTimeout(4500);
+srv={documento:'real',sonda:'real'};t=await nuevo(b,srv);await t.p.goto('https://trinity.test/felu/');await t.p.waitForTimeout(4500);
 chk('misma versión: no recarga ni muestra cartel (cargas: '+t.p.docs.length+')',t.p.docs.length===1&&!(await banner(t.p)));
 chk('la versión se ve siempre en un rincón: «'+BUILD_REAL+' · sonido: …»',(await t.p.evaluate(b=>{const e=document.getElementById('rkVer');const r=e.getBoundingClientRect();return e.textContent.indexOf(b)===0&&r.height>0&&r.bottom<=innerHeight&&r.left>=0},BUILD_REAL)));
 await t.ctx.close();
 
 // A) se abre con una versión vieja guardada: se recarga sola UNA vez y queda la nueva
-srv={documento:'vieja',sonda:'real'};t=await nuevo(b,srv);await t.p.goto('https://trinity.test/');
+srv={documento:'vieja',sonda:'real'};t=await nuevo(b,srv);await t.p.goto('https://trinity.test/felu/');
 await t.p.waitForFunction(()=>typeof BUILD!=='undefined'&&BUILD!=='vieja',null,{timeout:15000}).catch(()=>{});
 await t.p.waitForTimeout(1200);
 const urlFinal=t.p.url(),ver=await t.p.evaluate(()=>BUILD);
@@ -63,13 +63,13 @@ chk('abre vieja: sin cartel y sin errores',!(await banner(t.p))&&t.p.errs.length
 await t.ctx.close();
 
 // B) recarga y sigue vieja (caché del navegador): NO entra en un ciclo, avisa
-srv={documento:'vieja',sonda:'real',ignorarV:true};t=await nuevo(b,srv);await t.p.goto('https://trinity.test/');
+srv={documento:'vieja',sonda:'real',ignorarV:true};t=await nuevo(b,srv);await t.p.goto('https://trinity.test/felu/');
 await t.p.waitForFunction(()=>true);await t.p.waitForTimeout(9000);
 chk('sigue vieja tras recargar: se detiene (cargas: '+t.p.docs.length+') y muestra el cartel',t.p.docs.length===2&&(await banner(t.p)));
 await t.ctx.close();
 
 // C) vuelve del fondo con la versión vieja en memoria: sólo avisa; «Actualizar» recarga
-srv={documento:'vieja',sonda:'vieja'};t=await nuevo(b,srv);await t.p.goto('https://trinity.test/');await t.p.waitForTimeout(3500);
+srv={documento:'vieja',sonda:'vieja'};t=await nuevo(b,srv);await t.p.goto('https://trinity.test/felu/');await t.p.waitForTimeout(3500);
 chk('en memoria con versión vieja y el servidor aún sin novedades: sin cartel',!(await banner(t.p)));
 srv.sonda='real';   // se publica una versión nueva mientras la app estaba en el fondo
 await t.p.waitForTimeout(8000);
@@ -81,7 +81,7 @@ chk('tocar «Actualizar» carga la versión nueva ('+(await t.p.evaluate(()=>BUI
 await t.ctx.close();
 
 // E) en medio de una charla no se recarga ni se corta: sólo avisa
-srv={documento:'vieja',sonda:'vieja'};t=await nuevo(b,srv);await t.p.goto('https://trinity.test/');
+srv={documento:'vieja',sonda:'vieja'};t=await nuevo(b,srv);await t.p.goto('https://trinity.test/felu/');
 await t.p.click('#t-speak');await t.p.click('#practice-start');
 await t.p.waitForFunction(()=>document.querySelector('#practice-chat .msg.kid'),null,{timeout:40000});
 srv.sonda='real';await t.p.waitForTimeout(9000);await t.p.evaluate(()=>{document.dispatchEvent(new Event('visibilitychange'))});await t.p.waitForTimeout(1500);

@@ -20,7 +20,7 @@ export function getGenerativeModel(ai,params){return {async generateContent(req)
   return {response:{text:()=>JSON.stringify(turnos[Math.min(n-1,turnos.length-1)])}};
 }}}`)));
 await p.addInitScript(()=>{Object.defineProperty(window,'webkitSpeechRecognition',{value:undefined,configurable:true});Object.defineProperty(window,'SpeechRecognition',{value:undefined,configurable:true});window.__dichos=[];});
-await p.goto('file://'+require('path').resolve(__dirname,'..','index.html'));
+await p.goto('file://'+require('path').resolve(__dirname,'..','felu','index.html'));
 await p.evaluate(()=>{window.say=async t=>{window.__dichos.push(t)}});
 await p.click('#t-speak');await p.evaluate(()=>{const c=document.getElementById('practice-tap');if(c)c.checked=true});await p.click('#practice-start');
 await p.waitForSelector('#practice-talk:not([hidden])',{timeout:20000});

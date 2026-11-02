@@ -253,3 +253,10 @@ ul.plano{margin:.3rem 0;padding-left:1.15rem}ul.plano li{margin:.4rem 0}
 .piccap{display:block;font-size:.75rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--blue);-webkit-text-fill-color:initial;margin-bottom:6px}
 /* el punto de la hoja del tema que se está charlando: queda a la vista aunque el texto del examinador esté escondido */
 .ctx{display:block;margin:4px 0 6px;padding:6px 10px;border-radius:10px;background:color-mix(in srgb,var(--accent) 22%,var(--paper));border:1px dashed color-mix(in srgb,var(--accent) 70%,var(--ink));font-size:.92rem;font-weight:700;color:var(--ink);-webkit-text-fill-color:initial;text-shadow:none;user-select:text}
+
+/* Barra de módulos (arriba de cada módulo): volver al inicio o pasar al otro módulo en un toque */
+nav.modbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px;padding:0;border:0;border-radius:0;background:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;font-family:var(--body);font-weight:800;font-size:.92rem}   /* (no es la barra de pestañas: sin el cartel de «nav») */
+.modbar a{display:inline-flex;align-items:center;min-height:36px;padding:6px 14px;border-radius:999px;border:2px solid var(--line);background:var(--paper);color:var(--ink);text-decoration:none;-webkit-tap-highlight-color:transparent}
+.modbar a.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.modbar a.home{margin-right:auto}
+.modbar a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}

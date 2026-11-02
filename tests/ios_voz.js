@@ -23,7 +23,7 @@ export function getGenerativeModel(ai,params){return {async generateContent(req)
     if(gesto)desbloqueado=true;
     window.__speak.push(u.text);setTimeout(()=>u.onstart&&u.onstart(),5);setTimeout(()=>u.onend&&u.onend(),30)};
  },escenario);
- await p.goto('file://'+require('path').resolve(__dirname,'..','index.html'));
+ await p.goto('file://'+require('path').resolve(__dirname,'..','felu','index.html'));
  await p.evaluate(()=>{VOZ_IOS='celu'});
  await p.click('#t-speak');
  // el chico toca (apoya el dedo y levanta): primero touchstart/pointerdown y después click, como en un iPhone

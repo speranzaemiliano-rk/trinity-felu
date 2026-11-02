@@ -6,7 +6,7 @@ for(let v=0;v<vueltas;v++){
   const ctx=await b.newContext({viewport:{width:430,height:900},serviceWorkers:'block'});const p=await ctx.newPage();
   await p.route('**/firebase-config.js',r=>r.fulfill({status:200,contentType:'application/javascript',body:'window.TRINITY_FB={config:{},models:[]};'}));
   await p.addInitScript(()=>{Object.defineProperty(window,'webkitSpeechRecognition',{value:undefined,configurable:true});Object.defineProperty(window,'SpeechRecognition',{value:undefined,configurable:true});window.__dichos=[]});
-  await p.goto('file://'+require('path').resolve(__dirname,'..','index.html'));
+  await p.goto('file://'+require('path').resolve(__dirname,'..','felu','index.html'));
   await p.evaluate(()=>{window.say=async t=>{window.__dichos.push(String(t))}});
   const exam=v%2===1;const pre=exam?'oral-':'practice-';
   await p.click(exam?'#t-exam':'#t-speak');

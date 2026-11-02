@@ -33,7 +33,7 @@ async function pagina(b,ctx,opts){
   await p.route('https://www.gstatic.com/firebasejs/**/firebase-ai.js',r=>r.fulfill(js(MOCK)));
   await p.addInitScript(o=>{Object.defineProperty(window,'webkitSpeechRecognition',{value:undefined,configurable:true});Object.defineProperty(window,'SpeechRecognition',{value:undefined,configurable:true});
     window.__dichos=[];window.__vioEspera=false;setInterval(()=>{if(document.body&&/corrigiendo tu examen/.test(document.body.innerText))window.__vioEspera=true},40);window.__evalMode=o.evalMode;window.__finEn=o.finEn;window.__evalLento=o.lento||0},opts);
-  await p.goto(process.env.URL||'file://'+require('path').resolve(__dirname,'..','index.html'));
+  await p.goto(process.env.URL||'file://'+require('path').resolve(__dirname,'..','felu','index.html'));
   await p.evaluate(()=>{window.say=async t=>{window.__dichos.push(t)}});
   return p;
 }

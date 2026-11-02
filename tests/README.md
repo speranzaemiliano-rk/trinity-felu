@@ -8,7 +8,7 @@ node tests/variedad.js
 ```
 
 Cada una imprime ✓/✗ por chequeo y termina con `TODO OK` (código 0) o `HAY FALLOS`.
-Se puede probar el sitio publicado con `URL=https://speranzaemiliano-rk.github.io/trinity-felu/ node tests/<nombre>.js` (no todas lo admiten).
+Se puede probar el sitio publicado con `URL=https://speranzaemiliano-rk.github.io/trinity-felu/felu/ node tests/<nombre>.js` (las de Felu; las `g4_` con `…/raphina/`; no todas lo admiten). Ojo: la raíz del sitio es el **inicio** (el menú), no un módulo.
 
 La IA (Firebase AI Logic) y el audio del iPhone **se simulan**: App Check no deja pasar desde un entorno de pruebas y nadie puede oír un iPhone desde afuera.
 `mudo.js`, `formas.js` y `resume.js` simulan lo que oye el micrófono para probar la lógica; que el audio suene de verdad en un iPhone sólo se puede confirmar en el iPhone.
@@ -37,6 +37,6 @@ La IA (Firebase AI Logic) y el audio del iPhone **se simulan**: App Check no dej
 | `g4_hoja.js` | la hoja del tema: se completa, se guarda, avisa lo que falta, ideas, imprimir, modo de práctica |
 | `g4_estudio.js` | la pantalla de estudio de Raphina (todo se toca para escuchar) y el repaso escrito de 30 preguntas |
 | `g4_revision.js` | lo que salió de la revisión independiente del inglés de Raphina: la respuesta del examinador a la pregunta de quien rinde (sí/no según el auxiliar, datos generales para where/when/who/how), el repaso escrito con UNA respuesta posible y sin pista de «a/an», saludo y despedida que no traban, reacciones que valen para cualquier respuesta (y que acompañan si lo que se cuenta es triste), expresiones del pasado/comparativos/adverbios sin falsos positivos, y los textos de la IA |
-| `g4_sitio.js` | el sitio completo como en GitHub Pages: rutas de las páginas, `/raphina/` pide el motor y los audios de la raíz, manifiesto e íconos, service worker simulado (instala todo, sin internet cada módulo abre SU página), aviso de versión nueva y datos de Felu y Raphina separados |
+| `sitio.js` | el sitio completo como en GitHub Pages: el **inicio** (menú) abre el Trinity 3 y el Trinity 4 y los módulos tienen la barra para volver o pasar al otro; rutas de las tres páginas, que cada módulo pida el motor y los audios de la raíz, los tres manifiestos e íconos (ids distintos), service worker simulado (instala todo; sin internet el inicio y cada módulo abren SU página), aviso de versión nueva y datos de Felu y Raphina separados |
 
-Antes de publicar: correr **todas** (`for f in tests/*.js; do node $f | tail -1; done`), porque los dos módulos comparten el motor. Después de subir, probar el sitio publicado con `URL=https://speranzaemiliano-rk.github.io/trinity-felu/raphina/ node tests/g4_<nombre>.js` (todas las `g4_` menos `g4_sitio.js` —que arma su propio «sitio»— aceptan `URL`).
+Antes de publicar: correr **todas** (`for f in tests/*.js; do node $f | tail -1; done`), porque los dos módulos comparten el motor. Después de subir, probar el sitio publicado con `URL=https://speranzaemiliano-rk.github.io/trinity-felu/raphina/ node tests/g4_<nombre>.js` (todas las `g4_` aceptan `URL`; `sitio.js` arma su propio «sitio»).

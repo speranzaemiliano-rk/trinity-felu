@@ -4,7 +4,7 @@
   "description": "Guía de estudio, tema preparado, práctica oral y examen de práctica para Trinity GESE Grade 4.",
   "lang": "es",
   "start_url": "./",
-  "scope": "./",
+  "scope": "../",
   "display": "standalone",
   "background_color": "#f8f6fd",
   "theme_color": "#6d3fc4",

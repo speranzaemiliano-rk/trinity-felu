@@ -18,7 +18,7 @@ async function charla(b){
   await p.route('https://www.gstatic.com/firebasejs/**/firebase-app.js',r=>r.fulfill(js(`export function initializeApp(c){return {}}`)));
   await p.route('https://www.gstatic.com/firebasejs/**/firebase-ai.js',r=>r.fulfill(js(MOCK)));
   await p.addInitScript(()=>{Object.defineProperty(window,'webkitSpeechRecognition',{value:undefined,configurable:true});Object.defineProperty(window,'SpeechRecognition',{value:undefined,configurable:true});window.__finEn=14});
-  await p.goto('file://'+require('path').resolve(__dirname,'..','index.html'));await p.evaluate(()=>{window.say=async t=>{}});
+  await p.goto('file://'+require('path').resolve(__dirname,'..','felu','index.html'));await p.evaluate(()=>{window.say=async t=>{}});
   return {p,ctx};
 }
 async function correr(t,mismaMemoria){

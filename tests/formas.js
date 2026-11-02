@@ -27,7 +27,7 @@ async function pagina(b,vivas){
     AudioBufferSourceNode.prototype.start=function(){const s=this;suena(3,()=>{s.onended&&s.onended()})};
     speechSynthesis.speak=u=>{setTimeout(()=>u.onstart&&u.onstart(),20);setTimeout(()=>u.onend&&u.onend(),80)};
   },vivas);
-  await p.goto('http://localhost:'+PORT+'/index.html');
+  await p.goto('http://localhost:'+PORT+'/felu/index.html');
   return {p,ctx};
 }
 // la persona de la prueba: marca lo que "oye" según qué forma está viva en este momento

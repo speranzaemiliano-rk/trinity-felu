@@ -2,7 +2,7 @@ const {chromium}=require('playwright');
 (async()=>{const b=await chromium.launch({args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});
 const p=await b.newPage({viewport:{width:430,height:900}});const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.addInitScript(()=>{Object.defineProperty(window,'webkitSpeechRecognition',{value:undefined,configurable:true});Object.defineProperty(window,'SpeechRecognition',{value:undefined,configurable:true})});
-await p.goto('file://'+require('path').resolve(__dirname,'..','index.html'));
+await p.goto('file://'+require('path').resolve(__dirname,'..','felu','index.html'));
 await p.evaluate(()=>{window.say=async()=>{}});            // sin voz: la prueba es del guion
 await p.click('#t-speak');
 await p.evaluate(()=>{const c=document.getElementById('practice-ia');if(c)c.checked=false});   // charla guiada (sin IA)

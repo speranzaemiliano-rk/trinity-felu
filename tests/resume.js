@@ -16,7 +16,7 @@ async function pagina(ua,instalada,semilla){
     Object.defineProperty(document,'hidden',{get:()=>!!window.__oculto,configurable:true});
     Object.defineProperty(window,'webkitSpeechRecognition',{value:undefined,configurable:true});Object.defineProperty(window,'SpeechRecognition',{value:undefined,configurable:true});
   },[instalada,semilla||null]);
-  await p.goto('file://'+require('path').resolve(__dirname,'..','index.html'));await p.waitForTimeout(300);
+  await p.goto('file://'+require('path').resolve(__dirname,'..','felu','index.html'));await p.waitForTimeout(300);
   await p.evaluate(()=>{window.__marca=1});
   return {p,ctx};
 }

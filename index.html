@@ -3,353 +3,75 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Trinity GESE Grade 3</title>
+<title>Trinity GESE · Inicio</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<script src="firebase-config.js"></script>
-<script src="audio/manifest.js"></script>
-<meta name="theme-color" content="#3157d5">
+<meta name="theme-color" content="#4a4fcf">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@400;600;800&display=swap">
-<link rel="stylesheet" href="estilos.css?b=2026-11-02-modulos-2">
+<style>
+/* Inicio: el menú para entrar al Trinity 3 o al Trinity 4. Página sola (sin el motor): sólo estilos y un par de líneas. */
+:root{--bg:#f4f3fc;--ink:#1f2352;--muted:#5d6190;--line:#e0def3;--accent:#ffc83d;--accent-ink:#3a2c00;
+  --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif;--body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme: dark){:root{--bg:#12142b;--ink:#eceeff;--muted:#a9aed8;--line:#2f3466}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:var(--body);background:var(--bg);color:var(--ink);min-height:100vh;min-height:100dvh;display:flex;justify-content:center}
+main{width:100%;max-width:560px;padding:26px 16px calc(30px + env(safe-area-inset-bottom))}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(2rem,8vw,2.8rem);line-height:1.05;letter-spacing:-.02em;margin:6px 0 4px;text-wrap:balance}
+h1 span{display:inline-block;background:var(--accent);color:var(--accent-ink);padding:0 .25em;border-radius:8px}
+.lead{margin:0 0 22px;color:var(--muted);font-size:1.08rem}
+.mods{display:grid;gap:16px}
+.mod{position:relative;display:grid;grid-template-columns:auto 1fr;column-gap:16px;row-gap:4px;align-items:center;padding:20px 18px;border-radius:24px;color:#fff;text-decoration:none;box-shadow:0 10px 24px rgba(20,30,80,.24);-webkit-tap-highlight-color:transparent;transition:transform .12s ease}
+.mod:active{transform:scale(.985)}
+.mod:focus-visible{outline:4px solid var(--accent);outline-offset:3px}
+.m3{background:linear-gradient(135deg,#3157d5,#6a4be0)}
+.m4{background:linear-gradient(135deg,#6d3fc4,#d24f93)}
+.ic{grid-row:1/4;font-size:3rem;line-height:1;filter:drop-shadow(0 3px 0 rgba(0,0,0,.2))}
+.tt b{display:block;font-family:var(--display);font-weight:800;font-size:2rem;line-height:1.05}
+.tt small{display:block;margin-top:2px;font-size:1rem;font-weight:700;opacity:.92}
+.dd{font-size:.98rem;opacity:.92;line-height:1.35}
+.go{justify-self:start;margin-top:6px;padding:7px 16px;border-radius:999px;background:var(--accent);color:var(--accent-ink);font-weight:800;font-size:1rem}
+.ult{position:absolute;top:12px;right:14px;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.22);font-size:.78rem;font-weight:800;letter-spacing:.02em}
+.pie{margin:24px 4px 0;color:var(--muted);font-size:.92rem;line-height:1.45;text-align:center}
+.pie p{margin:0 0 8px}
+</style>
 </head>
 <body>
-
-<div class="wrap">
-<header>
-  <h1>Trinity GESE <span>Grade 3</span></h1>
-  <p>Guía de estudio, práctica oral y examen de práctica.</p>
-  <button id="instalar" class="btn alt" hidden style="grid-column:1/3;margin-top:10px">⬇️ Instalar en esta PC</button>
-  <p id="instalarIos" hidden style="grid-column:1/3;margin:10px 0 0;font-size:.92rem">📲 Para instalarla en el iPhone: tocá <b>Compartir</b> (el cuadrado con la flecha hacia arriba) y elegí <b>«Añadir a pantalla de inicio»</b>.</p>
-</header>
-
-<nav role="tablist">
-  <button role="tab" id="t-study" aria-selected="true" data-v="study">Estudiar</button>
-  <button role="tab" id="t-speak" aria-selected="false" data-v="speak">Speaking</button>
-  <button role="tab" id="t-exam" aria-selected="false" data-v="exam">Examen</button>
-</nav>
-
-<details id="diagSonido" style="margin-bottom:14px;border-color:var(--accent)">
-  <summary>🔧 ¿No suena? Diagnóstico de sonido</summary>
-  <p class="es">En el iPhone, primero revisá que <b>no haya una campanita tachada 🔕</b> arriba junto a la hora (modo silencio) y que el volumen esté arriba. Después tocá los botones <b>de a uno</b>, en orden, y fijate si suena. Abajo aparece qué pasó. Si algo falla, tocá <b>📋 Copiar informe</b> (abajo) y pegalo en el chat: no hace falta sacar captura.</p>
-  <div class="sbtns"><button class="btn" id="dsA">1) Audio del sitio</button><button class="btn alt" id="dsB">2) Voz del navegador</button><button class="btn ghost" id="dsC">3) Voz de la IA</button><button class="btn" id="dsD" style="background:var(--good)">4) Micrófono</button><button class="btn ghost" id="dsCopy">📋 Copiar informe</button></div>
-  <ol id="dsLog" class="log"></ol>
-  <p class="es" id="dsCopiado"></p>
-  <textarea id="dsInforme" readonly hidden rows="10" aria-label="Informe" style="width:100%;font:12px/1.4 ui-monospace,Menlo,monospace;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)"></textarea>
-</details>
-
-<!-- ESTUDIAR -->
-<section id="v-study">
-<h2>Temas del examen</h2>
-<p class="lead">Tocá cada tema para abrirlo. Las palabras en amarillo son las "raras": hay que aprenderlas de memoria.</p>
-<div class="stack">
-
-<details open><summary>🎯 El examen en una mirada <span class="es">· Grade 3 (A2.1)</span></summary>
-<ul class="plano">
-<li>Es <b>una sola charla</b> con el examinador, de <b>hasta 7 minutos</b>. Solo se habla: no se escribe nada.</li>
-<li>Primero te saluda para que te sientas cómodo (eso no se evalúa) y al final se despide.</li>
-<li>Conversan sobre: <b>trabajos, lugares del barrio, tu escuela, tu casa, el clima, tu tiempo libre, horas y fechas</b>.</li>
-<li>Puede mostrarte <b>dibujos u objetos</b> y preguntar cosas como <i>What is he doing?</i> o <i>What colour is this pen?</i></li>
-<li><b>Vos también le tenés que hacer al menos una pregunta</b> al examinador. Suele decir <i>Do you have a question for me?</i></li>
-<li>Para contestar bien usá: <b>presente continuo, can / can't, was / were, on / in / at, near / in front of / behind / opposite</b> y las palabras <b>and</b> y <b>and then</b> para unir ideas.</li>
-<li>Se califica con letras: A (Distinction), B (Merit), C (Pass) o D.</li>
-</ul>
-<div class="tip">Fuente: guía oficial de Trinity para el <i>Initial stage</i> (Grades 1–3). Tocá cada tema de abajo para estudiarlo y practicalo en <b>Speaking</b>.</div>
-</details>
-
-<h3 class="sec">Vocabulario</h3>
-<details open><summary>Ordinal numbers <span class="es">· Números ordinales</span></summary>
-<p class="es">Los ordinales sirven para fechas y posiciones: <i>my birthday is on the 5th of May</i>, <i>I'm in the third grade</i>.</p>
-<div class="ord" id="ordinals"></div>
-<div class="tip">Regla: casi todos terminan en <b>-th</b>. Los que terminan en 1, 2, 3 cambian: <b>-st, -nd, -rd</b> (21st, 22nd, 23rd). Ojo: es <b>twenty-ninth</b>, sin "e".</div>
-</details>
-
-<div class="stack" id="vocab"></div>
-<h3 class="sec">Gramática</h3>
-<details><summary>Greetings</summary>
-<ul class="ex">
-<li><b>Hello, how are you?</b> <span class="es">— Hola, ¿cómo estás?</span></li>
-<li><b>I'm fine, thank you. How are you?</b> <span class="es">— Bien, gracias. ¿Y vos?</span></li>
-<li><b>Nice to meet you!</b> <span class="es">— ¡Encantado/a!</span></li>
-<li><b>Goodbye, have a nice day!</b> <span class="es">— Chau, ¡que tengas lindo día!</span></li>
-</ul>
-<div class="tip">Al entrar al examen saludá con una sonrisa y al salir decí <b>Goodbye, have a nice day!</b></div>
-</details>
-
-<details><summary>Personal information</summary>
-<div class="tbl"><table>
-<tr><th>Pregunta</th><th>Respuesta</th></tr>
-<tr><td>What's your name?</td><td><b>My name is</b> …</td></tr>
-<tr><td>How old are you?</td><td><b>I am</b> eight <b>years old</b>.</td></tr>
-<tr><td>Where are you from?</td><td><b>I am from</b> Argentina.</td></tr>
-<tr><td>What's your favourite colour?</td><td><b>My favourite colour is</b> blue.</td></tr>
-<tr><td>What's your favourite animal?</td><td><b>My favourite animal is</b> the dog.</td></tr>
-</table></div>
-<div class="tip">Contestá siempre con oración completa, no con una sola palabra.</div>
-</details>
-
-<details><summary>Pronouns</summary>
-<div class="tbl"><table>
-<tr><th>Inglés</th><th>Español</th><th>Verbo to be</th></tr>
-<tr><td><b>I</b></td><td>yo</td><td>I am</td></tr>
-<tr><td><b>You</b></td><td>vos / ustedes</td><td>you are</td></tr>
-<tr><td><b>He</b></td><td>él</td><td>he is</td></tr>
-<tr><td><b>She</b></td><td>ella</td><td>she is</td></tr>
-<tr><td><b>It</b></td><td>eso (cosas, animales)</td><td>it is</td></tr>
-<tr><td><b>We</b></td><td>nosotros</td><td>we are</td></tr>
-<tr><td><b>They</b></td><td>ellos / ellas</td><td>they are</td></tr>
-</table></div>
-</details>
-
-<details><summary>Present simple</summary>
-<p class="es">Para rutinas y cosas que pasan siempre. Palabras pista: <i>every day, always, usually, never</i>.</p>
-<ul class="ex">
-</ul>
-<div class="tbl"><table>
-<tr><th>Afirmativa</th><th>Pregunta</th><th>Negativa</th></tr>
-<tr><td>I think.</td><td>Do I think?</td><td>I do not (don't) think.</td></tr>
-<tr><td>You think.</td><td>Do you think?</td><td>You don't think.</td></tr>
-<tr><td>He <b>thinks</b>.</td><td><b>Does</b> he think?</td><td>He <b>doesn't</b> think.</td></tr>
-<tr><td>She <b>thinks</b>.</td><td><b>Does</b> she think?</td><td>She <b>doesn't</b> think.</td></tr>
-<tr><td>It <b>thinks</b>.</td><td><b>Does</b> it think?</td><td>It <b>doesn't</b> think.</td></tr>
-<tr><td>We think.</td><td>Do we think?</td><td>We don't think.</td></tr>
-<tr><td>They think.</td><td>Do they think?</td><td>They don't think.</td></tr>
-</table></div>
-<div class="tip">He, she, it (3ª persona singular): el verbo lleva <b>-s</b> y en preguntas y negativas se usa <b>does / doesn't</b>.</div>
-<ul class="ex">
-<li>I <b>play</b> football every Saturday.</li>
-<li>She <b>plays</b> the piano. <span class="es">— con he / she / it se agrega <b>-s</b></span></li>
-<li>He <b>watches</b> TV. <span class="es">— después de -ch, -sh, -s, -o se agrega <b>-es</b></span></li>
-<li>I <b>don't</b> like fish. / She <b>doesn't</b> like fish.</li>
-<li><b>Do</b> you like pizza? — Yes, I do. / <b>Does</b> he play tennis? — No, he doesn't.</li>
-</ul>
-</details>
-
-<details><summary>Present continuous</summary>
-<p class="es">Para lo que está pasando <b>ahora</b>. Fórmula: <b>am / is / are + verbo-ing</b>. Pistas: <i>now, at the moment, look!</i></p>
-<ul class="ex">
-</ul>
-<div class="tbl"><table>
-<tr><th>Afirmativa</th><th>Negativa</th><th>Pregunta</th></tr>
-<tr><td>I <b>am</b> going.</td><td>I am not going.</td><td><b>Am</b> I going?</td></tr>
-<tr><td>You <b>are</b> going.</td><td>You aren't going.</td><td><b>Are</b> you going?</td></tr>
-<tr><td>He / She / It <b>is</b> going.</td><td>He / She / It isn't going.</td><td><b>Is</b> he / she / it going?</td></tr>
-<tr><td>We <b>are</b> going.</td><td>We aren't going.</td><td><b>Are</b> we going?</td></tr>
-<tr><td>They <b>are</b> going.</td><td>They aren't going.</td><td><b>Are</b> they going?</td></tr>
-</table></div>
-<ul class="ex">
-<li>I <b>am reading</b> a book now.</li>
-<li>She <b>is running</b>. <span class="es">— run → running (se duplica la consonante)</span></li>
-<li>They <b>are playing</b> in the park.</li>
-<li>What <b>are</b> you <b>doing</b>? — I'm <b>drawing</b>.</li>
-</ul>
-<div class="tip">En el examen te pueden mostrar una imagen: <b>What is the boy doing?</b> → <b>He is eating an apple.</b></div>
-</details>
-
-<details><summary>Prepositions of place</summary>
-<div class="tbl"><table>
-<tr><th>Inglés</th><th>Español</th><th>Ejemplo</th></tr>
-<tr><td><b>in</b></td><td>adentro de</td><td>The cat is in the box.</td></tr>
-<tr><td><b>on</b></td><td>sobre / encima</td><td>The book is on the table.</td></tr>
-<tr><td><b>under</b></td><td>debajo de</td><td>The ball is under the bed.</td></tr>
-<tr><td><b>next to</b></td><td>al lado de</td><td>The lamp is next to the sofa.</td></tr>
-<tr><td><b>behind</b></td><td>detrás de</td><td>The dog is behind the door.</td></tr>
-<tr><td><b>in front of</b></td><td>delante de</td><td>The car is in front of the house.</td></tr>
-<tr><td><b>opposite</b></td><td>enfrente de</td><td>The bank is opposite the school.</td></tr>
-<tr><td><b>between</b></td><td>entre</td><td>I sit between Tom and Ana.</td></tr>
-<tr><td><b>near</b></td><td>cerca de</td><td>The school is near my house.</td></tr>
-<tr><td><b>beside</b></td><td>al lado de</td><td>The owl is beside the box.</td></tr>
-<tr><td><b>above</b></td><td>arriba de (sin tocar)</td><td>The lamp is above the table.</td></tr>
-<tr><td><b>below</b></td><td>abajo de</td><td>The ball is below the box.</td></tr>
-<tr><td><b>among</b></td><td>entre (muchos)</td><td>The blue owl is among the other owls.</td></tr>
-</table></div>
-</details>
-
-<details><summary>Prepositions of movement</summary>
-<div class="tbl"><table>
-<tr><th>Inglés</th><th>Español</th><th>Ejemplo</th></tr>
-<tr><td><b>up / down</b></td><td>arriba / abajo</td><td>Go up the stairs.</td></tr>
-<tr><td><b>into / out of</b></td><td>hacia adentro / afuera</td><td>The frog jumps into the water.</td></tr>
-<tr><td><b>across</b></td><td>a través (cruzar)</td><td>Walk across the street.</td></tr>
-<tr><td><b>along</b></td><td>a lo largo de</td><td>We walk along the river.</td></tr>
-<tr><td><b>through</b></td><td>a través de (por dentro)</td><td>The train goes through the tunnel.</td></tr>
-<tr><td><b>over / under</b></td><td>por encima / por debajo</td><td>The bird flies over the house.</td></tr>
-<tr><td><b>past</b></td><td>pasar por al lado</td><td>The owl flies past the tree.</td></tr>
-<tr><td><b>to / from</b></td><td>hacia / desde</td><td>I go to school.</td></tr>
-</table></div>
-</details>
-
-<details><summary>Prepositions of time</summary>
-<div class="tbl"><table>
-<tr><th>Usamos</th><th>Con</th><th>Ejemplos</th></tr>
-<tr><td><b>at</b></td><td>hora exacta y momentos</td><td>at 3 o'clock, at 4:20, at midnight, at noon, at night</td></tr>
-<tr><td><b>on</b></td><td>días, fechas y feriados</td><td>on Monday, on Thursday, on my birthday, on Christmas Day, on August 15th</td></tr>
-<tr><td><b>in</b></td><td>meses, años, estaciones, partes del día</td><td>in April, in 2010, in winter, in the morning, in the evening</td></tr>
-</table></div>
-<div class="tip">Truco: <b>AT</b> la hora, <b>ON</b> el día, <b>IN</b> el mes.</div>
-</details>
-
-<details><summary>Wh- questions</summary>
-<div class="tbl"><table>
-<tr><th>Palabra</th><th>Significa</th><th>Ejemplo</th></tr>
-<tr><td><b>What</b></td><td>qué</td><td>What is your favourite food?</td></tr>
-<tr><td><b>Where</b></td><td>dónde</td><td>Where do you live?</td></tr>
-<tr><td><b>When</b></td><td>cuándo</td><td>When is your birthday?</td></tr>
-<tr><td><b>Who</b></td><td>quién</td><td>Who is your best friend?</td></tr>
-<tr><td><b>Why</b></td><td>por qué</td><td>Why do you like dogs? — <b>Because</b> they are funny.</td></tr>
-<tr><td><b>How many</b></td><td>cuántos</td><td>How many brothers have you got?</td></tr>
-</table></div>
-<div class="tip">A <b>Why?</b> se contesta con <b>Because…</b></div>
-</details>
-
-<details><summary>Can (ability)</summary>
-<p class="es">Para decir lo que <b>sabés</b> o <b>podés</b> hacer. Va igual para todas las personas, sin -s.</p>
-<ul class="ex">
-<li>I <b>can</b> swim. / She <b>can</b> ride a bike.</li>
-<li>I <b>can't</b> fly. / He <b>can't</b> cook.</li>
-<li><b>Can</b> you dance? — Yes, I can. / No, I can't.</li>
-</ul>
-<div class="tip">Después de can va el verbo solo: <b>she can swim</b>, nunca "she can swims".</div>
-</details>
-
-<details><summary>Past tense of the verb to be</summary>
-<div class="tbl"><table>
-<tr><th>Presente</th><th>Pasado</th><th>Ejemplo</th></tr>
-<tr><td>I am / he, she, it is</td><td><b>was</b></td><td>I was at home yesterday.</td></tr>
-<tr><td>you / we / they are</td><td><b>were</b></td><td>They were at the beach last summer.</td></tr>
-</table></div>
-<ul class="ex">
-<li>Negativo: I <b>wasn't</b> tired. / We <b>weren't</b> at school.</li>
-<li>Pregunta: <b>Were</b> you at the park? — Yes, I was. / <b>Was</b> she happy? — No, she wasn't.</li>
-</ul>
-<div class="tip">Pistas de pasado: <i>yesterday, last week, last summer</i>.</div>
-</details>
-
-<details><summary>Link words: and, and then</summary>
-<p class="es">En el examen te piden unir ideas de forma simple. Así tus respuestas son más largas y suenan mejor.</p>
-<ul class="ex">
-<li><b>I get up and I have breakfast.</b> <span class="es">— Me levanto y desayuno.</span></li>
-<li><b>I get up, and then I have breakfast.</b> <span class="es">— Me levanto y después desayuno.</span></li>
-<li><b>I play football and I watch TV.</b> <span class="es">— Juego al fútbol y miro tele.</span></li>
-<li><b>First I do my homework, and then I play with my friends.</b> <span class="es">— Primero hago la tarea y después juego con mis amigos.</span></li>
-<li><b>Go straight on and then turn left.</b> <span class="es">— Seguí derecho y después doblá a la izquierda.</span></li>
-</ul>
-<div class="tip"><b>and</b> suma cosas. <b>and then</b> dice qué pasó después. Usalos en tus respuestas: <i>I go to school and then I have lunch.</i></div>
-</details>
-
-<details><summary>Telling the time</summary>
-<div class="tbl"><table>
-<tr><th>Inglés</th><th>Hora</th><th>Español</th></tr>
-<tr><td><b>What time is it?</b></td><td></td><td>¿Qué hora es?</td></tr>
-<tr><td>It's seven <b>o'clock</b>.</td><td>7:00</td><td>Son las siete en punto.</td></tr>
-<tr><td>It's <b>quarter past</b> seven.</td><td>7:15</td><td>Las siete y cuarto.</td></tr>
-<tr><td>It's <b>half past</b> seven.</td><td>7:30</td><td>Las siete y media.</td></tr>
-<tr><td>It's <b>quarter to</b> eight.</td><td>7:45</td><td>Ocho menos cuarto.</td></tr>
-<tr><td>It's ten <b>past</b> seven.</td><td>7:10</td><td>Las siete y diez.</td></tr>
-<tr><td>It's twenty <b>to</b> eight.</td><td>7:40</td><td>Ocho menos veinte.</td></tr>
-</table></div>
-<ul class="ex">
-<li><b>I get up at seven o'clock.</b> <span class="es">— Me levanto a las siete.</span></li>
-<li><b>I go to school at half past seven.</b> <span class="es">— Voy a la escuela a las siete y media.</span></li>
-<li><b>School finishes at one o'clock.</b> <span class="es">— La escuela termina a la una.</span></li>
-<li><b>I do my homework in the afternoon.</b> <span class="es">— Hago la tarea a la tarde.</span></li>
-<li><b>I go to bed at ten o'clock.</b> <span class="es">— Me voy a dormir a las diez.</span></li>
-<li><b>It's the fifth of May.</b> <span class="es">— Es el cinco de mayo. (así se dice la fecha)</span></li>
-</ul>
-<div class="tip">Con la hora usamos <b>AT</b> (<i>at seven o'clock</i>). Con partes del día, <b>IN</b> (<i>in the morning, in the afternoon, in the evening</i>) y <b>AT night</b>.</div>
-</details>
-
-<details><summary>Giving directions</summary>
-<div class="tbl"><table>
-<tr><th>Inglés</th><th>Español</th><th>Ejemplo</th></tr>
-<tr><td><b>go straight on</b></td><td>seguir derecho</td><td>Go straight on, then turn left.</td></tr>
-<tr><td><b>turn left</b></td><td>doblar a la izquierda</td><td>Turn left at the bank.</td></tr>
-<tr><td><b>turn right</b></td><td>doblar a la derecha</td><td>Turn right at the corner.</td></tr>
-<tr><td><b>cross the street</b></td><td>cruzar la calle</td><td>Cross the street at the traffic lights.</td></tr>
-<tr><td><b>walk along</b></td><td>caminar por</td><td>Walk along the river.</td></tr>
-<tr><td><b>go up / go down</b></td><td>subir / bajar</td><td>Go up the stairs.</td></tr>
-<tr><td><b>on the left / on the right</b></td><td>a la izquierda / a la derecha</td><td>The park is on the left.</td></tr>
-<tr><td><b>opposite</b></td><td>enfrente de</td><td>The school is opposite the supermarket.</td></tr>
-</table></div>
-<ul class="ex">
-<li><b>Where is the library?</b> <span class="es">— ¿Dónde está la biblioteca?</span></li>
-<li><b>It's near the park, opposite the museum.</b> <span class="es">— Está cerca del parque, enfrente del museo.</span></li>
-<li><b>How do I get to the station?</b> <span class="es">— ¿Cómo llego a la estación?</span></li>
-</ul>
-<div class="tip">Para dar una dirección sencilla: <b>Go straight on and then turn left. It's on the right.</b></div>
-</details>
-
-<details><summary>Questions to ask the examiner</summary>
-<p class="es">En el examen vos también tenés que hacer <b>al menos una pregunta</b>. Cuando el examinador diga <i>Do you have a question for me?</i>, contestá <i>Yes, I do.</i> y hacé una de estas:</p>
-<ul class="ex">
-<li><b>Do you like your job?</b> <span class="es">— ¿Te gusta tu trabajo?</span></li>
-<li><b>What time do you get up?</b> <span class="es">— ¿A qué hora te levantás?</span></li>
-<li><b>What do you do at the weekend?</b> <span class="es">— ¿Qué hacés el fin de semana?</span></li>
-<li><b>Do you have any pets?</b> <span class="es">— ¿Tenés mascotas?</span></li>
-<li><b>Can you swim?</b> <span class="es">— ¿Sabés nadar?</span></li>
-<li><b>Where do you live?</b> <span class="es">— ¿Dónde vivís?</span></li>
-<li><b>What's your favourite food?</b> <span class="es">— ¿Cuál es tu comida favorita?</span></li>
-</ul>
-<div class="tip">Si no se te ocurre nada, la más fácil es <b>What's your name?</b> o <b>Do you like pizza?</b></div>
-</details>
-
-<details><summary>Pronunciation</summary>
-<div class="tbl"><table>
-<tr><th>Dos palabras</th><th>Contracción</th><th>Ejemplo</th></tr>
-<tr><td>I am</td><td><b>I'm</b></td><td>I'm nine years old.</td></tr>
-<tr><td>it is</td><td><b>it's</b></td><td>It's sunny today.</td></tr>
-<tr><td>do not</td><td><b>don't</b></td><td>I don't like fish.</td></tr>
-<tr><td>can not</td><td><b>can't</b></td><td>I can't play the guitar.</td></tr>
-<tr><td>was not</td><td><b>wasn't</b></td><td>I wasn't at home.</td></tr>
-<tr><td>what is</td><td><b>what's</b></td><td>What's your name?</td></tr>
-</table></div>
-<ul class="ex">
-<li><b>Do you like pizza?</b> <span class="es">— la voz sube al final ↗ (preguntas de sí o no)</span></li>
-<li><b>Where do you live?</b> <span class="es">— la voz baja al final ↘ (preguntas con What, Where, When…)</span></li>
-</ul>
-<div class="tip">En el examen se valora que uses <b>contracciones</b> (<i>I'm, it's, don't</i>) y que las preguntas suenen como preguntas.</div>
-</details>
-
-</div>
-</section>
-
-<!-- SPEAKING -->
-<section id="v-speak" hidden>
-<h2>Speaking</h2>
-<p class="lead">Una charla con el examinador para practicar el <b>Trinity GESE Grade 3</b>. Él pregunta en voz alta y vos contestás hablando. La charla pasa por <b>todos los temas del examen</b>: tu casa, el barrio y las direcciones, tu escuela, tu rutina y las horas, tu tiempo libre, tu familia y los trabajos, el clima, las fechas, el pasado, <b>dibujos</b> para describir y, al final, <b>una pregunta tuya para el examinador</b>.</p>
-<ul class="plano">
-<li><b>💡 Ayudas:</b> entre las preguntas aparece <i>cómo se dice</i> en inglés lo que vas a necesitar. Tocá una para escucharla.</li>
-<li><b>❓ ¿Cómo se dice…?</b> escribí una palabra en español y te digo cómo se dice en inglés.</li>
-<li>Si la respuesta queda corta, te da un ejemplo y te deja intentar de nuevo.</li>
-</ul>
-<details class="diag" id="diag"><summary>¿No anda la voz o el micrófono? Probar</summary>
-  <p class="es">1) Tocá <b>Probar</b> y hablá: la barra tiene que moverse. 2) Después decí <b>"hello, my name is…"</b> y fijate si aparece escrito.</p>
-  <div class="sbtns"><button class="btn" id="dgVoice">Probar voz</button><button class="btn alt" id="dgGo">Probar micrófono</button></div>
-  <div class="meter"><i id="dgLvl"></i></div>
-  <div id="dgHeard" class="heard" hidden></div>
-  <ol id="dgLog" class="log"></ol>
-</details>
-<div id="practice"></div>
-</section>
-
-<!-- EXAMEN -->
-<section id="v-exam" hidden>
-<h2>Examen oral</h2>
-<p class="lead">Simulacro del Trinity GESE Grade 3 (A2.1): una conversación de hasta 7 minutos con el examinador, sin ayudas y con preguntas distintas cada vez. Al final ves la nota: Distinction, Merit o Pass.</p>
-<div id="oral"></div>
-<h2 style="margin-top:32px">Repaso escrito</h2>
-<p class="lead">30 preguntas de vocabulario y gramática. Cambian cada vez que empezás.</p>
-<div id="exam"></div>
-</section>
-</div>
-<p class="es" style="text-align:center;margin:22px 0 0">Otros módulos: <a href="raphina/">Raphina · Trinity Grade 4</a></p>
-<p id="buildInfo" class="es" style="text-align:center;margin:10px 0 40px;font-size:.78rem;opacity:.7"></p>
-<div id="rkVer" aria-hidden="true"></div>
-
-<script src="comun.js?b=2026-11-02-modulos-2"></script>
-<script src="contenido-g3.js?b=2026-11-02-modulos-2"></script>
-<script src="motor.js?b=2026-11-02-modulos-2"></script>
+<main>
+  <h1>Trinity <span>GESE</span></h1>
+  <p class="lead">Elegí con cuál querés practicar.</p>
+  <nav class="mods" aria-label="Módulos">
+    <a class="mod m3" href="felu/" data-m="3">
+      <span class="ic" aria-hidden="true">🎓</span>
+      <span class="tt"><b>Trinity 3</b><small>Felu · GESE Grade 3</small></span>
+      <span class="dd">Charla de 7 minutos con el examinador, estudio y repaso escrito.</span>
+      <span class="go">Entrar →</span>
+      <span class="ult" hidden>Última vez</span>
+    </a>
+    <a class="mod m4" href="raphina/" data-m="4">
+      <span class="ic" aria-hidden="true">🌟</span>
+      <span class="tt"><b>Trinity 4</b><small>Raphina · GESE Grade 4</small></span>
+      <span class="dd">Tema preparado y conversación (10 minutos), estudio y repaso escrito.</span>
+      <span class="go">Entrar →</span>
+      <span class="ult" hidden>Última vez</span>
+    </a>
+  </nav>
+  <div class="pie">
+    <p>Cada módulo guarda sus propias notas en este aparato.</p>
+    <p>📲 Para tenerlo como app en el iPhone: tocá <b>Compartir</b> y elegí <b>«Añadir a pantalla de inicio»</b>.</p>
+  </div>
+</main>
+<script>
+(function(){
+  // «Última vez»: cada módulo anota que se abrió (trinity_ultimo = 3 o 4) y acá se marca el último que se usó en este aparato
+  try{var u=localStorage.getItem("trinity_ultimo"),a=u&&document.querySelector('.mod[data-m="'+u+'"]');
+    if(a){var t=a.querySelector(".ult");if(t)t.hidden=false}}catch(e){}
+  // el service worker guarda el inicio y los dos módulos para abrirlos sin internet
+  if("serviceWorker"in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(function(){});
+})();
+</script>
 </body>
 </html>

@@ -27,7 +27,7 @@ const corre=async(nombre)=>{
   await p.route('https://www.gstatic.com/firebasejs/**/firebase-app.js',r=>r.fulfill(js(`export function initializeApp(c){return {}}`)));
   await p.route('https://www.gstatic.com/firebasejs/**/firebase-ai.js',r=>r.fulfill(js(MOCK)));
   await p.addInitScript(o=>{Object.defineProperty(window,'webkitSpeechRecognition',{value:undefined,configurable:true});Object.defineProperty(window,'SpeechRecognition',{value:undefined,configurable:true});window.__finEn=8;if(o.okTurnos===false)window.__okTurnos=false},P);
-  await p.goto(process.env.URL||'file://'+require('path').resolve(__dirname,'..','index.html'));await p.evaluate(()=>{window.say=async t=>{}});
+  await p.goto(process.env.URL||'file://'+require('path').resolve(__dirname,'..','felu','index.html'));await p.evaluate(()=>{window.say=async t=>{}});
   await p.click('#t-speak');await p.evaluate(()=>{document.getElementById('practice-tap').checked=true});await p.click('#practice-start');
   await p.waitForSelector('#practice-talk:not([hidden])',{timeout:20000});await p.click('#practice-kb');await p.waitForTimeout(250);
   for(const r of P.r){await p.waitForSelector('#practice-in:visible',{timeout:8000});await p.fill('#practice-in',r);await p.click('#practice-send');await p.waitForTimeout(450)}

@@ -4,7 +4,7 @@ const {chromium}=require('playwright');
 const ctx=await b.newContext({viewport:{width:430,height:900},serviceWorkers:'block'});const p=await ctx.newPage();
 const errs=[];p.on('pageerror',e=>errs.push(e.message));
 await p.route('**/firebase-config.js',r=>r.fulfill({status:200,contentType:'application/javascript',body:'window.TRINITY_FB={config:{},models:[]};'}));
-await p.goto(process.env.URL||'file://'+require('path').resolve(__dirname,'..','index.html'));
+await p.goto(process.env.URL||'file://'+require('path').resolve(__dirname,'..','felu','index.html'));
 const res=[];const chk=(n,v,extra)=>{res.push(!!v);console.log(v?'✓':'✗',n,extra||'')};
 
 // ---- 1) el banco
@@ -74,7 +74,7 @@ const charlaCompleta=async()=>{
   const ctx2=await b.newContext({viewport:{width:430,height:900},serviceWorkers:'block'});const q=await ctx2.newPage();const e=[];q.on('pageerror',x=>e.push(x.message));
   await q.route('**/firebase-config.js',r=>r.fulfill({status:200,contentType:'application/javascript',body:'window.TRINITY_FB={config:{},models:[]};'}));
   await q.addInitScript(()=>{Object.defineProperty(window,'webkitSpeechRecognition',{value:undefined,configurable:true});Object.defineProperty(window,'SpeechRecognition',{value:undefined,configurable:true});window.__dichos=[]});
-  await q.goto(process.env.URL||'file://'+require('path').resolve(__dirname,'..','index.html'));
+  await q.goto(process.env.URL||'file://'+require('path').resolve(__dirname,'..','felu','index.html'));
   return {q,e,ctx2}};
 const hacer=async(c,pre)=>{const q=c.q;await q.evaluate(()=>{window.say=async t=>{window.__dichos.push(String(t))}});
   await q.click('#t-speak');await q.click('#practice-start');await q.waitForTimeout(400);

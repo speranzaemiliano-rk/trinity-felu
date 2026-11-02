@@ -653,7 +653,7 @@ const $=id=>document.getElementById(id);
   };
   $("diag").addEventListener("toggle",()=>{if(!$("diag").open)stop()});
 })();
-const NUMW=["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen"];
+const NUMW=["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen","twenty","thirty","forty","fifty"];
 const NUM=new RegExp("(\\b\\d+\\b|\\b("+NUMW.join("|")+")\\b)");
 const COLOURS=["light blue","sky blue","red","blue","green","yellow","pink","purple","orange","black","white","brown","grey","gray"];
 const ANIMALS=["dog","cat","horse","rabbit","lion","tiger","elephant","monkey","bird","fish","dolphin","panda","giraffe","bear","hamster","turtle","snake","shark","penguin","wolf","fox"];
@@ -682,6 +682,25 @@ const ORD=/\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|e
 const MONTHS=/january|february|march|april|may|june|july|august|september|october|november|december/;
 const HORA=/o'?clock|half past|quarter (past|to)|\b\d{1,2}(:\d\d)?\b|\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/;
 const H=(es,en)=>({es,en});
+// Frases de enlace por tema: cada pregunta lleva una, así no arrancan todas igual.
+const INTRO={
+ casa:["Now, let's talk about your home. ","Tell me about your home. ","Let's talk about your house. "],
+ barrio:["Let's talk about where you live. ","Now, let's talk about your neighbourhood. ","Tell me about your street. "],
+ escuela:["Let's talk about your school. ","Now, let's talk about school. ","Tell me about your school. "],
+ rutina:["Now tell me about your daily routine. ","Now tell me about your day. ","Let's talk about your day. "],
+ libre:["Let's talk about your free time. ","Now, let's talk about your hobbies. ","Tell me about your free time. "],
+ familia:["Let's talk about your family. ","Now, let's talk about your family. ","Tell me about your family. "],
+ clima:["Now, a question about the weather. ","Let's talk about the weather. ","Now, let's talk about the seasons. "],
+ fecha:["Now, let's talk about dates. ","Now, a question about days and months. ","Let's talk about days and months. "],
+ pasado:["Now, let's talk about yesterday. ","Now, let's talk about last weekend. ","Let's talk about the past. "]
+};
+// Reacciones generales del examinador. R(...) arma una reacción que no repite la anterior; sin argumentos usa éstas.
+const GEN=["Thank you.","I see.","That's nice!","Very good!","Lovely!","Great!","That's interesting!","OK, thank you.","That sounds good."];
+let _ultReac="";
+function _reac(l){const c=l.filter(x=>x!==_ultReac);const r=pick(c.length?c:l);_ultReac=r;return r}
+const R=(...l)=>()=>_reac(l.length?l:GEN);
+const COL_RE=new RegExp(COLOURS.join("|")+"|colou?r");
+const DIAS3={test:t=>(String(t).match(/monday|tuesday|wednesday|thursday|friday|saturday|sunday/g)||[]).length>=3};
 const MIDDLE=[
  // ---- casa (vida en casa)
  {g:"casa",intro:"Now, let's talk about your home. ",q:"How many rooms are there in your house?",a:"There are five rooms in my house.",
@@ -808,9 +827,326 @@ const MIDDLE=[
  {g:"pasado",intro:"Now, let's talk about yesterday. ",q:"How was your day yesterday?",a:"It was good. I was at school and then I was at the park.",
   need:[[/it was|was/,"Es pasado: \"It was good\"."],[/\band\b|\bthen\b/,"Sumá otra idea con \"and then\"."]],
   hints:[H("fue bueno","it was good"),H("estuve en","I was at"),H("y después","and then")],
-  react:()=>"That's nice to hear."}
+  react:()=>"That's nice to hear."},
+ // ======== preguntas agregadas para que la charla cambie cada vez (cada una con su audio grabado; ver README, «Audios grabados») ========
+ // ---- casa
+ {g:"casa",intro:INTRO.casa[1],q:"Do you live in a house or in a flat?",a:"I live in a flat.",
+  need:[[/house|flat|apartment/,"Decí si vivís en una casa (house) o en un departamento (flat)."]],
+  hints:[H("vivo en","I live in"),H("una casa","a house"),H("un departamento","a flat")],
+  react:R("I see. That sounds nice.","Oh, that's good.","Lovely!"),
+  follow:[()=>({q:"Is it big or small?",a:"It's big.",hints:[H("grande","big"),H("chico","small"),H("es","it's")],
+    need:[[/big|small|large|little|nice|new|old/,"Decí cómo es: big (grande) o small (chico)."]],react:R()})]},
+ {g:"casa",intro:INTRO.casa[2],q:"How many bedrooms are there in your house?",a:"There are three bedrooms.",
+  need:[[NUM,"Decí cuántos dormitorios hay: un número."],[/there (is|are)|i have/,"Empezá con \"There are… bedrooms\"."]],
+  hints:[H("hay","there are"),H("dormitorios","bedrooms"),H("tres","three")],
+  react:R("That's a big house!","Oh, that's nice."),
+  follow:[()=>({q:"Do you have your own bedroom?",a:"Yes, I do. I have my own bedroom.",hints:[H("mi propia habitación","my own bedroom"),H("comparto con","I share with"),H("mi hermano","my brother")],
+    need:[[/yes|no|my own|share|i do|i don't/,"Contestá \"Yes, I do\" o \"No, I share with my brother\"."]],react:R()})]},
+ {g:"casa",intro:INTRO.casa[0],q:"What is in your living room?",a:"There is a sofa, a TV and a table.",
+  need:[[/there (is|are)|i (can )?see|i have/,"Empezá con \"There is… / There are…\"."],[/sofa|couch|tv|television|table|chair|armchair|carpet|lamp|bookcase|plant|window|picture/,"Nombrá cosas: a sofa, a TV, a table…"]],
+  hints:[H("hay","there is / there are"),H("sofá","sofa"),H("tele","TV")],
+  react:R("That sounds cosy!","That sounds like a nice room.")},
+ {g:"casa",intro:INTRO.casa[1],q:"Do you have a garden at home?",a:"Yes, I do. There is a small garden.",
+  need:[[/yes|no|i do|i don't|garden|there is|there isn't/,"Contestá \"Yes, I do\" o \"No, I don't\"."]],
+  hints:[H("jardín","garden"),H("sí, tengo","yes, I do"),H("no tengo","no, I don't")],
+  react:t=>/\bno\b|don't|haven't/.test(t)?"That's OK. Many houses don't have a garden.":"A garden is lovely!",
+  follow:[()=>({q:"Do you have a pet?",a:"Yes, I have a dog.",hints:[H("mascota","pet"),H("perro","dog"),H("gato","cat")],
+    need:[[/yes|no|dog|cat|pet|fish|bird|rabbit|hamster|turtle|don't have|haven't/,"Contestá \"Yes, I have a dog\" o \"No, I don't have a pet\"."]],
+    react:t=>/\bno\b|don't have|haven't/.test(t)?"I see. Maybe one day!":"Lovely! Pets are fun."})]},
+ {g:"casa",intro:INTRO.casa[2],q:"What is in your kitchen?",a:"There is a fridge, a cooker and a table.",
+  need:[[/there (is|are)|i (can )?see|i have/,"Empezá con \"There is… / There are…\"."],[/fridge|refrigerator|cooker|oven|stove|table|sink|chair|cupboard|microwave|window|dishwasher/,"Nombrá cosas: a fridge, a cooker, a table…"]],
+  hints:[H("heladera","fridge"),H("cocina (artefacto)","cooker"),H("mesa","table")],
+  react:R()},
+ {g:"casa",intro:INTRO.casa[0],q:"Where do you do your homework at home?",a:"I do my homework in my bedroom.",
+  need:[[/\bin\b|\bat\b|\bon\b/,"Decí dónde: \"in my bedroom\", \"at the table\"."],[/bedroom|room|table|desk|kitchen|living|garden|house|home|school/,"Nombrá el lugar: bedroom, kitchen, living room…"]],
+  hints:[H("hago la tarea","I do my homework"),H("en mi habitación","in my bedroom"),H("en la mesa","at the table")],
+  react:R("That's a good place to study!","I see. Thank you.")},
+ {g:"casa",intro:INTRO.casa[1],q:"What colour is your bedroom?",a:"My bedroom is blue.",
+  need:[[COL_RE,"Decí un color: blue, white, green, yellow…"]],
+  hints:[H("de color","colour"),H("azul","blue"),H("blanco","white")],
+  react:R("That's a lovely colour!","Nice!")},
+ // ---- barrio
+ {g:"barrio",intro:INTRO.barrio[2],q:"What can you see in your street?",a:"I can see some houses, a bakery and a park.",
+  need:[[/there (is|are)|i (can )?see/,"Empezá con \"I can see…\" o \"There is…\"."],[/house|shop|bakery|park|school|supermarket|church|square|kiosk|cafe|café|restaurant|bank|garage|tree|car|building|flat|chemist/,"Nombrá lugares: a bakery, a park, some houses…"]],
+  hints:[H("puedo ver","I can see"),H("panadería","bakery"),H("plaza","park")],
+  react:R(),
+  follow:[()=>({q:"Do you like your street?",a:"Yes, I do. It's quiet.",hints:[H("me gusta","I like"),H("tranquila","quiet"),H("ruidosa","noisy")],
+    need:[[/yes|no|i do|i don't|like|quiet|noisy|nice|beautiful/,"Contestá \"Yes, I do\" o \"No, I don't\", y decí cómo es: quiet, noisy…"]],react:R()})]},
+ {g:"barrio",intro:INTRO.barrio[1],q:"Is there a park near your house?",a:"Yes, there is. It's opposite my house.",
+  need:[[/yes|no|there is|there isn't|near|opposite|next to|far/,"Contestá \"Yes, there is\" o \"No, there isn't\"."]],
+  hints:[H("sí, hay","yes, there is"),H("no hay","no, there isn't"),H("enfrente de","opposite")],
+  react:t=>/\bno\b|isn't/.test(t)?"I see. Thank you.":"Lovely! Parks are great.",
+  follow:[()=>({q:"What do you do in the park?",a:"I play football with my friends.",hints:[H("juego","I play"),H("con mis amigos","with my friends"),H("paseo al perro","I walk my dog")],
+    need:[[/\bi (play|ride|run|walk|go|meet|swim|read|eat|sit)/,"Contá qué hacés: \"I play…\", \"I ride my bike…\"."]],react:R("That sounds fun!","Lovely!")})]},
+ {g:"barrio",intro:INTRO.barrio[0],q:"Where is the bus stop? Is it near your house?",a:"The bus stop is next to the school.",
+  need:[[/near|next to|opposite|in front of|behind|between|far|corner|on the (left|right)/,"Decí dónde está: near, next to, opposite, behind…"]],
+  hints:[H("parada de colectivo","bus stop"),H("al lado de","next to"),H("enfrente de","opposite")],
+  react:R("Thank you. That's very clear.","OK, I see.")},
+ {g:"barrio",intro:INTRO.barrio[1],q:"How do you go to school? By bus or by car?",a:"I go to school by car.",
+  need:[[/by (car|bus|bike|bicycle|train|taxi|subway|metro)|on foot|\bwalk|\bcar\b|\bbus\b|\bbike\b/,"Decí cómo vas: \"by car\", \"by bus\", \"on foot\"."]],
+  hints:[H("voy en auto","by car"),H("en colectivo","by bus"),H("caminando","on foot")],
+  react:R(),
+  follow:[()=>({q:"Is your school far from your house?",a:"No, it isn't. It's near.",hints:[H("lejos","far"),H("cerca","near"),H("no está lejos","it isn't far")],
+    need:[[/yes|no|far|near|isn't|is/,"Contestá \"Yes, it is\" o \"No, it isn't\"."]],react:R()})]},
+ {g:"barrio",intro:INTRO.barrio[2],q:"What is opposite your school?",a:"There is a bakery opposite my school.",
+  need:[[/opposite|in front of|next to|behind|near|there is|there are/,"Decí qué hay: \"There is a… opposite my school\"."]],
+  hints:[H("enfrente de","opposite"),H("hay","there is"),H("panadería","bakery")],
+  react:R()},
+ {g:"barrio",intro:INTRO.barrio[0],q:"Which shops are near your house?",a:"There is a bakery and a chemist's near my house.",
+  need:[[/there (is|are)|i (can )?see/,"Empezá con \"There is… / There are…\"."],[/bakery|supermarket|chemist|pharmacy|butcher|greengrocer|kiosk|shop|shopping|bank|cafe|café|post office|market/,"Nombrá negocios: a bakery, a chemist's, a supermarket…"]],
+  hints:[H("farmacia","chemist's"),H("verdulería","greengrocer's"),H("carnicería","butcher's")],
+  react:R("That's very handy!","Lovely! That's useful.")},
+ {g:"barrio",intro:"Now imagine I am at your house. ",q:"How do I get to the supermarket from your house?",a:"Go straight on and turn right. It's on the corner.",
+  need:[[/straight|left|right|turn|cross|along|corner/,"Usá: go straight on, turn left, turn right, cross the street…"]],
+  hints:[H("seguí derecho","go straight on"),H("doblá a la derecha","turn right"),H("en la esquina","on the corner")],
+  react:R("Great! Thank you for the directions.","Thank you. That's very clear.")},
+ // ---- escuela
+ {g:"escuela",intro:INTRO.escuela[1],q:"What time does school start?",a:"School starts at eight o'clock.",
+  need:[[HORA,"Decí la hora: at eight o'clock, at half past seven…"],[/\bat\b/,"Con la hora va \"at\": \"at eight o'clock\"."]],
+  hints:[H("empieza","starts"),H("a las ocho","at eight o'clock"),H("y media","half past")],
+  react:R("That's early!","OK, thank you."),
+  follow:[()=>({q:"What do you do at break time?",a:"I play football with my friends.",hints:[H("recreo","break time"),H("juego","I play"),H("como","I eat")],
+    need:[[/\bi (play|eat|have|talk|run|read|drink|sit|chat)/,"Contá qué hacés: \"I play…\", \"I eat…\"."]],react:R("That sounds fun!","Lovely!")})]},
+ {g:"escuela",intro:INTRO.escuela[2],q:"Do you like your teacher?",a:"Yes, I do. My teacher is kind.",
+  need:[[/yes|no|i do|i don't|like|kind|nice|funny|good|great|strict/,"Contestá \"Yes, I do\" y decí cómo es: kind, funny, nice…"]],
+  hints:[H("me gusta","I like"),H("amable","kind"),H("divertida","funny")],
+  react:R("That's lovely!","I'm glad.")},
+ {g:"escuela",intro:INTRO.escuela[0],q:"What is in your schoolbag?",a:"There are my books, a notebook and a pencil case.",
+  need:[[/there (is|are)|i have|my/,"Empezá con \"There is… / There are…\" o \"I have…\"."],[/book|notebook|pencil|pen|rubber|ruler|bottle|lunch|case|folder|calculator|snack/,"Nombrá cosas: books, a notebook, a pencil…"]],
+  hints:[H("cuaderno","notebook"),H("lápiz","pencil"),H("regla","ruler")],
+  react:R("That's a lot of things!","I see. Thank you.")},
+ {g:"escuela",intro:INTRO.escuela[1],q:"Do you like your school? Why?",a:"Yes, I do because my friends are there.",
+  need:[[/yes|no|i do|i don't|like/,"Contestá \"Yes, I do\" o \"No, I don't\"."],[/because/,"Explicá con \"because…\"."]],
+  hints:[H("me gusta","I like"),H("porque","because"),H("mis amigos","my friends")],
+  react:R("I'm glad.","That's a good reason.")},
+ {g:"escuela",intro:INTRO.escuela[2],q:"How many students are there in your class?",a:"There are twenty-five students in my class.",
+  need:[[NUM,"Decí cuántos hay: un número."],[/there (is|are)/,"Empezá con \"There are… students\"."]],
+  hints:[H("hay","there are"),H("alumnos","students"),H("en mi clase","in my class")],
+  react:R("That's a big class!","Oh, that's a nice number."),
+  follow:[()=>({q:"Who is your best friend in your class?",a:"My best friend is Lucas.",hints:[H("mi mejor amigo/a","my best friend"),H("se llama","his name is"),H("es","is")],
+    need:[[/friend|is|name/,"Contestá \"My best friend is…\"."]],react:R("That's nice!","Lovely!")})]},
+ {g:"escuela",intro:INTRO.escuela[0],q:"What day do you have English?",a:"I have English on Tuesdays.",
+  need:[[/monday|tuesday|wednesday|thursday|friday/,"Decí el día: Monday, Tuesday…"],[/\bon\b|\bi have\b|we have/,"Usá \"I have English on Tuesdays\"."]],
+  hints:[H("tengo inglés","I have English"),H("los martes","on Tuesdays"),H("los viernes","on Fridays")],
+  react:R()},
+ {g:"escuela",intro:INTRO.escuela[1],q:"Do you have lunch at school?",a:"Yes, I do. I have lunch at school.",
+  need:[[/yes|no|i do|i don't|lunch|school|home/,"Contestá \"Yes, I do\" o \"No, I don't. I have lunch at home\"."]],
+  hints:[H("almuerzo","I have lunch"),H("en la escuela","at school"),H("en casa","at home")],
+  react:R(),
+  follow:[()=>({q:"What do you have for lunch?",a:"I have chicken and rice.",hints:[H("pollo","chicken"),H("arroz","rice"),H("ensalada","salad")],
+    need:[[/\bi (have|eat)|chicken|rice|pasta|salad|meat|fish|pizza|sandwich|soup|potato|vegetables|fruit/,"Contá qué comés: \"I have chicken and rice\"."]],react:R("That sounds yummy!","Nice!")})]},
+ // ---- rutina
+ {g:"rutina",intro:INTRO.rutina[2],q:"What time do you have breakfast?",a:"I have breakfast at half past seven.",
+  need:[[/\bat\b/,"Con la hora va \"at\": \"at seven o'clock\"."],[HORA,"Decí la hora: seven o'clock, half past seven…"]],
+  hints:[H("desayuno","I have breakfast"),H("a las siete","at seven o'clock"),H("y media","half past")],
+  react:R(),
+  follow:[()=>({q:"What do you have for breakfast?",a:"I have milk and toast.",hints:[H("leche","milk"),H("tostadas","toast"),H("cereales","cereal")],
+    need:[[/milk|toast|cereal|bread|egg|coffee|tea|juice|cookie|biscuit|fruit|yogurt|yoghurt|sandwich|croissant|medialuna/,"Nombrá qué desayunás: milk, toast, cereal…"]],react:R("Yummy!","That sounds good.")})]},
+ {g:"rutina",intro:INTRO.rutina[0],q:"What time do you have lunch?",a:"I have lunch at twelve o'clock.",
+  need:[[/\bat\b/,"Con la hora va \"at\": \"at twelve o'clock\"."],[HORA,"Decí la hora: twelve o'clock, half past twelve…"]],
+  hints:[H("almuerzo","I have lunch"),H("a las doce","at twelve o'clock"),H("al mediodía","at noon")],
+  react:R()},
+ {g:"rutina",intro:INTRO.rutina[1],q:"What time do you go to school?",a:"I go to school at eight o'clock.",
+  need:[[/\bat\b/,"Con la hora va \"at\": \"at eight o'clock\"."],[HORA,"Decí la hora: eight o'clock, half past seven…"]],
+  hints:[H("voy a la escuela","I go to school"),H("a las ocho","at eight o'clock"),H("temprano","early")],
+  react:R("That's early!","OK, thank you.")},
+ {g:"rutina",intro:INTRO.rutina[2],q:"What time do you have dinner?",a:"I have dinner at nine o'clock.",
+  need:[[/\bat\b/,"Con la hora va \"at\": \"at nine o'clock\"."],[HORA,"Decí la hora: eight o'clock, half past eight…"]],
+  hints:[H("ceno","I have dinner"),H("a las nueve","at nine o'clock"),H("con mi familia","with my family")],
+  react:R(),
+  follow:[()=>({q:"Who do you have dinner with?",a:"I have dinner with my family.",hints:[H("ceno con","I have dinner with"),H("mi familia","my family"),H("mis papás","my parents")],
+    need:[[/with|family|mum|dad|mom|brother|sister|grand|alone/,"Decí con quién: \"I have dinner with my family\"."]],react:R("That's lovely.","Nice!")})]},
+ {g:"rutina",intro:INTRO.rutina[1],q:"What do you do after dinner?",a:"I watch TV and then I go to bed.",
+  need:[[/\bi (watch|play|read|brush|wash|talk|do|go|help|listen|draw)/,"Contá qué hacés: \"I watch TV…\"."],[/\band\b|\bthen\b/,"Unilo con \"and\" o \"and then\"."]],
+  hints:[H("miro tele","I watch TV"),H("me lavo los dientes","I brush my teeth"),H("y después","and then")],
+  react:R("That sounds relaxing.","Very good.")},
+ {g:"rutina",intro:INTRO.rutina[0],q:"Do you do your homework in the morning or in the afternoon?",a:"I do my homework in the afternoon.",
+  need:[[/morning|afternoon|evening|night/,"Decí cuándo: in the morning, in the afternoon, in the evening."]],
+  hints:[H("hago la tarea","I do my homework"),H("a la mañana","in the morning"),H("a la tarde","in the afternoon")],
+  react:R()},
+ // ---- libre
+ {g:"libre",intro:INTRO.libre[1],q:"What is your favourite sport?",a:"My favourite sport is football.",
+  need:[[/favou?rite sport is|i (like|love|play)/,"Usá \"My favourite sport is…\"."],[/football|soccer|tennis|basketball|volleyball|rugby|hockey|swimming|cycling|gymnastics|golf|baseball|cricket|athletics|running|skating|handball|padel|paddle|karate|judo|none/,"Nombrá un deporte: football, tennis, swimming…"]],
+  hints:[H("mi deporte favorito","my favourite sport"),H("fútbol","football"),H("natación","swimming")],
+  react:R("That's a great sport!","Oh, I like it too!"),
+  follow:[()=>({q:"Do you play it with your friends?",a:"Yes, I do. I play it with my friends.",hints:[H("juego con","I play with"),H("mis amigos","my friends"),H("mi equipo","my team")],
+    need:[[/yes|no|i do|i don't|friend|brother|sister|dad|team|school/,"Contestá \"Yes, I do\" y decí con quién jugás."]],react:R()})]},
+ {g:"libre",intro:INTRO.libre[2],q:"What kind of music do you like?",a:"I like pop music.",
+  need:[[/\bi (like|love|listen)|my favou?rite/,"Usá \"I like…\"."],[/pop|rock|cumbia|reggaeton|rap|classical|jazz|folk|music|songs|singer|band|tango|cuarteto|trap|electronic|disney/,"Nombrá un tipo de música: pop, rock, cumbia…"]],
+  hints:[H("me gusta","I like"),H("música pop","pop music"),H("escucho música","I listen to music")],
+  react:R("Great! Music is fun.","Interesting!")},
+ {g:"libre",intro:INTRO.libre[0],q:"Can you play a musical instrument?",a:"Yes, I can play the guitar.",
+  need:[[/\bcan\b|can't|cannot/,"Contestá \"Yes, I can\" o \"No, I can't\"."]],
+  hints:[H("puedo","I can"),H("tocar la guitarra","play the guitar"),H("no puedo","I can't")],
+  react:t=>/can't|cannot|^no/.test(t)?"That's OK. Maybe one day!":"Wow, that's great!",
+  follow:[()=>({q:"Do you like singing?",a:"Yes, I do. I like singing.",hints:[H("me gusta cantar","I like singing"),H("no me gusta","I don't like"),H("canciones","songs")],
+    need:[[/yes|no|i do|i don't|like|sing/,"Contestá \"Yes, I do\" o \"No, I don't\"."]],react:R()})]},
+ {g:"libre",intro:INTRO.libre[1],q:"Do you like playing video games?",a:"Yes, I do. I play with my friends.",
+  need:[[/yes|no|i do|i don't|like|play|game/,"Contestá \"Yes, I do\" o \"No, I don't\"."]],
+  hints:[H("me gusta","I like"),H("juego","I play"),H("con mis amigos","with my friends")],
+  react:t=>/\bno\b|don't/.test(t)?"OK, that's fine.":"That sounds like fun!"},
+ {g:"libre",intro:INTRO.libre[2],q:"What do you like doing with your friends?",a:"I like playing football and riding my bike.",
+  need:[[/\bi like|we (play|go|watch|ride)|\bwe\b/,"Usá \"I like…\" o \"We play…\"."],[/\w+ing\b|\bplay|\bwatch|\bride|\bgo\b/,"Contá una actividad: playing football, riding my bike…"]],
+  hints:[H("me gusta","I like"),H("jugar al fútbol","playing football"),H("andar en bici","riding my bike")],
+  react:R("That sounds great!","Lovely!")},
+ {g:"libre",intro:INTRO.libre[0],q:"Can you cook? What can you make?",a:"Yes, I can. I can make a sandwich.",
+  need:[[/\bcan\b|can't|cannot/,"Contestá \"Yes, I can\" o \"No, I can't\"."]],
+  hints:[H("puedo","I can"),H("preparar","make"),H("un sándwich","a sandwich")],
+  react:t=>/can't|cannot|^no/.test(t)?"That's OK. You can learn!":"Wow, yummy!"},
+ // ---- familia
+ {g:"familia",intro:INTRO.familia[1],q:"How many people are there in your family?",a:"There are four people in my family.",
+  need:[[NUM,"Decí cuántos hay: un número."],[/there (is|are)|we are|we're/,"Empezá con \"There are… people\"."]],
+  hints:[H("hay","there are"),H("personas","people"),H("en mi familia","in my family")],
+  react:R("That's a nice family.","Lovely!"),
+  follow:[()=>({q:"Who are they?",a:"My mum, my dad, my sister and me.",hints:[H("mi mamá","my mum"),H("mi papá","my dad"),H("mi hermana","my sister")],
+    need:[[/mum|mom|dad|mother|father|brother|sister|grand|aunt|uncle|cousin|me\b/,"Nombrá a tu familia: my mum, my dad, my sister…"]],react:R()})]},
+ {g:"familia",intro:INTRO.familia[2],q:"Do you have any brothers or sisters?",a:"Yes, I have one brother.",
+  need:[[/yes|no|brother|sister|only child|don't have|haven't|i have/,"Contestá \"Yes, I have a brother\" o \"No, I don't\"."]],
+  hints:[H("tengo","I have"),H("un hermano","a brother"),H("una hermana","a sister")],
+  react:t=>/\bno\b|only child|don't have|haven't/.test(t)?"I see. Thank you.":"How nice!",
+  follow:[()=>({q:"What do you like doing with your family?",a:"I like watching films with my family.",hints:[H("me gusta","I like"),H("mirar películas","watching films"),H("con mi familia","with my family")],
+    need:[[/\bi like|we (watch|play|go|eat|visit|cook)|\bwith\b/,"Usá \"I like… with my family\"."]],react:R()})]},
+ {g:"familia",intro:INTRO.familia[0],q:"What does your mum do?",a:"My mum is a teacher.",
+  need:[[/is a|is an|works|she is|mum|mom|mother/,"Usá \"My mum is a…\"."]],
+  hints:[H("mi mamá es","my mum is"),H("maestra","a teacher"),H("trabaja en","she works in")],
+  react:R("That's an interesting job.","Oh, that's a good job!")},
+ {g:"familia",intro:INTRO.familia[1],q:"What does your dad do?",a:"My dad is an architect.",
+  need:[[/is a|is an|works|he is|dad|father/,"Usá \"My dad is a…\"."]],
+  hints:[H("mi papá es","my dad is"),H("arquitecto","an architect"),H("trabaja en","he works in")],
+  react:R("That's an interesting job.","Oh, that's a good job!"),
+  follow:[()=>({q:"Does he like his job?",a:"Yes, he does. He likes his job.",hints:[H("sí, le gusta","yes, he does"),H("no le gusta","no, he doesn't"),H("su trabajo","his job")],
+    need:[[/yes|no|does|doesn't|likes?/,"Contestá \"Yes, he does\" o \"No, he doesn't\"."]],react:R()})]},
+ {g:"familia",intro:INTRO.familia[2],q:"What is your favourite animal?",a:"My favourite animal is the dog.",
+  need:[[/favou?rite animal is|i like|i love/,"Usá \"My favourite animal is…\"."],[/dog|cat|horse|rabbit|lion|tiger|elephant|monkey|bird|fish|dolphin|panda|giraffe|bear|hamster|turtle|snake|shark|penguin|wolf|fox|animal|cow|sheep|pig|duck/,"Nombrá un animal: dog, cat, horse…"]],
+  hints:[H("mi animal favorito","my favourite animal"),H("perro","dog"),H("caballo","horse")],
+  react:R("Mine too!","That's a lovely animal."),
+  follow:[()=>({q:"Do you have a pet at home?",a:"Yes, I have a dog.",hints:[H("mascota","pet"),H("tengo","I have"),H("no tengo","I don't have")],
+    need:[[/yes|no|have|pet|dog|cat|fish|bird|rabbit|hamster|turtle|don't|haven't/,"Contestá \"Yes, I have a dog\" o \"No, I don't have a pet\"."]],
+    react:t=>/\bno\b|don't have|haven't/.test(t)?"I see. Maybe one day!":"Lovely! Pets are fun."})]},
+ {g:"familia",intro:INTRO.familia[0],q:"What do you want to be when you are older?",a:"I want to be a vet.",
+  need:[[/want to be|would like to be|i'd like|be a|be an/,"Usá \"I want to be a…\"."]],
+  hints:[H("quiero ser","I want to be"),H("veterinario","a vet"),H("médico","a doctor")],
+  react:R("That's a wonderful idea!","A great job!"),
+  follow:[()=>({q:"Why?",a:"Because I love animals.",hints:[H("porque","because"),H("me gusta","I like"),H("amo","I love")],
+    need:[[/because|i (love|like)/,"Explicá con \"Because…\"."]],react:R()})]},
+ {g:"familia",intro:INTRO.familia[1],q:"Do you help at home? What do you do?",a:"Yes, I do. I help my mum in the kitchen.",
+  need:[[/yes|no|i do|i don't/,"Contestá \"Yes, I do\" o \"No, I don't\"."],[/\bi (help|wash|clean|cook|tidy|make|set|put|take|sweep|water)/,"Contá qué hacés: \"I help my mum\", \"I wash the dishes\"."]],
+  hints:[H("ayudo","I help"),H("lavo los platos","I wash the dishes"),H("ordeno mi cuarto","I tidy my room")],
+  react:R("That's very good!","What a good helper!")},
+ // ---- clima
+ {g:"clima",intro:INTRO.clima[1],q:"Is it sunny today?",a:"Yes, it is. It's sunny.",
+  need:[[/yes|no|it is|it isn't|it's|sunny|cloudy|rain|cold|hot|wind/,"Contestá \"Yes, it is\" o \"No, it isn't\"."]],
+  hints:[H("sí, está","yes, it is"),H("no está","no, it isn't"),H("nublado","cloudy")],
+  react:R("I see. Thank you.","OK, that's good.")},
+ {g:"clima",intro:INTRO.clima[0],q:"What do you do when it rains?",a:"I stay at home and I play games.",
+  need:[[/\bi (stay|play|read|watch|go|draw|do|sleep|cook|help|listen)/,"Contá qué hacés: \"I stay at home…\"."]],
+  hints:[H("cuando llueve","when it rains"),H("me quedo en casa","I stay at home"),H("juego","I play")],
+  react:R("That sounds cosy!","Good idea!")},
+ {g:"clima",intro:INTRO.clima[2],q:"What is your favourite season? Why?",a:"My favourite season is spring because it is warm.",
+  need:[[/summer|winter|spring|autumn|fall/,"Nombrá una estación: summer, winter, spring, autumn."],[/because/,"Explicá con \"because…\"."]],
+  hints:[H("mi estación favorita","my favourite season"),H("primavera","spring"),H("porque","because")],
+  react:R("Good choice!","That's a lovely season."),
+  follow:[()=>({q:"What do you do in summer?",a:"I go to the beach with my family.",hints:[H("voy a la playa","I go to the beach"),H("nado","I swim"),H("con mi familia","with my family")],
+    need:[[/\bi (go|play|swim|visit|eat|stay|ride|travel|have)/,"Contá qué hacés: \"I go to the beach\"."]],react:R("That sounds fun!","Lovely!")})]},
+ {g:"clima",intro:INTRO.clima[1],q:"Is it hot or cold in winter where you live?",a:"It's cold in winter.",
+  need:[[/hot|cold|cool|warm|freez/,"Decí cómo es: hot, cold, cool, warm."],[/it'?s|it is/,"Empezá con \"It's…\"."]],
+  hints:[H("hace frío","it's cold"),H("hace calor","it's hot"),H("en invierno","in winter")],
+  react:R("I see. Thank you.","OK, thank you.")},
+ {g:"clima",intro:INTRO.clima[0],q:"Do you like rainy days? Why?",a:"No, I don't because I can't play outside.",
+  need:[[/yes|no|i do|i don't/,"Contestá \"Yes, I do\" o \"No, I don't\"."],[/because/,"Explicá con \"because…\"."]],
+  hints:[H("me gusta","I like"),H("días de lluvia","rainy days"),H("porque","because")],
+  react:R("I understand.","That's a good reason.")},
+ {g:"clima",intro:INTRO.clima[2],q:"Does it snow where you live?",a:"No, it doesn't. It never snows.",
+  need:[[/yes|no|snow|doesn't|does|never|sometimes/,"Contestá \"Yes, it does\" o \"No, it doesn't\"."]],
+  hints:[H("nieva","it snows"),H("nunca","never"),H("a veces","sometimes")],
+  react:R("Snow is beautiful, but cold!","I see. Thank you.")},
+ {g:"clima",intro:INTRO.clima[1],q:"What is your favourite kind of weather?",a:"My favourite weather is sunny weather.",
+  need:[[/weather|sunny|hot|rain|snow|wind|cloud|warm|cold|storm/,"Nombrá un clima: sunny, rainy, windy…"]],
+  hints:[H("mi clima favorito","my favourite weather"),H("soleado","sunny"),H("ventoso","windy")],
+  react:R("Mine too!","Interesting!")},
+ // ---- fecha
+ {g:"fecha",intro:INTRO.fecha[1],q:"What day is it today?",a:"It's Saturday.",
+  need:[[/monday|tuesday|wednesday|thursday|friday|saturday|sunday/,"Decí el día: Monday, Tuesday, Saturday…"]],
+  hints:[H("hoy es","it's"),H("lunes","Monday"),H("sábado","Saturday")],
+  react:R("That's right.","Thank you.")},
+ {g:"fecha",intro:INTRO.fecha[2],q:"What month is it now?",a:"It's November.",
+  need:[[MONTHS,"Decí el mes: November, March…"]],
+  hints:[H("mes","month"),H("noviembre","November"),H("diciembre","December")],
+  react:R("That's right!","Thank you."),
+  follow:[()=>({q:"What season is it now?",a:"It's spring.",hints:[H("estación","season"),H("primavera","spring"),H("verano","summer")],
+    need:[[/summer|winter|spring|autumn|fall/,"Nombrá la estación: summer, winter, spring, autumn."]],react:R("That's right!","Good.")})]},
+ {g:"fecha",intro:INTRO.fecha[0],q:"How many days are there in a week?",a:"There are seven days in a week.",
+  need:[[NUM,"Decí cuántos hay: un número."],[/there (is|are)|seven/,"Empezá con \"There are… days\"."]],
+  hints:[H("hay","there are"),H("siete","seven"),H("días","days")],
+  react:R("That's right!","Correct!"),
+  follow:[()=>({q:"Can you tell me the days of the week?",a:"Monday, Tuesday, Wednesday, Thursday, Friday, Saturday and Sunday.",hints:[H("lunes","Monday"),H("martes","Tuesday"),H("domingo","Sunday")],
+    need:[[DIAS3,"Decí al menos tres días: Monday, Tuesday, Wednesday…"]],react:R("Very good!","Excellent!")})]},
+ {g:"fecha",intro:INTRO.fecha[1],q:"What is your favourite day of the week? Why?",a:"My favourite day is Saturday because I play football.",
+  need:[[/monday|tuesday|wednesday|thursday|friday|saturday|sunday/,"Decí un día: Monday, Friday, Saturday…"],[/because/,"Explicá con \"because…\"."]],
+  hints:[H("mi día favorito","my favourite day"),H("sábado","Saturday"),H("porque","because")],
+  react:R("That's a great day!","Good choice!")},
+ {g:"fecha",intro:INTRO.fecha[0],q:"When is your mum's birthday?",a:"My mum's birthday is on the tenth of June.",
+  need:[[ORD,"Usá un ordinal: the tenth, the second…"],[MONTHS,"Decí también el mes: June, July…"]],
+  hints:[H("el cumpleaños de mi mamá","my mum's birthday"),H("el diez","the tenth"),H("de junio","of June")],
+  react:R("That's a nice date.","Thank you.")},
+ {g:"fecha",intro:INTRO.fecha[2],q:"What month is your birthday in?",a:"My birthday is in March.",
+  need:[[MONTHS,"Decí el mes: March, July…"],[/\bin\b|\bon\b|my birthday/,"Usá \"My birthday is in…\"."]],
+  hints:[H("mi cumpleaños","my birthday"),H("en marzo","in March"),H("en julio","in July")],
+  react:R("That's a good month for a birthday!","Lovely!"),
+  follow:[()=>({q:"And what is the date?",a:"It's on the fourteenth of March.",hints:[H("el catorce","the fourteenth"),H("de marzo","of March"),H("es el","it's on the")],
+    need:[[ORD,"Usá un ordinal: the fourteenth…"]],react:R("Great! Happy birthday in advance!","Thank you.")})]},
+ {g:"fecha",intro:INTRO.fecha[0],q:"What is the date of Christmas?",a:"Christmas is on the twenty-fifth of December.",
+  need:[[ORD,"Usá un ordinal: the twenty-fifth…"],[/december/,"Decí el mes: December."]],
+  hints:[H("Navidad","Christmas"),H("el veinticinco","the twenty-fifth"),H("de diciembre","of December")],
+  react:R("That's right! A special day.","Correct!")},
+ {g:"fecha",intro:INTRO.fecha[1],q:"What day comes after Wednesday?",a:"Thursday comes after Wednesday.",
+  need:[[/thursday/,"Es Thursday."]],
+  hints:[H("después de","after"),H("jueves","Thursday"),H("miércoles","Wednesday")],
+  react:R("Correct!","That's right!")},
+ {g:"fecha",intro:INTRO.fecha[2],q:"Which days do you go to school?",a:"I go to school from Monday to Friday.",
+  need:[[/monday|tuesday|wednesday|thursday|friday|weekdays|every day/,"Decí los días: from Monday to Friday."]],
+  hints:[H("voy a la escuela","I go to school"),H("de lunes","from Monday"),H("a viernes","to Friday")],
+  react:R("I see. Thank you.","That's right.")},
+ // ---- pasado
+ {g:"pasado",intro:INTRO.pasado[0],q:"Were you at school yesterday?",a:"Yes, I was. I was at school.",
+  need:[[/\bwas\b|\bwasn't\b|\bwere\b/,"Es pasado: \"Yes, I was\" o \"No, I wasn't\"."]],
+  hints:[H("sí, estuve","yes, I was"),H("no estuve","no, I wasn't"),H("en la escuela","at school")],
+  react:R("I see.","OK, thank you."),
+  follow:[()=>({q:"Was it a good day?",a:"Yes, it was. It was a good day.",hints:[H("fue un buen día","it was a good day"),H("no fue","it wasn't"),H("divertido","fun")],
+    need:[[/it was|it wasn't|was|wasn't/,"Contestá \"Yes, it was\" o \"No, it wasn't\"."]],react:R("I'm glad.","That's nice.")})]},
+ {g:"pasado",intro:INTRO.pasado[2],q:"Where were you on your last birthday?",a:"I was at home with my friends.",
+  need:[[/\bwas\b|\bwere\b/,"Es pasado: \"I was at…\"."]],
+  hints:[H("mi último cumpleaños","my last birthday"),H("estuve","I was"),H("con mis amigos","with my friends")],
+  react:R("That sounds like a nice party!","How lovely!"),
+  follow:[()=>({q:"Were your friends there?",a:"Yes, they were.",hints:[H("sí, estaban","yes, they were"),H("no estaban","no, they weren't"),H("mis primos","my cousins")],
+    need:[[/they were|they weren't|\bwere\b|weren't|yes|no/,"Contestá \"Yes, they were\" o \"No, they weren't\"."]],react:R()})]},
+ {g:"pasado",intro:INTRO.pasado[0],q:"Was the weather good yesterday?",a:"Yes, it was. It was sunny.",
+  need:[[/\bwas\b|\bwasn't\b|yes|no|sunny|rain|cold|hot|cloud|wind/,"Contestá \"Yes, it was\" o \"No, it wasn't\"."]],
+  hints:[H("sí, fue","yes, it was"),H("no fue","no, it wasn't"),H("soleado","sunny")],
+  react:R("I see.","Thank you.")},
+ {g:"pasado",intro:INTRO.pasado[1],q:"Were you tired last night?",a:"Yes, I was. I was very tired.",
+  need:[[/\bwas\b|\bwasn't\b|yes|no|tired/,"Contestá \"Yes, I was\" o \"No, I wasn't\"."]],
+  hints:[H("sí, estaba","yes, I was"),H("cansado","tired"),H("muy","very")],
+  react:t=>/\bno\b|wasn't/.test(t)?"Good! That's great.":"Oh, I see. Sleep well tonight!"},
+ {g:"pasado",intro:INTRO.pasado[1],q:"Where were your parents yesterday?",a:"They were at work.",
+  need:[[/\bwere\b|weren't|they were/,"Usá \"They were…\" (ellos estuvieron)."]],
+  hints:[H("ellos estuvieron","they were"),H("en el trabajo","at work"),H("en casa","at home")],
+  react:R("I see.","Thank you."),
+  follow:[()=>({q:"Were you with them?",a:"No, I wasn't. I was with my grandma.",hints:[H("estuve con","I was with"),H("mi abuela","my grandma"),H("no estuve","I wasn't")],
+    need:[[/\bwas\b|\bwasn't\b|yes|no|with/,"Contestá \"Yes, I was\" o \"No, I wasn't\"."]],react:R()})]},
+ {g:"pasado",intro:INTRO.pasado[2],q:"Where were you on your last holiday?",a:"I was at the beach with my family.",
+  need:[[/\bwas\b|\bwere\b/,"Es pasado: \"I was at…\"."]],
+  hints:[H("mis vacaciones","my holiday"),H("estuve en la playa","I was at the beach"),H("con mi familia","with my family")],
+  react:R("That sounds wonderful!","How lovely!"),
+  follow:[()=>({q:"Was it hot?",a:"Yes, it was. It was very hot.",hints:[H("caluroso","hot"),H("frío","cold"),H("muy","very")],
+    need:[[/\bwas\b|\bwasn't\b|yes|no|hot|cold|warm/,"Contestá \"Yes, it was\" o \"No, it wasn't\"."]],react:R()})]},
+ {g:"pasado",intro:INTRO.pasado[0],q:"Who was with you at lunch yesterday?",a:"My mum and my brother were with me.",
+  need:[[/\bwas\b|\bwere\b|with me|with/,"Usá \"was\" o \"were\": \"My mum was with me\"."]],
+  hints:[H("estaba conmigo","was with me"),H("estaban conmigo","were with me"),H("mi mamá","my mum")],
+  react:R("How nice.","I see.")},
 ];
 // ---- Dibujos: el examinador muestra un dibujo y pregunta qué hacen / qué trabajo tienen (como en el examen real)
+const PIC_INTROS=["Look at this picture. ","Now look at this picture. "];
 const JOBS_PIC=[
  {e:"👩‍⚕️",who:"her",she:"She",job:"doctor",an:"a",re:/doctor|nurse/,hint:H("doctora","doctor")},
  {e:"👨‍🚒",who:"his",she:"He",job:"firefighter",an:"a",re:/fire/,hint:H("bombero","firefighter")},
@@ -818,7 +1154,9 @@ const JOBS_PIC=[
  {e:"🧑‍✈️",who:"his",she:"He",job:"pilot",an:"a",re:/pilot/,hint:H("piloto","pilot")},
  {e:"👨‍🌾",who:"his",she:"He",job:"farmer",an:"a",re:/farm/,hint:H("granjero","farmer")},
  {e:"👮",who:"his",she:"He",job:"police officer",an:"a",re:/police/,hint:H("policía","police officer")},
- {e:"👩‍🍳",who:"her",she:"She",job:"cook",an:"a",re:/cook|chef/,hint:H("cocinera","cook")}
+ {e:"👩‍🍳",who:"her",she:"She",job:"cook",an:"a",re:/cook|chef/,hint:H("cocinera","cook")},
+ {e:"👨‍🍳",who:"his",she:"He",job:"cook",an:"a",re:/cook|chef/,hint:H("cocinero","cook")},
+ {e:"👷",who:"his",she:"He",job:"builder",an:"a",re:/build|construction|worker/,hint:H("albañil","builder")}
 ];
 const ACT_PIC=[
  {e:"🏊",q:"What is he doing?",a:"He is swimming.",re:/swim/,pron:"he",hint:H("nadando","swimming")},
@@ -828,32 +1166,136 @@ const ACT_PIC=[
  {e:"🧒📖",q:"What is he doing?",a:"He is reading a book.",re:/read/,pron:"he",hint:H("leyendo un libro","reading a book")},
  {e:"👩‍🎨",q:"What is she doing?",a:"She is painting.",re:/paint|draw/,pron:"she",hint:H("pintando","painting")},
  {e:"💃",q:"What is she doing?",a:"She is dancing.",re:/danc/,pron:"she",hint:H("bailando","dancing")},
- {e:"🎸",q:"What is he doing?",a:"He is playing the guitar.",re:/guitar|play|music/,pron:"he",hint:H("tocando la guitarra","playing the guitar")}
+ {e:"🎸",q:"What is he doing?",a:"He is playing the guitar.",re:/guitar|play|music/,pron:"he",hint:H("tocando la guitarra","playing the guitar")},
+ {e:"🏃",q:"What is he doing?",a:"He is running.",re:/run|jog/,pron:"he",hint:H("corriendo","running")},
+ {e:"🧒🍎",q:"What is he doing?",a:"He is eating an apple.",re:/eat|apple/,pron:"he",hint:H("comiendo una manzana","eating an apple")},
+ {e:"👧🎤",q:"What is she doing?",a:"She is singing.",re:/sing/,pron:"she",hint:H("cantando","singing")},
+ {e:"🧒📺",q:"What is he doing?",a:"He is watching TV.",re:/watch|tv|television/,pron:"he",hint:H("mirando tele","watching TV")}
 ];
-function stepJobPic(j){return {g:"dibujo",intro:"Look at this picture. ",picture:j.e,q:`What's ${j.who} job?`,a:`${j.she}'s ${j.an} ${j.job}.`,
+const jobQs=j=>[`What's ${j.who} job?`,`What does ${j.she.toLowerCase()} do?`];
+const actQs=x=>x.pron==="they"?[x.q]:[x.q,x.q.replace("What is","What's")];
+function stepJobPic(j,intro,q){return {g:"dibujo",intro:intro||pick(PIC_INTROS),picture:j.e,q:q||pick(jobQs(j)),a:`${j.she}'s ${j.an} ${j.job}.`,
   need:[[/(she|he)('s| is)|it's|it is/,`Empezá con \"${j.she}'s a…\".`],[j.re,`Mirá el dibujo: es ${j.hint.es} (${j.hint.en}).`]],
-  hints:[H(j.she==="She"?"ella es":"él es",`${j.she}'s`),j.hint,H("trabajo","job")],react:()=>pick(["That's right!","Yes, very good!"])}}
-function stepActionPic(x){return {g:"dibujo",intro:"Look at this picture. ",picture:x.e,q:x.q,a:x.a,
+  hints:[H(j.she==="She"?"ella es":"él es",`${j.she}'s`),j.hint,H("trabajo","job")],react:R("That's right!","Yes, very good!")}}
+function stepActionPic(x,intro,q){return {g:"dibujo",intro:intro||pick(PIC_INTROS),picture:x.e,q:q||pick(actQs(x)),a:x.a,
   need:[[x.pron==="they"?/they('re| are)/:/(he|she)('s| is)/,`Empezá con \"${x.a.split(' ').slice(0,2).join(' ')}…\".`],[/\w+ing\b/,"Usá el presente continuo: verbo + -ing (swimming, playing…)."],[x.re,`Mirá el dibujo: está ${x.hint.es} (${x.hint.en}).`]],
-  hints:[x.hint,H("está","is / are"),H("están","are")],react:()=>pick(["Yes, that's right!","Very good!"])}}
+  hints:[x.hint,H("está","is / are"),H("están","are")],react:R("Yes, that's right!","Very good!")}}
+// ---- Saludo, nombre y una pregunta más de calentamiento (a veces)
+const SALUDOS=["Hello! Come in and sit down, please. How are you today?","Good morning! Please, take a seat. How are you today?","Hi there! Nice to see you. How are you today?","Hello! Welcome. Sit down, please. How are you feeling today?","Good afternoon! Please, sit down. How are you today?","Hello! Please, come in. How are you today?"];
+const NOMBRES=["What's your name?","Can you tell me your name, please?","And what is your name?"];
+const CALENT=[
+ {g:"calent",q:"How old are you?",a:"I'm ten years old.",
+  need:[[NUM,"Decí tu edad: un número."],[/i'?m|i am|years/,"Empezá con \"I'm… years old\"."]],
+  hints:[H("tengo","I'm"),H("diez","ten"),H("años","years old")],react:R("That's a good age!","Great!","Thank you.")},
+ {g:"calent",q:"Where do you live?",a:"I live in Buenos Aires.",
+  need:[[/i live|\bin\b|my house|we live|i'm from/,"Empezá con \"I live in…\"."]],
+  hints:[H("vivo en","I live in"),H("en Buenos Aires","in Buenos Aires"),H("cerca de","near")],react:R("That sounds nice.","Lovely!","I see.")}
+];
 // ---- Al final, el candidato le hace una pregunta al examinador (Trinity lo pide en el Grade 3)
-const QSTEP={g:"pregunta",q:"Now, do you have a question for me?",a:"Yes, I do. What's your favourite colour?",
+const QSTEP_Q=["Now, do you have a question for me?","Now it's your turn. Can you ask me a question?","Would you like to ask me a question?"];
+const QSTEP={g:"pregunta",q:QSTEP_Q[0],a:"Yes, I do. What's your favourite colour?",
   need:[[/\?|\b(what|where|when|who|why|how|which|do you|does|are you|is it|can you|have you|did you|were you)\b/,"Hacele una pregunta al examinador: \"What's your favourite food?\", \"Do you like your job?\"."]],
   hints:[H("¿Tenés…?","Do you have…?"),H("¿Qué…?","What…?"),H("¿Dónde…?","Where…?")],
-  react:t=>/job|work/.test(t)?"Yes, I do. I like my job very much.":/pet|dog|cat/.test(t)?"Yes, I have a little dog.":/colou?r/.test(t)?"My favourite colour is blue.":/food|eat|pizza/.test(t)?"I love pasta!":/live|from/.test(t)?"I live in a small town near here.":/swim|can/.test(t)?"Yes, I can swim.":/get up|time/.test(t)?"I get up at seven o'clock.":/weekend/.test(t)?"At the weekend I like walking in the park.":"That's a very good question. Thank you!"};
+  react:t=>/\bold\b|\bage\b/.test(t)?"I'm thirty-five years old.":/\bname\b/.test(t)?"My name is Alex.":/job|work/.test(t)?"Yes, I do. I like my job very much.":/pet|dog|cat/.test(t)?"Yes, I have a little dog.":/colou?r/.test(t)?"My favourite colour is blue.":/food|eat|pizza/.test(t)?"I love pasta!":/music|sing|guitar/.test(t)?"Yes, I love music!":/live|from/.test(t)?"I live in a small town near here.":/swim|can/.test(t)?"Yes, I can swim.":/get up|time/.test(t)?"I get up at seven o'clock.":/weekend/.test(t)?"At the weekend I like walking in the park.":/brother|sister|family/.test(t)?"Yes, I have a sister.":/football|sport|tennis|play/.test(t)?"Yes, I like sport very much.":/school|teacher|subject/.test(t)?"I like English and music.":/birthday/.test(t)?"My birthday is in July.":"That's a very good question. Thank you!"};
+const CLOSE_Q=["Thank you. That's the end of our conversation. Goodbye!","Thank you very much. That's all. Goodbye!","OK, that's the end of the exam. Thank you. Goodbye!","Thank you, that's all. Goodbye!","OK, that's all. Thank you very much. Goodbye!"];
+const CLOSE={q:CLOSE_Q[0],a:"Goodbye, have a nice day!",
+  need:[[/bye/,"Despedite: \"Goodbye!\"."]],react:R("Have a nice day!","See you soon!","Goodbye!"),last:true};
+// Frases de relleno (no cuentan como pregunta): repetir, no se oyó y seguir
+const REPITE=["Of course.","Sure.","No problem."];
+const NO_OIGO=["Sorry, I can't hear you. Can you say that again?","Sorry, I didn't hear you. Can you say that again, please?"];
+const SIGAMOS=["That's OK. Let's go on.","No problem. Let's go on.","That's all right. Let's continue."];
+
+// ---- Para que NO pregunte siempre lo mismo:
+//  · cada tema tiene varias preguntas y se elige una que no haya salido en las últimas charlas (memoria en localStorage «trinity_vistas»);
+//  · entran 8 de los 9 temas, en orden al azar (los que hace más que no salen, primero);
+//  · las repreguntas (follow) salen a veces y también se sortean;
+//  · saludo, nombre, pregunta del candidato, despedida y dibujos tienen variantes.
+// ⚠️ Cada frase del examinador necesita su audio grabado (en iPhone con manos libres no hay otra voz): al agregar o cambiar preguntas
+// hay que volver a generar los audios (README, «Audios grabados»; tools/audio/).
 const GRUPOS=["casa","barrio","escuela","rutina","libre","familia","clima","fecha","pasado"];
-// arma una charla que pasa por TODOS los temas del Grade 3, un paso de cada uno, y termina con la pregunta del candidato
-function armarPasos(){
-  const por=g=>MIDDLE.filter(s=>s.g===g);
-  const pasos=GRUPOS.map(g=>pick(por(g)));
-  // familia: además de la charla sobre la familia, un dibujo de un trabajo
-  const j=pick(JOBS_PIC);pasos.splice(GRUPOS.indexOf("familia")+1,0,stepJobPic(j));
-  // dibujos de acciones (presente continuo): dos distintos
-  const a=shuffleA(ACT_PIC).slice(0,2);a.forEach(x=>pasos.push(stepActionPic(x)));
-  return [...OPEN,...pasos,QSTEP,CLOSE];
+const VISTAS_KEY="trinity_vistas",PROB_REPREGUNTA=.65;
+function vistasLeer(){try{const o=JSON.parse(localStorage.getItem(VISTAS_KEY)||"{}");return o&&typeof o==="object"&&!Array.isArray(o)?o:{}}catch(e){return {}}}
+function vistasGuardar(o){try{
+  const ks=Object.keys(o).filter(k=>k!=="_n");
+  if(ks.length>500)ks.sort((a,b)=>(o[a]||0)-(o[b]||0)).slice(0,ks.length-350).forEach(k=>delete o[k]);
+  localStorage.setItem(VISTAS_KEY,JSON.stringify(o))}catch(e){}}
+const claveP=s=>"q"+_audioKey(s.q);   // por el texto de la pregunta: no depende del orden del banco
+function elegirNuevo(lista,clave,V,n){   // una que no haya salido en las últimas charlas; si todas salieron hace poco, la que hace más que no sale
+  if(lista.length<2)return lista[0];
+  const K=Math.max(1,Math.floor(lista.length*.6));
+  const libres=lista.filter(s=>{const u=V[clave(s)];return !u||n-u>K});
+  if(libres.length)return pick(libres);
+  return lista.slice().sort((a,b)=>(V[clave(a)]||0)-(V[clave(b)]||0)||Math.random()-.5)[0];
 }
-const CLOSE={q:"Thank you. That's the end of our conversation. Goodbye!",a:"Goodbye, have a nice day!",
-  need:[[/bye/,"Despedite: \"Goodbye!\"."]],react:()=>"Have a nice day!",last:true};
+// arma una charla que pasa por casi todos los temas del Grade 3, en orden distinto cada vez, con dibujos, y termina con la pregunta del candidato
+function armarPasos(){
+  const V=vistasLeer(),n=(V._n||0)+1;V._n=n;
+  const usar=(s,clave)=>{V[(clave||claveP)(s)]=n;return s};
+  // saludo (según la hora del día), nombre y, a veces, una pregunta más de calentamiento
+  const h=new Date().getHours();
+  const saludo=pick(SALUDOS.filter(s=>!(/^Good morning/.test(s)&&h>=12)&&!(/^Good afternoon/.test(s)&&(h<12||h>=20))));
+  const apertura=[Object.assign({},OPEN[0],{q:saludo}),Object.assign({},OPEN[1],{q:pick(NOMBRES)})];
+  if(Math.random()<.55)apertura.push(usar(elegirNuevo(CALENT,claveP,V,n)));
+  // temas: 8 de los 9 (primero los que hace más que no salen), en orden al azar
+  const temas=GRUPOS.map(g=>({g,u:V["g:"+g]||0,r:Math.random()})).sort((a,b)=>a.u-b.u||a.r-b.r).slice(0,8).map(x=>x.g);
+  const pas=shuffleA(temas).map(g=>{V["g:"+g]=n;return usar(elegirNuevo(MIDDLE.filter(s=>s.g===g),claveP,V,n))});
+  // dibujos: un trabajo (justo después del tema de familia, si salió) y dos acciones (presente continuo), nunca dos dibujos seguidos
+  const pk=x=>"p"+x.e;
+  const j=usar(elegirNuevo(JOBS_PIC,pk,V,n),pk);
+  const a1=usar(elegirNuevo(ACT_PIC.filter(x=>x.e!==j.e),pk,V,n),pk);
+  const a2=usar(elegirNuevo(ACT_PIC.filter(x=>x.e!==j.e&&x!==a1),pk,V,n),pk);
+  const esDib=s=>!!(s&&s.g==="dibujo");
+  const ins=(item,desde)=>{const ok=[];for(let p=Math.max(1,desde);p<=pas.length;p++){if(!esDib(pas[p-1])&&!esDib(pas[p]))ok.push(p)}pas.splice(ok.length?pick(ok):pas.length,0,item)};
+  const fi=pas.findIndex(s=>s.g==="familia"),trab=stepJobPic(j);
+  if(fi>=0)pas.splice(fi+1,0,trab);else ins(trab,1);
+  ins(stepActionPic(a1),2);ins(stepActionPic(a2),2);
+  vistasGuardar(V);
+  return [...apertura,...pas,Object.assign({},QSTEP,{q:pick(QSTEP_Q)}),Object.assign({},CLOSE,{q:pick(CLOSE_Q)})];
+}
+const seguidas=s=>Array.isArray(s.follow)?s.follow:s.follow?[s.follow]:[];
+function elegirSeguida(step,low,preguntadas){   // la repregunta de un paso: a veces (no siempre), una que no se haya hecho ya en esta charla ni hace poco
+  const objs=seguidas(step).map(f=>{try{return f(low)}catch(e){return null}}).filter(o=>o&&o.q&&!preguntadas.has(_audioKey(o.q)));
+  if(!objs.length||Math.random()>=PROB_REPREGUNTA)return null;
+  const V=vistasLeer(),n=V._n||1,o=elegirNuevo(objs,claveP,V,n);
+  V[claveP(o)]=n;vistasGuardar(V);return o;
+}
+// ---- Examinador con IA: para que tampoco pregunte siempre lo mismo, la página sortea el orden de los temas y una pregunta-idea de cada uno
+// (del mismo banco y con la misma memoria que el guion de siempre) y se lo pasa a la IA como «plan de la charla».
+const TEMAS_IA={
+ casa:"HOME LIFE (his house or flat, rooms and what is in them, who he lives with, his garden or pets; there is / there are)",
+ barrio:"LOCAL AREA and DIRECTIONS (his street, shops and places near his house, how he goes to school, where a place is: near, opposite, next to, behind; or how to get somewhere: go straight on, turn left/right, cross the street). NOT about rooms of the house",
+ escuela:"PLACE OF STUDY (school subjects, his classroom or schoolbag, break time, his teacher, what time school starts or finishes)",
+ rutina:"DAILY ROUTINE and TIMES (what time he gets up, has breakfast, lunch or dinner, goes to bed; what he does after school or after dinner; encourage \"and\" / \"and then\")",
+ libre:"FREE TIME and CAN / CAN'T (hobbies, sports, music, the weekend, what he can and can't do)",
+ clima:"WEATHER and SEASONS (the weather today, in summer and winter, his favourite season, what he does when it rains)",
+ fecha:"DAYS and DATES (what day or month it is, the date today, his birthday, the days of the week; ordinal numbers up to the 31st)",
+ pasado:"PAST (was / were: where he was yesterday or last weekend, was it fun, who was with him)"
+};
+let _planIA="";
+function planIA(){
+  const V=vistasLeer(),n=(V._n||0)+1;V._n=n;
+  const turnos=[3,4,5,6,7,8,10,11,12],orden=shuffleA(["casa","barrio","barrio","escuela","rutina","libre","clima","fecha","pasado"]),usadas=new Set();
+  const lineas=turnos.map((t,i)=>{
+    const g=orden[i],cand=MIDDLE.filter(x=>x.g===g&&!usadas.has(x.q)),x=elegirNuevo(cand,claveP,V,n);
+    usadas.add(x.q);V[claveP(x)]=n;
+    return " turn "+t+": "+TEMAS_IA[g]+'\n   Question idea (say it naturally in your own simple words; react to his last answer first): "'+x.q+'"';
+  });
+  vistasGuardar(V);
+  return lineas.join("\n");
+}
+// Herramienta para generar los audios (no la usa la página): todas las frases que puede decir el examinador de siempre. Ver tools/audio/.
+window.rkTextosGuion=function(){
+  const out=new Set(),add=t=>{t=String(t||"").replace(/\s+/g," ").trim();if(t&&/[a-z]/i.test(t))out.add(t)};
+  const muestras=["","fine thank you","no","yes i do","my name is felu","i live in a house","i have a dog","there are four","because it is big","i can swim","i can't swim","it is sunny","it is raining","football","i want to be a vet","my mum is a teacher","i get up at seven","it was good","the first of november","do you like your job","do you have pets","what is your favourite colour","what food do you like","where do you live","can you swim","what time do you get up","what do you do at the weekend","how old are you","what is your name","do you like music","do you have a brother","hello"];
+  const reacciones=s=>{if(!s.react)return;for(let n=0;n<14;n++)muestras.forEach(m=>{try{const x=s.react(m);if(typeof x==="string")add(x)}catch(e){}})};
+  const paso=(s,nivel)=>{add((s.intro||"")+s.q);add("Good try! You can say: "+s.a+" Now you try.");(s.hints||[]).forEach(h=>add(h.en));reacciones(s);
+    if(nivel<2)seguidas(s).forEach(f=>paso(f("x"),nivel+1))};
+  [...OPEN,...CALENT,...MIDDLE,CLOSE,QSTEP].forEach(s=>paso(s,0));
+  SALUDOS.concat(NOMBRES,QSTEP_Q,CLOSE_Q,REPITE,NO_OIGO,SIGAMOS,GEN).forEach(add);
+  JOBS_PIC.forEach(j=>PIC_INTROS.forEach(i=>jobQs(j).forEach(q=>paso(stepJobPic(j,i,q),0))));
+  ACT_PIC.forEach(x=>PIC_INTROS.forEach(i=>actQs(x).forEach(q=>paso(stepActionPic(x,i,q),0))));
+  return [...out];
+};
 
 // ---- examinador con IA (opcional) y micrófono por grabación
 // Hay dos maneras de conectar la IA (la primera tiene prioridad):
@@ -1026,7 +1468,7 @@ async function iaPedirReintentos(h,k,max,nota){   // a mitad de la charla se rei
 }
 async function iaPedir(messages,turn,max,nota){
   if(fbListo()){
-    const txt=await _fbGenerar({system:SISTEMA_IA+"\nPICTURES AVAILABLE:\n"+PIC_LISTA.map(x=>x.e+" = "+x.d).join("\n")+"\nturn="+turn+" max="+max+(nota?"\nNOTE: "+nota:""),contents:_iaContents(messages),json:true,temp:.8,tokens:1500,
+    const txt=await _fbGenerar({system:SISTEMA_IA+(_planIA?"\nSESSION PLAN (the page drew these topics and question ideas at random so that every exam is different; for the turns listed here it REPLACES the order of topics in the AGENDA above; turns 1, 2, 9, 13, max and max+1 stay exactly as in the AGENDA):\n"+_planIA:"")+"\nPICTURES AVAILABLE:\n"+PIC_LISTA.map(x=>x.e+" = "+x.d).join("\n")+"\nturn="+turn+" max="+max+(nota?"\nNOTE: "+nota:""),contents:_iaContents(messages),json:true,temp:.8,tokens:1500,
       schema:S=>S.object({properties:{reply:S.string(),ok:S.boolean(),tip:S.string(),model:S.string(),end:S.boolean(),picture:S.string(),hints:S.array({items:S.object({properties:{es:S.string(),en:S.string()}})}),help:S.string()}})});
     let o;
     try{o=_jsonDe(txt)}
@@ -1202,7 +1644,7 @@ function capDetener(){   // suelta TODO (pistas, AudioContext y modo de audio), 
     try{c.proc.onaudioprocess=null;c.proc.disconnect()}catch(e){}try{c.src.disconnect()}catch(e){}
     c.stream.getTracks().forEach(t=>t.stop())}
   if(_actx){const x=_actx;_actx=null;try{x.close().catch(()=>{})}catch(e){}}
-  audioSesion("auto");
+  audioSesion("auto");_soltarEl();
 }
 async function abrirSesionMic(){   // "ok" | "denied" | "nodev" | "error:X"  (deja el micrófono ABIERTO: sólo para manos libres en iPhone y para la revisión de sonido)
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){micPermState="nodev";return "nodev"}
@@ -1273,7 +1715,7 @@ let VEL_EX=(function(){try{return localStorage.getItem("trinity_vel")||"rapida"}
 let VOZ_IOS=(function(){try{return localStorage.getItem("trinity_voz2")||"celu"}catch(e){return "celu"}})();
 const velAudio=()=>VEL_EX==="rapida"?1.2:1;     // audios guardados y de Gemini
 const velVoz=()=>VEL_EX==="rapida"?1.12:.95;    // voz del navegador
-let _aud=null,_audOk=false,_playCorta=null;
+let _aud=null,_audOk=false,_playCorta=null,_audAct=null;
 const _SILENCIO="audio/silencio.mp3";
 function unlockAudioEl(){   // iPhone: el primer play() tiene que ocurrir dentro de un toque; después el mismo elemento puede sonar solo
   if(_audOk||_playCorta)return;   // (con un audio de verdad sonando no se le cambia el origen)
@@ -1282,34 +1724,77 @@ function unlockAudioEl(){   // iPhone: el primer play() tiene que ocurrir dentro
     if(p&&p.catch)p.catch(e=>{if(e&&e.name==="AbortError")return;_audOk=false})}   // AbortError = otro audio lo reemplazó: no es un rechazo del navegador
   catch(e){_audOk=false}
 }
-const _audioSonando=()=>!!(_playCorta||(_aud&&!_aud.paused&&!_aud.ended));
+const _sonando=a=>!!(a&&!a.paused&&!a.ended);
+const _audioSonando=()=>!!(_playCorta||_sonando(_audAct)||_sonando(_aud));   // (el compartido también suena con la pausa silenciosa de desbloqueo)
 function _pararAudio(){   // un audio grabado sonando se corta antes de hablar con la voz del celular (en Safari se interrumpen entre sí)
   if(_playCorta){_playCorta();_playCorta=null}
-  try{if(_aud&&!_aud.paused)_aud.pause()}catch(e){}
+  try{if(_sonando(_audAct))_audAct.pause()}catch(e){}
+  try{if(_sonando(_aud))_aud.pause()}catch(e){}
+}
+// Manos libres en iPhone: si el audio del examinador "suena" pero no llega al micrófono (o sea, no se oye), se prueba otra forma de reproducirlo:
+//   0 el mismo <audio> de siempre · 1 un <audio> nuevo en cada frase · 2 un <video> nuevo (el iPhone suele mandarlo al parlante) · 3 Web Audio por el contexto del micrófono.
+// La que funciona queda guardada en el equipo («trinity_estr»). Fuera de manos libres siempre se usa la 0.
+const ESTRATEGIAS=["audio compartido","audio nuevo en cada frase","video","Web Audio"];
+let _estrategia=(function(){try{const n=+localStorage.getItem("trinity_estr");return n>=0&&n<ESTRATEGIAS.length?n:0}catch(e){return 0}})();
+let ECO_MIN_MS=1300;   // una frase más corta que esto no se juzga (el eco de una palabra suelta no dice nada)
+let _elTmp=null;   // el <audio>/<video> descartable de la última frase
+function _soltarEl(){if(_elTmp){try{_elTmp.pause();_elTmp.removeAttribute("src");if(_elTmp.parentNode)_elTmp.parentNode.removeChild(_elTmp)}catch(e){}_elTmp=null}}
+function _elNuevo(modo){
+  if(modo===2){const v=document.createElement("video");v.setAttribute("playsinline","");v.playsInline=true;v.setAttribute("aria-hidden","true");
+    v.style.cssText="position:fixed;left:-9px;top:-9px;width:1px;height:1px;opacity:0;pointer-events:none";document.body.appendChild(v);return v}
+  return new Audio();
 }
 let _audErr="";
 // Registro corto de lo que pasó con la voz y el micrófono: se copia desde 🔧 Diagnóstico → 📋 Copiar informe (para revisar sin consola ni capturas)
 const _RK=[];
 function rklog(t){try{_RK.push(new Date().toTimeString().slice(0,8)+" "+t);if(_RK.length>80)_RK.shift()}catch(e){}}
 function _playUrl(url,vel){
+  if(PERSISTENTE&&_estrategia===3&&_actx&&_actx.state==="running")return _playWebAudio(url,vel).then(ok=>ok||_playEl(url,vel,0));
+  return _playEl(url,vel,PERSISTENTE&&_estrategia<3?_estrategia:0);
+}
+function _playEl(url,vel,modo){
   return new Promise(r=>{
     if(_playCorta){_playCorta();_playCorta=null}   // un audio nuevo corta el anterior (sin que el anterior pase a "falló")
     let fin=false,t=null;const ok=v=>{if(!fin){fin=true;clearTimeout(t);if(_playCorta===cortar)_playCorta=null;rklog("audio "+String(url).replace(/^.*\//,"").slice(0,22)+(v?" terminó":" FALLÓ ("+_audErr+")"));r(v)}};
     const cortar=()=>ok(true);_playCorta=cortar;
-    const a=_aud||(_aud=new Audio());a.onended=()=>ok(true);a.onerror=()=>{_audErr="error del reproductor "+(a.error?a.error.code:"?");ok(false)};
+    let a;
+    if(modo>0){_soltarEl();a=_elTmp=_elNuevo(modo)}   // elemento nuevo (el compartido sigue siendo el que se desbloqueó con un toque)
+    else a=_aud||(_aud=new Audio());
+    _audAct=a;a.onended=()=>ok(true);a.onerror=()=>{_audErr="error del reproductor "+(a.error?a.error.code:"?");ok(false)};
     t=setTimeout(()=>ok(false),20000);
     let intentos=0;
     const arrancar=()=>{
       intentos++;
       try{if(synth&&(synth.speaking||synth.pending))synth.cancel()}catch(e){}   // una voz pendiente (p. ej. la de desbloqueo) interrumpiría este audio
       a.src=url;try{a.defaultPlaybackRate=vel||1;a.playbackRate=vel||1}catch(e){}
-      rklog("audio play "+String(url).replace(/^.*\//,"").slice(0,22)+(intentos>1?" (reintento "+intentos+")":""));
+      rklog("audio play "+String(url).replace(/^.*\//,"").slice(0,22)+(modo>0?" ["+ESTRATEGIAS[modo]+"]":"")+(intentos>1?" (reintento "+intentos+")":""));
       const pl=a.play();
       if(pl&&pl.catch)pl.catch(e=>{
         if(e&&e.name==="AbortError"&&intentos<3&&!fin){setTimeout(()=>{if(!fin)arrancar()},150);return}   // algo interrumpió el arranque: se vuelve a intentar
         _audErr=e&&e.name?e.name:"no se pudo reproducir";ok(false)});
     };
     arrancar();
+  });
+}
+function _playWebAudio(url,vel){   // el audio se decodifica y suena por el MISMO AudioContext que está abierto para el micrófono
+  return new Promise(res=>{
+    let fin=false,src=null,t=null;
+    const ok=v=>{if(fin)return;fin=true;clearTimeout(t);if(_playCorta===cortar)_playCorta=null;rklog("audio "+String(url).replace(/^.*\//,"").slice(0,22)+" [Web Audio]"+(v?" terminó":" FALLÓ ("+_audErr+")"));res(v)};
+    const cortar=()=>{try{if(src)src.stop()}catch(e){}ok(true)};
+    if(_playCorta){_playCorta();_playCorta=null}
+    _playCorta=cortar;
+    (async()=>{
+      try{
+        const ctx=_actx,r=await fetch(url);if(!r.ok)throw new Error("HTTP "+r.status);
+        const buf=await r.arrayBuffer();
+        const dec=await new Promise((a,b)=>{const p=ctx.decodeAudioData(buf,a,b);if(p&&p.then)p.then(a,b)});
+        if(fin)return;
+        src=ctx.createBufferSource();src.buffer=dec;try{src.playbackRate.value=vel||1}catch(e){}
+        src.connect(ctx.destination);src.onended=()=>ok(true);
+        src.start();
+        t=setTimeout(()=>ok(true),dec.duration/(vel||1)*1000+1500);
+      }catch(e){_audErr="Web Audio: "+(e&&e.name||e);ok(false)}
+    })();
   });
 }
 const TTS_MODELOS=["gemini-2.5-flash-preview-tts","gemini-3.1-flash-tts-preview"];
@@ -1364,7 +1849,7 @@ function sayOnline(t){
 // clave del audio grabado de una frase; si lleva un nombre («Thank you, Felu.») y sólo existe grabada SIN el nombre, se usa ésa (en pantalla queda el nombre)
 function _claveAudio(t){
   const k=_audioKey(t);if(_AUDIO_SET.has(k))return k;
-  const k2=_audioKey(String(t).replace(/,\s+[A-ZÁÉÍÓÚÑ][\wáéíóúñ]+(?=[.!?]|$)/,""));
+  const k2=_audioKey(String(t).replace(/,\s+[A-ZÁÉÍÓÚÑ][\wáéíóúñ]*(?=[.!?]|$)/,""));
   return _AUDIO_SET.has(k2)?k2:null;
 }
 function say(t,status,op){   // op.ex = lo dice el examinador (velocidad configurable)
@@ -1418,8 +1903,17 @@ function pastilla(){   // rincón de la pantalla: versión + qué modo salió de
   const n={libres:"manos libres","toque-ia":"con IA, tocando 🎤",toque:"preguntas grabadas, tocando 🎤",lectura:"no se oye"};
   e.textContent=BUILD+" · sonido: "+(r?n[modoDe(r)]:"sin revisar");
 }
+const ECO_OFF_KEY="trinity_eco_off";
+const ecoIgnorado=()=>{try{return localStorage.getItem(ECO_OFF_KEY)==="1"}catch(e){return false}};
+function ecoIgnorar(on){try{if(on)localStorage.setItem(ECO_OFF_KEY,"1");else localStorage.removeItem(ECO_OFF_KEY)}catch(e){}}
+// Nivel (0 a 1) con el que el micrófono oyó, en la revisión de sonido, un audio que la persona SÍ oyó. 0 = no hay con qué comparar: si ella lo oyó y el micrófono
+// no, medir el eco en este equipo no dice nada y no se juzga si el examinador suena.
+function ecoRef(){
+  const r=leerSonido();if(!r||r.mp3a!==1||!(r.ecoA>0))return 0;
+  return r.ecoA>=Math.max(2.5,(r.ecoAmb||0)*2.5)?r.ecoA/100:0;
+}
 function leerSonido(){
-  try{const r=JSON.parse(localStorage.getItem("trinity_sonido2")||"null");if(!r)return null;
+  try{const r=JSON.parse(localStorage.getItem("trinity_sonido3")||"null");if(!r)return null;
     const algo=r.tts||r.mp3||r.mp3d||r.ttsd||r.mp3a,edad=r.t?Date.now()-r.t:0;
     return edad>(algo?7*864e5:10*60e3)?null:r}   // «no se oye nada» suele ser pasajero (silencio, volumen, Bluetooth): no se guarda para siempre; lo demás se vuelve a revisar a la semana
   catch(e){return null}
@@ -1451,7 +1945,8 @@ function abrirSonido(alTerminar){
   if(activeStop)activeStop();PERSISTENTE=false;capDetener();   // si hay una charla andando, se pausa y se suelta el micrófono
   const m=document.createElement("div");m.id="rkSonido";m.className="rk-modal";m.setAttribute("role","dialog");m.setAttribute("aria-modal","true");
   m.innerHTML='<div class="rk-caja"></div>';document.body.appendChild(m);
-  const caja=()=>m.querySelector(".rk-caja"),cerrar=()=>{capDetener();m.remove()},pausa=ms=>new Promise(r=>setTimeout(r,ms)),url=w=>"audio/"+_audioKey(w)+".mp3";
+  // (si se cierra a mitad de las pruebas, la forma de reproducir vuelve a la de antes)
+  const caja=()=>m.querySelector(".rk-caja"),cerrar=()=>{capDetener();if(P3.intentos>0&&R.mp3a!==1)_estrategia=P3.inicial;m.remove()},pausa=ms=>new Promise(r=>setTimeout(r,ms)),url=w=>"audio/"+_audioKey(w)+".mp3";
   const R={},sincro=[];   // R: lo que la persona marcó
   const nivel=(c,desde)=>{let amb=0,aud=0;const t0=performance.now();c.onFrame=d=>{let x=0;for(let i=0;i<d.length;i+=8){const a=Math.abs(d[i]);if(a>x)x=a}if(performance.now()-t0<desde){if(x>amb)amb=x}else if(x>aud)aud=x};return ()=>({amb,aud})};
   function preguntar(cfg,det,repetir){
@@ -1462,6 +1957,7 @@ function abrirSonido(alTerminar){
     caja().querySelector("#rkSnOtra").onclick=repetir;
     caja().querySelector("#rkSnListo").onclick=()=>{
       const oyo=[];cfg.chips.forEach(c=>{const v=caja().querySelector('[data-k="'+c[0]+'"]').getAttribute("aria-pressed")==="true"?1:0;R[c[0]]=v;if(v)oyo.push("«"+c[2]+"»")});
+      if(det&&det.micOyo!==undefined){R.ecoA=det.micOyo;R.ecoAmb=det.ambiente}   // lo que oyó el micrófono con el audio sonando: sirve de referencia para vigilar que el examinador se siga oyendo
       rklog("prueba de sonido "+cfg.n+"/3: se oyó "+(oyo.length?oyo.join(" "):"nada")+" · la app detectó "+JSON.stringify(det));
       cfg.sig()};
   }
@@ -1475,16 +1971,27 @@ function abrirSonido(alTerminar){
     caja().querySelector("#rkSnPlay").onclick=ejecutar;caja().querySelector("#rkSnCerrar").onclick=cerrar;
   }
   const P3={n:3,tit:"Paso 3 de 3 · con el micrófono abierto",txt:"El micrófono se abre y, con él abierto, suena una voz grabada que dice «Friday». Es lo que hace falta para hablar <b>sin tocar nada</b>.",
-    chips:[["mp3a","🎙️","Friday","audio grabado, con el micrófono abierto"]],
+    chips:[["mp3a","🎙️","Friday","audio grabado, con el micrófono abierto"]],intentos:0,inicial:0,
     reproducir:async()=>{
       unlockAudioEl();
       const est=await abrirSesionMic();   // (se llama dentro del toque)
       if(est!=="ok")return {sinMic:est};
       const med=nivel(_cap,500);await pausa(520);
-      const ok=await _playUrl(url("Friday"),1);const r=med();if(_cap)_cap.onFrame=null;capDetener();
-      rklog("prueba de sonido 3/3: con el micrófono abierto, el micrófono oyó el audio: máx "+(r.aud*100).toFixed(1)+"% (ambiente "+(r.amb*100).toFixed(1)+"%)");
-      return {grabadoAbierto:ok,micOyo:+(r.aud*100).toFixed(1),ambiente:+(r.amb*100).toFixed(1)}},
-    saltar:()=>fin(),sig:()=>fin()};
+      PERSISTENTE=true;   // así suena con la forma de reproducir elegida (_estrategia), igual que en la charla de manos libres
+      let ok;try{ok=await _playUrl(url("Friday"),1)}finally{PERSISTENTE=false}
+      const r=med();if(_cap)_cap.onFrame=null;capDetener();
+      rklog("prueba de sonido 3/3: con el micrófono abierto, el micrófono oyó el audio: máx "+(r.aud*100).toFixed(1)+"% (ambiente "+(r.amb*100).toFixed(1)+"%) · forma "+_estrategia+" ("+ESTRATEGIAS[_estrategia]+")");
+      return {grabadoAbierto:ok,forma:_estrategia,micOyo:+(r.aud*100).toFixed(1),ambiente:+(r.amb*100).toFixed(1)}},
+    saltar:()=>fin(),
+    sig:()=>{   // si no se oyó, se prueba otra forma de reproducir el audio (con un toque más, que el iPhone pide para abrir el micrófono)
+      if(R.mp3a===1){try{localStorage.setItem("trinity_estr",String(_estrategia))}catch(e){}return fin()}
+      if(P3.intentos>=ESTRATEGIAS.length-1){_estrategia=P3.inicial;return fin()}   // ninguna se oyó: queda todo como estaba
+      P3.intentos++;_estrategia=(_estrategia+1)%ESTRATEGIAS.length;
+      rklog("prueba de sonido 3/3: no se oyó; se prueba otra forma de reproducir: "+ESTRATEGIAS[_estrategia]);
+      P3.tit="Paso 3 de 3 · otra forma de reproducir ("+(P3.intentos+1)+" de "+ESTRATEGIAS.length+")";
+      P3.txt="No oíste «Friday», así que probamos otra forma de reproducir el audio con el micrófono abierto (<b>"+ESTRATEGIAS[_estrategia]+"</b>). Tocá ▶ y marcá si ahora lo oís.";
+      paso(P3)}};
+  const resetP3=()=>{P3.intentos=0;P3.inicial=_estrategia;P3.tit="Paso 3 de 3 · con el micrófono abierto";P3.txt="El micrófono se abre y, con él abierto, suena una voz grabada que dice «Friday». Es lo que hace falta para hablar <b>sin tocar nada</b>."};
   const P2={n:2,tit:"Paso 2 de 3 · después de usar el micrófono",txt:"El micrófono se abre un momento y se cierra; después suenan dos voces: una grabada que dice «Wednesday» y la voz del celular que dice «Thursday».",
     chips:[["mp3d","🔈","Wednesday","audio grabado, después del micrófono"],["ttsd","🗣️","Thursday","voz del celular, después del micrófono"]],
     reproducir:async()=>{
@@ -1495,7 +2002,7 @@ function abrirSonido(alTerminar){
       const g=await _playUrl(url("Wednesday"),1);await pausa(450);
       const v=await sayLocal("Thursday",()=>{},{});
       return {grabado:g,vozCelular:v}},
-    saltar:()=>fin(),sig:()=>paso(P3)};
+    saltar:()=>fin(),sig:()=>{resetP3();paso(P3)}};
   const P1={n:1,tit:"Paso 1 de 3 · sin micrófono",txt:"Primero la voz del celular dice «Monday» y después una voz grabada dice «Tuesday».",
     chips:[["tts","🗣️","Monday","voz del celular"],["mp3","🔈","Tuesday","audio grabado"]],
     reproducir:async()=>{
@@ -1506,12 +2013,12 @@ function abrirSonido(alTerminar){
       return {vozCelular:v,grabado:g}},
     sig:()=>paso(P2)};
   function fin(){
-    const r={t:Date.now()};["tts","mp3","mp3d","ttsd","mp3a"].forEach(k=>{if(R[k]!==undefined)r[k]=R[k]});
-    try{localStorage.setItem("trinity_sonido2",JSON.stringify(r))}catch(e){}
+    const r={t:Date.now()};["tts","mp3","mp3d","ttsd","mp3a","ecoA","ecoAmb"].forEach(k=>{if(R[k]!==undefined)r[k]=R[k]});ecoIgnorar(false);   // (rehacer la revisión vuelve a activar la vigilancia)
+    try{localStorage.setItem("trinity_sonido3",JSON.stringify(r))}catch(e){}
     aplicarSonido(r);resultado(r)}
   function resultado(r){
     const modo=modoDe(r);let ico,txt;
-    if(modo==="libres"){ico="🎙️";txt="Se oye con el micrófono abierto: la charla va a ser <b>manos libres</b>, sin botón «Hablar». El examinador usa las preguntas grabadas y vos contestás cuando termina de preguntar."}
+    if(modo==="libres"){ico="🎙️";txt="Se oye con el micrófono abierto: la charla va a ser <b>manos libres</b>, sin botón «Hablar». El examinador usa las preguntas grabadas y vos contestás cuando termina de preguntar."+(_estrategia>0?" (Se oyó con una forma especial de reproducir el audio: <b>"+ESTRATEGIAS[_estrategia]+"</b>. La app la recuerda.)":"")}
     else if(modo==="toque-ia"){ico="🤖";txt="La voz del celular se oye después de usar el micrófono: vas a poder usar el <b>examinador con IA</b>, tocando <b>🎤 Hablar</b> para contestar (con el micrófono abierto el audio no se oyó)."}
     else if(modo==="toque"){ico="🔈";txt="Se oye el audio grabado pero no con el micrófono abierto: la charla va a usar las <b>preguntas grabadas</b> y vas a tocar <b>🎤 Hablar</b> para contestar. "+(r.tts===0?"La voz del celular no se oyó: en el iPhone casi siempre es el <b>modo silencio</b> 🔕 (interruptor del costado).":"")}
     else{ico="😕";txt="No se oyó nada. Revisá el <b>volumen</b>, el <b>modo silencio</b> 🔕 y que no haya <b>auriculares, Bluetooth o AirPlay</b> conectados (Centro de control → ícono de audio) y probá de nuevo. Mientras tanto vas a poder <b>leer</b> las preguntas en pantalla."}
@@ -1522,7 +2029,7 @@ function abrirSonido(alTerminar){
       <textarea class="rk-inf" readonly rows="11" aria-label="Informe">${esc(window.rkInforme?window.rkInforme(8):"")}</textarea><p class="es" id="rkSnMsg"></p>
       <div class="sbtns"><button class="btn" id="rkSnGo">${alTerminar?"Empezar":"Cerrar"}</button><button class="btn ghost" id="rkSnOtra">🔁 Repetir la prueba</button><button class="btn ghost" id="rkSnCopiar">📋 Copiar informe</button></div>`;
     caja().querySelector("#rkSnGo").onclick=()=>{cerrar();if(alTerminar)alTerminar()};
-    caja().querySelector("#rkSnOtra").onclick=()=>{for(const k in R)delete R[k];paso(P1)};
+    caja().querySelector("#rkSnOtra").onclick=()=>{for(const k in R)delete R[k];paso(P1)};   // (P3 se reinicia al llegar a él)
     caja().querySelector("#rkSnCopiar").onclick=()=>rkCopiar(caja().querySelector("#rkSnMsg"));
   }
   caja().innerHTML=`<h3>🔊 Revisión de sonido</h3>
@@ -1799,21 +2306,53 @@ function mountConv(rootId,mode){
     bubble("hint",`<span class="who">💡 Cómo se dice</span><span class="hchips">${hints.map(h=>`<button class="hchip" data-say="${attr(h.en)}"><span class="es">${esc(h.es)}</span> → <b>${esc(h.en)}</b> 🔊</button>`).join("")}</span>`);
   }
   let avisoManosLibres=false;
+  // ---- Manos libres: con el micrófono abierto se mide si el audio del examinador llega al micrófono (si el parlante suena, el micrófono lo oye).
+  // Si una frase "sonó" pero no llegó, no se está oyendo (en iPhone con iOS 26/27 pasa con las apps instaladas: WebKit 295518): se muestra el texto,
+  // se repite la frase con otra forma de reproducirla (ESTRATEGIAS) y, si ninguna anda, se explica qué hacer. Sólo si en la revisión de sonido la persona
+  // SÍ oyó un audio y el micrófono también lo captó (ecoRef): si no, medir el eco en este equipo no dice nada y no se juzga.
+  let _mudo={n:0,reint:0,aviso:false};
+  async function decirManosLibres(text,burbuja){
+    const ref=ecoRef(),inicial=_estrategia;
+    for(let vez=0;vez<ESTRATEGIAS.length;vez++){
+      if(!_cap)return await say(text,status,{ex:true});   // se cortó el micrófono
+      let amb=0,aud=0;const t0=performance.now();
+      _cap.onFrame=d=>{let m=0;for(let i=0;i<d.length;i+=8){const a=Math.abs(d[i]);if(a>m)m=a}if(performance.now()-t0<250){if(m>amb)amb=m}else if(m>aud)aud=m};
+      await new Promise(r=>setTimeout(r,260));   // primero el ambiente, antes de que hable
+      const t1=performance.now();_audErr="";
+      const sono=await say(text,status,{ex:true});
+      const dur=performance.now()-t1;
+      if(_cap)_cap.onFrame=null;
+      rklog("eco del examinador en el micrófono: máx "+(aud*100).toFixed(1)+"% (ambiente "+(amb*100).toFixed(1)+"%) · forma "+_estrategia+" ("+ESTRATEGIAS[_estrategia]+")"+(ref?" · referencia "+(ref*100).toFixed(1)+"%":" · sin referencia"));
+      // esta forma de reproducir ni siquiera arrancó (el navegador no la deja sin un toque): se pasa a la siguiente
+      if(sono===false&&_estrategia>0&&/NotAllowed/.test(_audErr)&&vez<ESTRATEGIAS.length-1){rklog("forma "+_estrategia+" rechazada por el navegador: se prueba la siguiente");_estrategia=(_estrategia+1)%ESTRATEGIAS.length;continue}
+      if(sono!==true||!ref||ecoIgnorado()||dur<ECO_MIN_MS)return sono;   // sólo se juzga una frase que sonó, con referencia y que no sea cortita
+      if(aud>=Math.max(.012,amb*2.2,ref*.25)){   // llegó al micrófono: se oye
+        _mudo.n=0;try{localStorage.setItem("trinity_estr",String(_estrategia))}catch(e){}
+        return true}
+      // no llegó: no se está oyendo
+      _mudo.n++;burbuja.classList.remove("hide");   // por lo menos se puede leer
+      if(el("txt")&&!el("txt").checked){el("txt").checked=true}
+      rklog("AUDIO MUDO: la frase terminó pero el micrófono no la oyó (forma "+_estrategia+", "+ESTRATEGIAS[_estrategia]+")");
+      if(_mudo.reint>=3||vez>=ESTRATEGIAS.length-1){_estrategia=inicial;avisarMudo();return true}   // ya se probó todo: se vuelve a la de antes y se sigue leyendo
+      _mudo.reint++;_estrategia=(_estrategia+1)%ESTRATEGIAS.length;   // (se guarda sólo la que funciona)
+      rklog("se repite la frase con otra forma de reproducirla: "+ESTRATEGIAS[_estrategia]);
+    }
+    return true;
+  }
+  function avisarMudo(){
+    if(_mudo.aviso)return;_mudo.aviso=true;
+    const b=bubble("tip",'🔇 <b>No detecto que el examinador se esté oyendo</b> (probé varias formas de reproducirlo). Te muestro lo que dice para que puedas seguir <b>leyendo y contestando</b>. Si estás con auriculares, es normal.<br>Si no, en el iPhone casi siempre se arregla <b>cerrando la app del todo</b> (deslizá hacia arriba) y abriéndola de nuevo, o usando el sitio desde <b>Safari</b> en vez del ícono: iOS 26 y 27 tienen un error de audio en las apps instaladas.<div class="sbtns" style="margin-top:8px"><button class="btn ghost" data-a="snd">🔊 Probar el sonido</button><button class="btn ghost" data-a="oigo">👍 Sí lo oigo bien</button></div>');
+    b.querySelector('[data-a="snd"]').onclick=()=>el("snd").click();
+    b.querySelector('[data-a="oigo"]').onclick=()=>{ecoIgnorar(true);b.remove()};
+  }
   async function examiner(text,extra){
-    curQ=text;extra=extra||{};
+    extra=extra||{};
+    if(!extra.relleno)curQ=text;   // lo de relleno («Of course.», «Good try…») no reemplaza a la pregunta que «Repetir pregunta» tiene que decir
     registro.push({r:"E",t:String(text),pic:extra.picture&&picInfo(extra.picture)?picInfo(extra.picture).d:"",coach:/^Good try! You can say:/.test(text)});
     const pic=extra.picture?`<span class="bigpic" role="img" aria-label="dibujo">${esc(extra.picture)}</span><span class="piccap">🖼️ Mirá el dibujo</span>`:"";
     const burbuja=bubble("ex"+(el("txt").checked?"":" hide"),`<span class="who">Examinador</span>${pic}${esc(text)}`);
     mostrarAyudas(extra.hints);
-    let monitor=null;
-    if(PERSISTENTE&&_cap){   // manos libres: con el micrófono abierto se mide si el audio del examinador llega al micrófono (si el parlante suena, el micrófono lo oye)
-      let amb=0,aud=0;const t0=performance.now();
-      _cap.onFrame=d=>{let m=0;for(let i=0;i<d.length;i+=8){const a=Math.abs(d[i]);if(a>m)m=a}if(performance.now()-t0<250){if(m>amb)amb=m}else if(m>aud)aud=m};
-      monitor=()=>({amb,aud});
-      await new Promise(r=>setTimeout(r,260));   // primero el ambiente, antes de que hable
-    }
-    const sono=await say(text,status,{ex:true});
-    if(monitor){const r=monitor();if(_cap)_cap.onFrame=null;rklog("eco del examinador en el micrófono: máx "+(r.aud*100).toFixed(1)+"% (ambiente "+(r.amb*100).toFixed(1)+"%)")}
+    const sono=PERSISTENTE&&_cap?await decirManosLibres(text,burbuja):await say(text,status,{ex:true});
     rklog("examinador: "+(sono===false?"NINGUNA voz sonó":"voz ok"));
     if(sono===false&&PERSISTENTE){burbuja.classList.remove("hide")}   // manos libres: esta frase no tiene audio grabado, se lee
     else if(sono===false){   // ninguna voz funcionó: se muestra lo que dice para poder seguir
@@ -1826,22 +2365,23 @@ function mountConv(rootId,mode){
 
   let avisoSinVoz=false;
   let pts=0,total=0,review=[],registro=[],iaCaida=false;
-  async function turn(step,id){
+  async function turn(step,id,qtxt){   // qtxt: lo que se le preguntó (para repetirlo si lo pide)
     total++;
     for(let attempt=0;attempt<2;attempt++){
       const t=await escuchar();if(run!==id)return null;
       if(t===null){
         registro.push({r:"K",t:"(no answer)"});
-        if(attempt===0){await examiner("Sorry, I can't hear you. Can you say that again?");if(run!==id)return null;continue}
-        await examiner("That's OK. Let's go on.");review.push(step);return "";
+        if(attempt===0){await examiner(pick(NO_OIGO),{relleno:true});if(run!==id)return null;continue}
+        await examiner(pick(SIGAMOS),{relleno:true});review.push(step);return "";
       }
       bubble("kid",esc(t));registro.push({r:"K",t});
       const {low,tips}=check(step,t);
-      if(/repeat|sorry|don't understand/.test(low)&&attempt===0){total--;await examiner("Of course. "+curQ.replace(/^Of course\. /,""));if(run!==id)return null;total++;continue}
+      // pidió que se repita: «Of course.» y la misma pregunta, cada una con su audio grabado (juntas no tenían)
+      if(/repeat|sorry|don't understand/.test(low)&&attempt===0){total--;await examiner(pick(REPITE),{relleno:true});if(run!==id)return null;await examiner(qtxt||curQ);if(run!==id)return null;total++;continue}
       if(!tips.length){pts+=attempt===0?1:.6;return low}
       if(E){pts+=.4;review.push(step);return low}
       if(attempt===0){bubble("tip","<b>Casi.</b> "+tips.join(" ")+`<br>Ejemplo: <i>${esc(step.a)}</i>`);
-        await examiner("Good try! You can say: "+step.a+" Now you try.");if(run!==id)return null}
+        await examiner("Good try! You can say: "+step.a+" Now you try.",{relleno:true});if(run!==id)return null}
       else{review.push(step);return low}
     }
   }
@@ -1849,6 +2389,10 @@ function mountConv(rootId,mode){
   // La IA juzga cada respuesta (ok/tip/model) en la vuelta SIGUIENTE, por eso se anota con "prev".
   async function conversationIA(id){
     const max=14;let hist=[],prev=null;
+    _planIA=planIA();   // temas y preguntas-idea distintos en cada examen (ver planIA)
+    try{return await conversationIA2(id,max,hist,prev)}finally{_planIA=""}
+  }
+  async function conversationIA2(id,max,hist,prev){
     for(let k=1;k<=max+1;k++){
       el("n").textContent=`${E?"Examen oral":"Charla con IA"} · ${Math.min(k,max)} de ${max}`;el("bar").style.width=(Math.min(k-1,max)/max*100)+"%";
       let r;
@@ -1881,25 +2425,23 @@ function mountConv(rootId,mode){
     return true}
   async function conversation(){
     if(activeStop)activeStop();activeStop=halt;
-    const id=++run;pts=0;total=0;review=[];registro=[];iaCaida=false;kidName="";
-    // para que no pregunte siempre lo mismo: saludo y despedida con variantes, y las preguntas del medio se sortean cada vez
-    OPEN[0].q=pick(["Hello! Come in and sit down, please. How are you today?","Good morning! Please, take a seat. How are you today?","Hi there! Nice to see you. How are you today?","Hello! Welcome. Sit down, please. How are you feeling today?"]);
-    OPEN[1].q=pick(["What's your name?","Can you tell me your name, please?","And what is your name?"]);
-    CLOSE.q=pick(["Thank you. That's the end of our conversation. Goodbye!","Thank you very much. That's all. Goodbye!","OK, that's the end of the exam. Thank you. Goodbye!"]);
-    const steps=armarPasos();
+    const id=++run;pts=0;total=0;review=[];registro=[];iaCaida=false;kidName="";_mudo={n:0,reint:0,aviso:false};
     el("chat").innerHTML="";el("chat").classList.remove("fin");el("start").hidden=true;el("stop").hidden=false;el("rep").hidden=PERSISTENTE;el("kb").hidden=false;status("");
     if(PERSISTENTE)bubble("tip","🎙️ <b>Charla manos libres.</b> El examinador usa preguntas grabadas y vos contestás hablando, sin tocar nada. Si no entendés, decí <i>“Sorry, can you repeat, please?”</i>"+(avisoManosLibres?" (El examinador con IA habla con la voz del celular, que en iPhone no anda con el micrófono abierto: para usarlo tildá «Tocar 🎤 para hablar».)":""));
     if(IA_ON&&el("ia")&&el("ia").checked){const ok=await conversationIA(id);if(ok===false)return;if(ok===true){el("bar").style.width="100%";finish();return}}
+    // el guion de siempre: preguntas distintas cada vez (banco grande, orden al azar, sin repetir lo reciente; ver armarPasos)
+    const steps=armarPasos(),preguntadas=new Set();
     for(let k=0;k<steps.length;k++){
       const step=steps[k];
       el("n").textContent=`${E?"Examen oral":"Tema"} · ${k+1} de ${steps.length}`;el("bar").style.width=(k/steps.length*100)+"%";
       const q=(step.intro||"")+(step.last&&kidName?step.q.replace("Thank you.",`Thank you, ${kidName}.`):step.q);
+      preguntadas.add(_audioKey(step.q));
       await examiner(q,{picture:step.picture,hints:step.hints});if(run!==id)return;
-      const low=await turn(step,id);if(run!==id||low===null)return;
-      const fol=low&&step.follow?step.follow(low):null;
+      const low=await turn(step,id,q);if(run!==id||low===null)return;
+      const fol=low?elegirSeguida(step,low,preguntadas):null;   // la repregunta sale a veces, no siempre
       if(low)await examiner(step.react(low));
       if(run!==id)return;
-      if(fol){await examiner(fol.q,{hints:fol.hints});if(run!==id)return;const l2=await turn(fol,id);if(run!==id||l2===null)return;if(l2)await examiner(fol.react(l2));if(run!==id)return}
+      if(fol){preguntadas.add(_audioKey(fol.q));await examiner(fol.q,{hints:fol.hints});if(run!==id)return;const l2=await turn(fol,id,fol.q);if(run!==id||l2===null)return;if(l2)await examiner(fol.react(l2));if(run!==id)return}
     }
     el("bar").style.width="100%";finish();
   }
@@ -2252,7 +2794,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-02 · manos libres 3";
+const BUILD="2026-11-02 · preguntas variadas 2";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};
@@ -2273,7 +2815,8 @@ const BUILD="2026-11-02 · manos libres 3";
       "Dispositivo: "+(IS_IOS?"iPhone/iPad"+(()=>{const v=IOS_VER>=26?(/Version\/([\d.]+)/.exec(ua)||[])[1]:(ios?ios.replace(/_/g,"."):(IOS_VER||""));return v?" · iOS "+v:""})():/Android/i.test(ua)?"Android":"PC")+" · abierto en: "+modo()+" · pantalla "+innerWidth+"x"+innerHeight,
       (n?null:"Navegador: "+ua)+(n?"":(IOS_VER?" · iOS/Safari "+IOS_VER:"")+" · app instalada: "+(esInstalada()?"sí":"no")),
       "audioSession: "+((navigator.audioSession&&navigator.audioSession.type)||"no disponible")+" · IA conectada: "+(fbListo()?"sí":"no")+" · tocar 🎤: "+tap+" · velocidad: "+VEL_EX+" · voz iPhone: "+VOZ_IOS,
-      "Voz del navegador desbloqueada: "+(_voiceOk?"sí":"no")+" · voz del celular descartada: "+(_localMuda?"sí":"no")+" · voz de la IA agotada: "+(_iaVozAgotada?"sí":"no")+" · permiso de micrófono: "+micPermState+" · revisión de sonido: "+(localStorage.getItem("trinity_sonido2")||"(sin hacer)")+" · audio grabado usado: "+(MP3_OK?"sí":"no")+" · sin voz: "+(SIN_VOZ?"sí":"no"),
+      "Audio en manos libres: forma "+_estrategia+" ("+ESTRATEGIAS[_estrategia]+") · referencia de eco: "+(ecoRef()?(ecoRef()*100).toFixed(1)+"%":"no hay (no se vigila)")+" · vigilancia: "+(ecoIgnorado()?"apagada por la persona":"activa")+" · app instalada: "+(esInstalada()?"sí":"no"),
+      "Voz del navegador desbloqueada: "+(_voiceOk?"sí":"no")+" · voz del celular descartada: "+(_localMuda?"sí":"no")+" · voz de la IA agotada: "+(_iaVozAgotada?"sí":"no")+" · permiso de micrófono: "+micPermState+" · revisión de sonido: "+(localStorage.getItem("trinity_sonido3")||"(sin hacer)")+" · audio grabado usado: "+(MP3_OK?"sí":"no")+" · sin voz: "+(SIN_VOZ?"sí":"no"),
       "--- registro ("+(n?"la prueba de sonido y lo último":"lo último, abajo")+") ---"].concat(_RK.length?(n?_RK.filter(x=>/prueba de sonido/.test(x)).slice(-n).concat(_RK.slice(-3)).filter((x,i,a)=>a.indexOf(x)===i):_RK.slice(-80)):["(todavía no pasó nada: hacé una charla y volvé a copiar)"]);
     for(let i=l.length-1;i>=0;i--)if(l[i]===null)l.splice(i,1);
     if(!n&&log.children.length){l.push("--- diagnóstico ---");[...log.children].forEach(li=>l.push((li.className==="ok"?"[OK] ":li.className==="no"?"[FALLA] ":"")+li.textContent))}
@@ -2360,12 +2903,37 @@ pastilla();
   const hoy=new Date().toISOString().slice(0,10);let visto="";try{visto=localStorage.getItem("trinity_aviso_pwa")||""}catch(e){}
   if(visto===hoy)return;
   const d=document.createElement("div");d.className="rk-pwa";d.setAttribute("role","note");
-  d.innerHTML='<b>⚠️ Estás usando la app instalada.</b> En iPhone con iOS 26 o más nuevo, las apps instaladas <b>pueden quedarse sin audio</b> (error de Apple, todavía sin arreglar). Si no escuchás al examinador, abrí este sitio en <b>Safari</b> (no desde el ícono).<div class="sbtns" style="margin-top:8px"><button class="btn ghost" id="rkPwaCopiar">📋 Copiar dirección</button><button class="btn ghost" id="rkPwaOk">Entendido</button></div><p class="es" id="rkPwaMsg" style="margin:6px 0 0"></p>';
+  d.innerHTML='<b>⚠️ Estás usando la app instalada.</b> En iPhone con iOS 26 o más nuevo, las apps instaladas <b>pueden quedarse sin audio</b> (error de Apple, todavía sin arreglar). Si no escuchás al examinador, <b>cerrala del todo</b> (deslizá hacia arriba) y abrila de nuevo; si sigue igual, abrí este sitio en <b>Safari</b> (no desde el ícono).<div class="sbtns" style="margin-top:8px"><button class="btn ghost" id="rkPwaCopiar">📋 Copiar dirección</button><button class="btn ghost" id="rkPwaOk">Entendido</button></div><p class="es" id="rkPwaMsg" style="margin:6px 0 0"></p>';
   const nav=document.querySelector("nav");if(!nav)return;nav.parentNode.insertBefore(d,nav);
   d.querySelector("#rkPwaCopiar").onclick=async()=>{let ok=false;const url=location.origin+location.pathname;
     try{await navigator.clipboard.writeText(url);ok=true}catch(e){}
     d.querySelector("#rkPwaMsg").textContent=ok?"✅ Dirección copiada: abrí Safari, pegala en la barra y listo.":"Abrí Safari y escribí: "+url};
   d.querySelector("#rkPwaOk").onclick=()=>{try{localStorage.setItem("trinity_aviso_pwa",hoy)}catch(e){}d.remove()};
+})();
+(function(){   // iPhone con iOS 26+ y la app instalada: al volver del fondo el audio puede quedar mudo (WebKit 295518) y se oía "una vez y después no". Si la app no está
+  // haciendo nada, se recarga sola al volver (queda como recién abierta, que es cuando el audio sí andaba): como máximo una vez por minuto, y nunca en medio de una
+  // charla, un examen, un texto escrito o la revisión de sonido. Se vuelve a la misma pestaña.
+  try{const t=sessionStorage.getItem("rk_volver");if(t){sessionStorage.removeItem("rk_volver");const b=document.getElementById("t-"+t);if(b&&b.getAttribute("aria-selected")!=="true")b.click()}}catch(e){}
+  try{const m=sessionStorage.getItem("rk_resume_log");if(m){sessionStorage.removeItem("rk_resume_log");rklog(m)}}catch(e){}   // (el registro no sobrevive a la recarga: queda anotado para el informe)
+  if(!(IS_IOS&&IOS_VER>=26&&esInstalada()))return;
+  let desde=0;
+  const ocupado=()=>{
+    if(activeStop||document.getElementById("rkSonido"))return true;
+    if(document.querySelector("#practice-chat .msg.kid,#oral-chat .msg.kid,#practice-chat .msg.nota,#oral-chat .msg.nota"))return true;
+    if(["practice-start","oral-start"].some(id=>{const b=document.getElementById(id);return b&&b.hidden}))return true;
+    if(qs.length&&i<qs.length)return true;   // examen escrito empezado
+    return [...document.querySelectorAll("input[type=text],textarea")].some(x=>!x.readOnly&&String(x.value||"").trim());
+  };
+  document.addEventListener("visibilitychange",()=>{
+    if(document.hidden){desde=Date.now();return}
+    const fuera=desde?Date.now()-desde:0;desde=0;
+    if(fuera<10000||ocupado())return;
+    let ult=0;try{ult=+sessionStorage.getItem("rk_resume")||0}catch(e){}
+    if(Date.now()-ult<60000)return;
+    try{sessionStorage.setItem("rk_resume",String(Date.now()));const t=document.querySelector('nav button[aria-selected="true"]');if(t&&t.dataset.v)sessionStorage.setItem("rk_volver",t.dataset.v)}catch(e){}
+    try{sessionStorage.setItem("rk_resume_log","la app se recargó sola al volver del fondo ("+Math.round(fuera/1000)+" s) para que el audio no quede mudo")}catch(e){}
+    location.replace(location.pathname+"?v="+Date.now());
+  });
 })();
 (function(){
   if(location.protocol!=="https:")return;

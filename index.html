@@ -29,6 +29,7 @@ h1 span{display:inline-block;background:var(--accent);color:var(--accent-ink);pa
 .mod:focus-visible{outline:4px solid var(--accent);outline-offset:3px}
 .m3{background:linear-gradient(135deg,#3157d5,#6a4be0)}
 .m4{background:linear-gradient(135deg,#6d3fc4,#d24f93)}
+.m5{background:linear-gradient(135deg,#e0197f,#ff8a3d)}
 .ic{grid-row:1/4;font-size:3rem;line-height:1;filter:drop-shadow(0 3px 0 rgba(0,0,0,.2))}
 .tt b{display:block;font-family:var(--display);font-weight:800;font-size:2rem;line-height:1.05}
 .tt small{display:block;margin-top:2px;font-size:1rem;font-weight:700;opacity:.92}
@@ -58,6 +59,13 @@ h1 span{display:inline-block;background:var(--accent);color:var(--accent-ink);pa
       <span class="go">Entrar →</span>
       <span class="ult" hidden>Última vez</span>
     </a>
+    <a class="mod m5" href="sala5/" data-m="5">
+      <span class="ic" aria-hidden="true">🐥</span>
+      <span class="tt"><b>Sala de 5</b><small>Jugar y aprender</small></span>
+      <span class="dd">Para una nena de 5 años: inglés, lengua y matemática con dibujos y voz, sin necesidad de leer.</span>
+      <span class="go">Jugar →</span>
+      <span class="ult" hidden>Última vez</span>
+    </a>
   </nav>
   <div class="pie">
     <p>Cada módulo guarda sus propias notas en este aparato.</p>
@@ -66,10 +74,10 @@ h1 span{display:inline-block;background:var(--accent);color:var(--accent-ink);pa
 </main>
 <script>
 (function(){
-  // «Última vez»: cada módulo anota que se abrió (trinity_ultimo = 3 o 4) y acá se marca el último que se usó en este aparato
+  // «Última vez»: cada módulo anota que se abrió (trinity_ultimo = 3, 4 o 5) y acá se marca el último que se usó en este aparato
   try{var u=localStorage.getItem("trinity_ultimo"),a=u&&document.querySelector('.mod[data-m="'+u+'"]');
     if(a){var t=a.querySelector(".ult");if(t)t.hidden=false}}catch(e){}
-  // el service worker guarda el inicio y los dos módulos para abrirlos sin internet
+  // el service worker guarda el inicio y los tres módulos para abrirlos sin internet
   if("serviceWorker"in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(function(){});
 })();
 </script>

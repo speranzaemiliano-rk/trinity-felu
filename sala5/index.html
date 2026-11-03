@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Sala de 5 · Jugar y aprender</title>
+<meta name="theme-color" content="#e91e8c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sala de 5">
+<script>try{localStorage.setItem("trinity_ultimo","5")}catch(e){}</script>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
+<link rel="stylesheet" href="sala5.css?b=2026-11-03-sala-de-5">
+</head>
+<body>
+
+<!-- Inicio: tres botones enormes (Lengua, Matemática, English), las pegatinas y, escondido, el panel para grandes -->
+<section id="pInicio" class="pantalla inicio" hidden>
+  <header class="barra">
+    <div class="saludo" id="saludo">¡Hola!</div>
+    <button class="chip" id="bAlbum" aria-label="Mis pegatinas">🏆 <b id="nPeg">0</b></button>
+    <button class="chip padres" id="bPadres" aria-label="Para grandes: mantené apretado">⚙️</button>
+  </header>
+  <div class="mascota" id="mascota" aria-hidden="true">🐥</div>
+  <div class="areas">
+    <button class="area a-lengua" data-area="lengua"><span class="aico">Aa</span><span class="anom">Lengua</span></button>
+    <button class="area a-mates" data-area="mates"><span class="aico">123</span><span class="anom">Matemática</span></button>
+    <button class="area a-ingles" data-area="ingles"><span class="aico">ABC</span><span class="anom">English</span></button>
+  </div>
+</section>
+
+<!-- Un área: los juegos como botones grandes con dibujo -->
+<section id="pArea" class="pantalla" hidden>
+  <header class="barra">
+    <button class="atras" id="aAtras" aria-label="Volver">⬅</button>
+    <div class="titulo" id="aTitulo"></div>
+    <button class="chip" id="aAlbum" aria-label="Mis pegatinas">🏆 <b id="aPeg">0</b></button>
+  </header>
+  <div class="tiles" id="tiles"></div>
+</section>
+
+<!-- Un juego: arriba el dibujo o lo que se cuenta, abajo las opciones -->
+<section id="pJuego" class="pantalla juego" hidden>
+  <header class="barra">
+    <button class="atras" id="jAtras" aria-label="Volver">⬅</button>
+    <div class="puntos" id="jPuntos" aria-hidden="true"></div>
+    <button class="chip" id="jRepetir" aria-label="Escuchar otra vez">🔊</button>
+  </header>
+  <main class="cuerpo">
+    <div class="texto" id="jTexto" aria-live="polite"></div>
+    <div class="zona"><div class="est" id="jEst"></div><div class="ops" id="jOps"></div></div>
+  </main>
+</section>
+
+<!-- Las pegatinas ganadas -->
+<section id="pAlbum" class="pantalla" data-area="album" hidden>
+  <header class="barra">
+    <button class="atras" id="gAtras" aria-label="Volver">⬅</button>
+    <div class="titulo">Mis pegatinas</div>
+    <span class="chip">🏆 <b id="gPeg">0</b></span>
+  </header>
+  <div class="pegatinas" id="pegatinas"></div>
+</section>
+
+<div class="mascota-chica" id="mascotaChica" aria-hidden="true">🐥</div>
+
+<!-- Premio al terminar una ronda -->
+<div class="modal premio" id="premio" hidden>
+  <div class="caja-modal">
+    <div class="grande" id="premioPeg">🦄</div>
+    <h2 id="premioTit">¡Muy bien!</h2>
+    <div class="estrellas" id="premioEst">⭐⭐⭐⭐⭐</div>
+    <div class="acciones">
+      <button class="chip" id="premioOtra" aria-label="Jugar otra vez">🔁</button>
+      <button class="chip" id="premioSalir" aria-label="Terminar">🏠</button>
+    </div>
+  </div>
+</div>
+
+<!-- Para grandes (se abre manteniendo apretado el ⚙️): nombre, voz, dificultad y borrar todo -->
+<div class="modal" id="padres" hidden>
+  <div class="caja-modal padres-form">
+    <h2>Para grandes ⚙️</h2>
+    <label for="pNombre">Nombre de la nena (opcional)</label>
+    <input type="text" id="pNombre" maxlength="14" autocomplete="off" placeholder="Por ejemplo: Sofi">
+    <small>Se usa para saludarla y para el juego «Mi nombre» (armar las letras). Queda sólo en este aparato.</small>
+    <div class="fila"><input type="checkbox" id="pVoz"><label for="pVoz" style="margin:0">Con sonido (voces y efectos)</label></div>
+    <label for="pDif">Dificultad</label>
+    <select id="pDif"><option value="0">Fácil (empieza desde lo más simple)</option><option value="1">Un poco más difícil</option></select>
+    <small>Los juegos suben de nivel solos cuando le salen bien (4 de 5).</small>
+    <div class="fila"><input type="checkbox" id="pMin"><label for="pMin" style="margin:0">Mostrar letras minúsculas en el nivel más difícil</label></div>
+    <button class="btn" id="pCerrar">Listo</button>
+    <button class="btn peligro" id="pBorrar">Borrar pegatinas y avances</button>
+    <a href="../">← Volver al inicio del sitio</a>
+  </div>
+</div>
+
+<!-- Pantalla inicial: el primer toque habilita el sonido (en iPhone y tablets no se puede hablar antes de un toque) -->
+<div class="splash" id="splash">
+  <div class="mascota" aria-hidden="true">🐥</div>
+  <div class="titulo-grande">Jugar y aprender</div>
+  <button class="jugar" id="bJugar">▶ ¡Jugar!</button>
+</div>
+
+<script src="audio/manifest.js?b=2026-11-03-sala-de-5"></script>
+<script src="contenido.js?b=2026-11-03-sala-de-5"></script>
+<script src="juego.js?b=2026-11-03-sala-de-5"></script>
+<script>
+if("serviceWorker"in navigator&&location.protocol==="https:")navigator.serviceWorker.register("../sw.js").catch(function(){});
+</script>
+</body>
+</html>

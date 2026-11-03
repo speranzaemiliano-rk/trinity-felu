@@ -1,0 +1,31 @@
+{
+  "name": "Sala de 5 · Jugar y aprender",
+  "short_name": "Sala de 5",
+  "description": "Juegos para una nena de 5 años: inglés, lengua y matemática con dibujos grandes y voz, sin necesidad de leer.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "../",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#fff4d6",
+  "theme_color": "#e91e8c",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "id": "/trinity-felu/sala5/"
+}

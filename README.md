@@ -1,15 +1,16 @@
 # Trinity GESE · Grade 3 (Felu) y Grade 4 (Raphina)
 
-Sitio de estudio y práctica para el examen oral Trinity GESE, con **un módulo por grado** que comparten el mismo motor. Sin build: se edita y se sube.
-Se publica en GitHub Pages. **La dirección de siempre es el INICIO: un menú para entrar al Trinity 3 o al Trinity 4**; cada módulo tiene arriba una barra («🏠 Inicio · Trinity 3 · Trinity 4») para volver o pasar al otro en un toque.
+Sitio de estudio y práctica para el examen oral Trinity GESE, con **un módulo por grado** que comparten el mismo motor, y aparte **«Sala de 5»**: juegos de inglés, lengua y matemática para una nena de 5 años (módulo independiente, sin el motor de Trinity). Sin build: se edita y se sube.
+Se publica en GitHub Pages. **La dirección de siempre es el INICIO: un menú para entrar al Trinity 3, al Trinity 4 o a Sala de 5**; cada módulo de Trinity tiene arriba una barra («🏠 Inicio · Trinity 3 · Trinity 4») para volver o pasar al otro en un toque.
 
 | Pantalla | Para | Qué es | Dirección |
 |---|---|---|---|
-| **Inicio** | todos | el menú con las dos opciones (marca «Última vez» el que se abrió último en ese aparato) | https://speranzaemiliano-rk.github.io/trinity-felu/ |
+| **Inicio** | todos | el menú con las tres opciones (marca «Última vez» el que se abrió último en ese aparato) | https://speranzaemiliano-rk.github.io/trinity-felu/ |
 | **Trinity 3** (Grade 3) | Felu | charla de 7 minutos con el examinador | https://speranzaemiliano-rk.github.io/trinity-felu/felu/ |
 | **Trinity 4** (Grade 4) | Raphina | 10 minutos: tema preparado + conversación | https://speranzaemiliano-rk.github.io/trinity-felu/raphina/ |
+| **Sala de 5** | una nena de 5 años | juegos con dibujos y voz (no hace falta leer): inglés, lengua y matemática | https://speranzaemiliano-rk.github.io/trinity-felu/sala5/ |
 
-Instalar como app: lo más cómodo es instalar el **Inicio** (queda un solo ícono «Trinity» que abre el menú); los módulos también se pueden instalar solos (cada uno con su ícono y su `id`). Los tres manifiestos tienen alcance sobre todo el sitio, así «Inicio» y el otro módulo abren dentro de la misma app. Hasta la versión «módulos 2» el Grade 3 vivía en la raíz (`/`): quien lo tenga instalado ahora abre el menú y entra con un toque.
+Instalar como app: lo más cómodo es instalar el **Inicio** (queda un solo ícono «Trinity» que abre el menú); los módulos también se pueden instalar solos (cada uno con su ícono y su `id`). Los manifiestos de los módulos tienen alcance sobre todo el sitio, así «Inicio» y el otro módulo abren dentro de la misma app. Hasta la versión «módulos 2» el Grade 3 vivía en la raíz (`/`): quien lo tenga instalado ahora abre el menú y entra con un toque.
 
 ## Cómo está armado
 
@@ -24,7 +25,8 @@ Nada se compila: son archivos que el navegador carga en este orden. **El motor n
 | `motor.js` | voz, micrófono, iPhone manos libres, revisión de sonido, IA, nota, repaso escrito y aviso de versión nueva. Lee a `MOD` y a los ganchos del contenido |
 | `index.html` | **el inicio**: el menú para entrar al Trinity 3 o al 4. Es una página sola (sin el motor), con su `manifest.json` y sus íconos en la raíz |
 | `felu/index.html` · `raphina/index.html` | la página de cada módulo (misma estructura; otra paleta y otros textos), con la barra «Inicio · Trinity 3 · Trinity 4» arriba. Cada carpeta tiene su `manifest.json` y sus íconos |
-| `sw.js` | el service worker, **uno solo para todo el sitio**: guarda el inicio y los dos módulos para abrirlos sin internet y cada uno cae en el suyo |
+| `sala5/` | **«Sala de 5»**, aparte de todo lo de arriba (no usa el motor, ni `comun.js`, ni Firebase): su propia página, estilos, contenido, juegos, audios, manifiesto e íconos. Ver «Sala de 5» más abajo |
+| `sw.js` | el service worker, **uno solo para todo el sitio**: guarda el inicio y los tres módulos para abrirlos sin internet y cada uno cae en el suyo (los mp3 no los guarda: Safari los pide por partes) |
 
 **Lo que define un contenido** (`contenido-gN.js`): `MOD`, `VISTAS_KEY`, `armarPasos(vista)` (la lista de pasos de la charla), `planIA(esExamen)` (el plan al azar que se le pasa a la IA), `SISTEMA_IA`, `SISTEMA_EVAL`, `PROMPT_TRANSCRIBIR`, `EVAL_CRIT`, `PIC_LISTA`, `VOCAB`, `DIB*`, `bank` y `rkTextosGuion()` (todas las frases que puede decir el examinador, para generar los audios). Opcionales: `evalExtra(reg)` (datos que cuenta la página para corregir) y `pideDePregunta()` (si en ese momento se exige que le pregunte algo al examinador). Un **paso** de la charla es `{g, q, a, need, hints, react, follow, …}`; el Grade 4 sumó `rotulo` (la etiqueta de la burbuja), `contexto` (una línea fija sobre la pregunta, p. ej. el punto del tema), `solo` (el examinador habla y no espera respuesta: «Let's talk about food») y `corta` (acepta una respuesta corta).
 
@@ -40,7 +42,7 @@ node tools/version.js "2026-11-03 · lo que cambió"
 1. Copiá `contenido-g4.js` como `contenido-gN.js`; cambiá `MOD` y **todas las claves de almacenamiento** (con un prefijo propio) y reescribí el contenido.
 2. Copiá la carpeta `raphina/` con otro nombre; en su `index.html` cambiá textos, paleta y el `<script src="../contenido-gN.js?b=…">` (y el `trinity_ultimo` del `<head>`); en `manifest.json` cambiá `name`, `short_name`, `id` y colores (un `id` distinto es lo que hace que se instale como otra app; el `scope` queda en `../`).
 3. Copiá en la página el `<script src="../escucha.js?b=…">` (va después de `comun.js`) y definí en el contenido `ESC_SEG` y `ESC_YA` y marcá con `escucha:true` las preguntas de contenido (ver «El examinador que escucha»).
-4. **Sumalo al menú:** una tarjeta más en el `index.html` de la raíz y un enlace más en la barra `.modbar` de **todas** las páginas de módulos (si no, desde los otros módulos no se llega).
+4. **Sumalo al menú:** una tarjeta más en el `index.html` de la raíz y un enlace más en la barra `.modbar` de **todas** las páginas de módulos de Trinity (si no, desde los otros módulos no se llega). «Sala de 5» es la excepción a propósito: tiene su tarjeta en el menú pero no la barra `.modbar`, porque el que juega ahí no tiene que poder pasar solo al Trinity.
 5. Sumá los archivos nuevos a `ARCHIVOS` de `sw.js` (si uno falta, el service worker no se instala; ahí también va la carpeta con la barra final, `./carpeta/`) y la página a `PAGINAS` de `tools/audio/lista.js`.
 6. Generá los audios (ver «Audios grabados»), escribí `tests/gN_*.js`, sumá el módulo a `tests/sitio.js` y corré `node tools/version.js "…"`.
 
@@ -70,6 +72,39 @@ Cómo habla el examinador:
 - **Con IA:** `planIA` le pasa el plan de la sesión (el tema y sus 4 puntos, las 2 áreas sorteadas y la función que toca cubrir en cada turno) y la IA conversa dentro de ese plan (hasta 17 turnos). No hay dibujos en este grado.
 - **Nota:** mismos 4 criterios que Felu (entender y responder, gramática, vocabulario, fluidez). `evalExtra` le cuenta a la IA qué usó (pasado, *going to*, gustos, comparaciones, frecuencia) y si **le hizo una pregunta al examinador en la fase del tema**; el tope de «Entender y responder» por no preguntar sólo rige cuando hubo tema (`pideDePregunta`: practicando sólo la conversación no se exige).
 - Los **audios** de las dos páginas salen de la misma carpeta `audio/` (una frase repetida entre módulos se baja una sola vez).
+
+## Sala de 5 · Jugar y aprender (`/sala5/`)
+
+Un módulo **aparte** para una nena de 5 años que todavía no lee: **inglés, lengua y matemática** con dibujos grandes y voz grabada. No usa el motor de Trinity, ni Firebase, ni IA: todo corre en el aparato y **no se comunica con ningún sitio** (sólo baja las fuentes de Google y sus propios archivos). Dirección: https://speranzaemiliano-rk.github.io/trinity-felu/sala5/ (también tiene su tarjeta en el inicio).
+
+**Cómo se juega.** Una pantalla de «▶ ¡Jugar!» (el primer toque habilita el sonido: en iPhone y iPad no se puede hablar antes de un toque) → tres botones enormes: **Lengua**, **Matemática**, **English** → cada área muestra sus juegos como botones con dibujo (y un 🎲 «Sorpresa» que elige uno). Una **ronda son 5 preguntas**; la voz dice la consigna, se contesta **tocando dibujos**, y al terminar da una **pegatina** (30 en el álbum 🏆).
+- **Nunca hay «mal»**: la 1ª equivocación dice «Probá de nuevo»; a la 2ª la respuesta buena **late**; a la 3ª la app se la muestra («¡Es este!») y sigue sola. Si no toca nada, a los ~13 s repite la consigna y ~10 s después hace latir la respuesta. Nunca se traba.
+- **Los juegos suben de nivel solos** cuando le salen bien (4 de 5), hasta 3 niveles según el juego. Cada juego recuerda su nivel y las estrellas de sus rondas.
+- **Matemática (10):** contar (tocar cada cosa la cuenta en voz alta) · poné N en la canasta · dónde hay más / menos · sumar · restar · qué número falta · reconocer números · figuras · patrones · grande / chico. **Lengua (7):** las letras · con qué letra empieza · contar sílabas (al acertar se arman en pantalla) · rimas · tocar la palabra · leer palabras · «Mi nombre» (armar las letras del nombre; sólo aparece si hay nombre de 2 letras o más). **English (13):** 12 temas de vocabulario (*Animals, Food, Body, Family, Things, Clothes, Colors, Numbers, Feelings, Actions, Shapes, ABC*) y *Count*.
+- **Para grandes** (⚙️ arriba a la derecha, **manteniendo apretado 1,4 segundos**: así una nena no lo abre sin querer): nombre (opcional: saluda y arma «Mi nombre»), sonido sí/no, dificultad (arrancar en el nivel 1 o en el 2), minúsculas en el nivel más difícil de las letras, y borrar pegatinas y avances (pide un segundo toque). Todo se guarda **sólo en ese aparato** (`localStorage`, clave `sala5_estado`); si lo guardado está roto o lo tocaron a mano, se revisa campo por campo y no rompe nada.
+- **Diseño:** las opciones miden 80 px o más (y lo que se toca nunca baja de 40 px), colores por área (violeta Lengua, azul Matemática, naranja English), en vertical y de costado, celular y tablet (la prueba revisa 5 tamaños de pantalla en todos los juegos y niveles: nada se sale ni se pisa).
+- **Aparatos:** pensada para un iPhone/iPad con iOS 14.5 o más nuevo, o un Android con Chrome 84 o más nuevo (usa `clamp()`, `gap` en flex y `aspect-ratio`). Los emoji de Unicode 11 en adelante (🦴🦷🦵🦶🧲🧸🧹🧺🧼🥵🥶🦙🦜, 🪑🪁🧃 y 🪜) salen como cuadrados vacíos en aparatos de 2018–2020 para atrás; cada uno afecta a una o dos palabras (lo que importa para jugar —colores, formas y patrones— se dibuja con CSS o con emoji viejos).
+
+**Archivos** (todo en `sala5/`, sin build; se versiona con el resto: `node tools/version.js` también actualiza el `?b=` de esta página):
+
+| Archivo | Qué tiene |
+|---|---|
+| `index.html` · `sala5.css` | las pantallas (inicio, área, juego, álbum, premio, panel de grandes) y los estilos |
+| `contenido.js` | **todo lo que la app puede decir** (`S5.frases()`: registro frase → clave de audio) y el contenido: números, letras, ~120 palabras con dibujo (sílabas, artículo), rimas, formas, colores y los 12 temas de inglés |
+| `juego.js` | el motor (voz, sonidos generados, rondas, niveles, pegatinas, panel de grandes) y los **30 juegos** (`J(id, área, ícono, nombre, niveles, nivel => pregunta)`). Una pregunta es `{tipo:"eleccion"|"canasta"|"nombre", decir:[claves], est:html, opciones:[{h, ok, decir, aria}]}` y **tiene que tener UNA sola opción con `ok`** |
+| `audio/*.mp3` · `audio/manifest.js` | un mp3 por frase (722, unos 7 MB) y la lista de las que existen |
+| `manifest.json` · `icon*.{svg,png}` | para instalarla como app (`id` propio, alcance `../` como los otros módulos) |
+
+**Audios.** Cada frase se graba con la voz de Google Translate (español latinoamericano `es-419` y inglés británico `en-GB`), igual que en Trinity pero con **su propia carpeta y sus propias herramientas**. **Al agregar o cambiar una frase hay que volver a generarlos**:
+```
+cd tools/audio
+node sala5.js            # arma sala5_texts.json y sala5/audio/manifest.js; dice cuántas frases faltan
+python3 bajar_sala5.py   # baja sólo los mp3 que faltan
+node sala5.js            # debe decir «faltan: 0»
+```
+Si un mp3 no baja (por ejemplo sin internet la primera vez), habla el aparato con su propia voz (`es-AR` / `en-GB`). Los mp3 no los guarda el service worker (Safari los pide por partes), así que sin conexión sólo suenan los que ya se bajaron antes.
+
+⚠️ **Qué no se pudo comprobar desde acá:** que las voces suenen bien al oído (el español latinoamericano y el inglés de Google Translate se generaron sin escucharlos; conviene oírlos una vez, sobre todo los nombres de las letras en inglés, que están escritos «a lo fonético»: *ay, bee, see, dee…*), el funcionamiento en iPhone/iPad de verdad y que a la nena le resulten del nivel justo. La prueba (`tests/sala5.js`) confirma la lógica, el recorrido, los errores, los niveles, el guardado y el diseño, pero no reemplaza probarlo con ella.
 
 ## Examinador con IA (Firebase AI Logic) — los dos módulos
 
@@ -130,4 +165,4 @@ Los modelos a usar están en `firebase-config.js` (`models`); si uno no existe, 
 `ia-worker/` tiene un Cloudflare Worker equivalente (ver su README). Se activa abriendo un módulo una vez con `?ia=<URL del worker>` (por ejemplo `…/trinity-felu/felu/?ia=…`: el inicio no lo lee); queda guardado en el aparato (`trinity_ia_url`) y vale para los dos módulos.
 
 ## Pruebas
-`tests/` tiene las pruebas de punta a punta (Playwright + Chromium con micrófono falso; la IA y el audio del iPhone se simulan, porque Firebase App Check no deja que corra desde un entorno de pruebas). Se corre cada una con `node tests/<nombre>.js` (hace falta `npm i playwright`); ver `tests/README.md`. Las que empiezan con `g4_` son las del módulo de Raphina; `sitio.js` prueba el sitio completo (el menú de inicio y la barra para pasar de un módulo al otro, rutas, service worker sin internet, versión nueva y que los datos de los dos módulos no se mezclen). Antes de publicar conviene correr **todas**: los dos módulos comparten el motor.
+`tests/` tiene las pruebas de punta a punta (Playwright + Chromium con micrófono falso; la IA y el audio del iPhone se simulan, porque Firebase App Check no deja que corra desde un entorno de pruebas). Se corre cada una con `node tests/<nombre>.js` (hace falta `npm i playwright`); ver `tests/README.md`. Las que empiezan con `g4_` son las del módulo de Raphina; `sala5.js` es la de Sala de 5; `sitio.js` prueba el sitio completo (el menú de inicio y la barra para pasar de un módulo al otro, rutas, service worker sin internet, versión nueva y que los datos de los módulos no se mezclen). Antes de publicar conviene correr **todas**: los dos módulos comparten el motor.

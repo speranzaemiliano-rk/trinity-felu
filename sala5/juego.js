@@ -13,16 +13,21 @@ const pausa=ms=>new Promise(r=>setTimeout(r,ms));
 const KEY="sala5_estado";
 const PEGATINAS=["🦄","🐶","🐱","🐼","🦁","🐯","🐸","🐵","🐰","🦊","🐻","🐨","🐮","🐷","🐥","🦋","🐞","🐝","🐢","🐙","🐬","🐳","🦖","🦒","🐘","🌈","🍭","🎈","🚀","🌟"];
 const LIMPIAR_NOMBRE=s=>String(s||"").replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]/g,"").trim().slice(0,14);
+const VELOCIDADES=[1,1.25,1.5];   // de la voz: normal, rápida (la de siempre) y muy rápida
+const FECHA=d=>{d=d||new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const NUM=(x,max)=>Number.isFinite(+x)?Math.max(0,Math.min(max||1e9,Math.floor(+x))):0;
 function cargar(){   // lo guardado se revisa campo por campo: si alguien lo tocó o quedó a medias, no rompe nada
-  const base={v:1,nombre:"",voz:true,dif:0,min:false,juegos:{},peg:[],rondas:0};
+  const base={v:2,nombre:"",voz:true,vel:1.25,dif:0,min:false,juegos:{},peg:[],rondas:0,bien:0,mal:0,dias:{},fallas:{}};
   try{
     const o=JSON.parse(localStorage.getItem(KEY)||"null");
     if(o&&typeof o==="object"&&!Array.isArray(o)){
-      const num=(x,max)=>Number.isFinite(+x)?Math.max(0,Math.min(max||1e6,Math.floor(+x))):0;
       base.nombre=typeof o.nombre==="string"?LIMPIAR_NOMBRE(o.nombre):"";
-      base.voz=o.voz!==false;base.dif=o.dif===1||o.dif==="1"?1:0;base.min=o.min===true;base.rondas=num(o.rondas);
-      if(o.juegos&&typeof o.juegos==="object"&&!Array.isArray(o.juegos))Object.keys(o.juegos).forEach(id=>{const g=o.juegos[id];if(g&&typeof g==="object")base.juegos[id]={nivel:Math.max(1,num(g.nivel,3)),rondas:num(g.rondas),perfectas:num(g.perfectas),mejor:num(g.mejor,5)}});
+      base.voz=o.voz!==false;base.vel=VELOCIDADES.includes(+o.vel)?+o.vel:1.25;base.dif=o.dif===1||o.dif==="1"?1:0;base.min=o.min===true;base.rondas=NUM(o.rondas);
+      base.bien=NUM(o.bien);base.mal=NUM(o.mal);
+      if(o.juegos&&typeof o.juegos==="object"&&!Array.isArray(o.juegos))Object.keys(o.juegos).forEach(id=>{const g=o.juegos[id];if(g&&typeof g==="object")base.juegos[id]={nivel:Math.max(1,NUM(g.nivel,3)),rondas:NUM(g.rondas),perfectas:NUM(g.perfectas),mejor:NUM(g.mejor,5),bien:NUM(g.bien),mal:NUM(g.mal)}});
       if(Array.isArray(o.peg))base.peg=o.peg.filter((i,k,a)=>Number.isInteger(i)&&i>=0&&i<PEGATINAS.length&&a.indexOf(i)===k);
+      if(o.dias&&typeof o.dias==="object"&&!Array.isArray(o.dias))Object.keys(o.dias).filter(k=>/^\d{4}-\d{2}-\d{2}$/.test(k)&&Array.isArray(o.dias[k])).sort().slice(-60).forEach(k=>{base.dias[k]=[NUM(o.dias[k][0]),NUM(o.dias[k][1])]});
+      if(o.fallas&&typeof o.fallas==="object"&&!Array.isArray(o.fallas))Object.keys(o.fallas).filter(k=>k&&k.length<=60&&NUM(o.fallas[k])>0).sort((a,b)=>NUM(o.fallas[b])-NUM(o.fallas[a])).slice(0,150).forEach(k=>{base.fallas[k]=NUM(o.fallas[k])});
     }
   }catch(e){}
   return base;
@@ -46,7 +51,8 @@ const Voz={
       if(!HAY.has(k)){hablarLocal(k,fin);return}   // sin mp3 (no debería pasar): la voz del aparato
       a.onended=fin;
       a.onerror=()=>{if(Voz.fin!==fin||listo)return;local=true;a.onended=a.onerror=null;hablarLocal(k,fin)};   // si el archivo no baja (sin internet), habla el aparato con su voz
-      a.src="audio/"+k+".mp3";
+      a.src="audio/"+k+".mp3"+(window.S5_AUDIO_V?"?a="+window.S5_AUDIO_V:"");   // (?a=… cambia cuando cambia algún audio: así no suena el viejo que quedó guardado)
+      a.defaultPlaybackRate=ST.vel;a.playbackRate=ST.vel;try{a.preservesPitch=true;a.webkitPreservesPitch=true}catch(e){}   // velocidad de la voz (el tono no cambia)
       try{const p=a.play();if(p&&p.catch)p.catch(()=>{if(!local)fin()})}catch(e){fin()}
     });
   },
@@ -57,7 +63,7 @@ const Voz={
   async decir(claves){
     const id=++Voz.seq,lista=[].concat(claves).filter(Boolean);
     Voz.cortar();habla(true);   // una frase nueva corta la anterior (tocar rápido no las amontona)
-    for(const k of lista){if(id!==Voz.seq)return false;await Voz.uno(k);if(id!==Voz.seq)return false;await pausa(60)}
+    for(const k of lista){if(id!==Voz.seq)return false;await Voz.uno(k);if(id!==Voz.seq)return false;await pausa(40)}
     if(id===Voz.seq)habla(false);
     return id===Voz.seq;
   },
@@ -65,7 +71,7 @@ const Voz={
 };
 function habla(on){document.querySelectorAll(".mascota,.mascota-chica").forEach(e=>e.classList.toggle("habla",!!on))}
 function hablarLocal(k,fin){
-  try{const x=S5.audio[k];if(!x||!window.speechSynthesis)return fin();const u=new SpeechSynthesisUtterance(x.tts);u.lang=x.l==="es"?"es-AR":"en-GB";u.rate=.85;u.onend=u.onerror=fin;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){fin()}
+  try{const x=S5.audio[k];if(!x||!window.speechSynthesis)return fin();const u=new SpeechSynthesisUtterance(x.tts);u.lang=x.l==="es"?"es-AR":"en-GB";u.rate=ST.vel;u.volume=1;u.onend=u.onerror=fin;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){fin()}
 }
 let AC=null;
 function sfx(t){   // «ding» al acertar, «bop» suave al errar, fanfarria al terminar (se generan, no son archivos)
@@ -100,30 +106,30 @@ J("m_contar","mates","🍎","Contar",3,nivel=>{
     montar:el=>contarToques(el,C.numES),opciones:numerales(n,1,nivel===3?20:max,nivel===1?3:4).map(k=>numOp(k,k===n,C.numES)),alAcertar:[]};
 });
 J("m_dame","mates","🧺","Poné",2,nivel=>{
-  const n=azar(1,nivel===1?5:10);return {tipo:"canasta",clave:"d"+n,n,total:Math.min(12,n+azar(2,4)),obj:elegir(C.OBJ),decir:[C.poneCanasta(n)]};
+  const n=azar(1,nivel===1?5:10);return {tipo:"canasta",clave:"d"+n,rotulo:"Poné "+n+" en la canasta",n,total:Math.min(12,n+azar(2,4)),obj:elegir(C.OBJ),decir:[C.poneCanasta(n)]};
 });
 J("m_mas","mates","⚖️","Más y menos",3,nivel=>{
   const max=nivel===1?5:10,modo=nivel===1?"mas":elegir(["mas","menos"]);let a,b;
   do{a=azar(1,max);b=azar(1,max)}while(Math.abs(a-b)<(nivel===1?2:1));
   const obj=elegir(C.OBJ),gana=modo==="mas"?Math.max(a,b):Math.min(a,b),col=n=>n<=4?2:n<=9?3:4;
-  return {tipo:"eleccion",clave:modo+a+"-"+b,decir:[modo==="mas"?C.ES.masGrupo:C.ES.menosGrupo],cols:2,
+  return {tipo:"eleccion",clave:modo+a+"-"+b,rotulo:(modo==="mas"?"Dónde hay más: ":"Dónde hay menos: ")+a+" y "+b,decir:[modo==="mas"?C.ES.masGrupo:C.ES.menosGrupo],cols:2,
     opciones:[a,b].map(n=>({clase:"panel",estilo:"--c:"+col(n),h:Array.from({length:n},()=>`<span>${obj}</span>`).join(""),ok:n===gana,aria:String(n)})),alAcertar:[]};
 });
 J("m_sumar","mates","➕","Sumar",2,nivel=>{
   const max=nivel===1?5:10,total=azar(2,max),a=azar(1,total-1),b=total-a,obj=elegir(C.OBJ);
   const g=n=>`<div class="panel" style="--c:${n<=3?n:3}">${Array.from({length:n},()=>`<span>${obj}</span>`).join("")}</div>`;
-  return {tipo:"eleccion",clave:a+"+"+b,decir:[C.numES(a),C.ES.mas,C.numES(b),C.ES.cuantosSon],est:`<div class="grupos">${g(a)}<span class="signo">+</span>${g(b)}</div>`,
+  return {tipo:"eleccion",clave:a+"+"+b,rotulo:"Sumar: "+a+" + "+b,decir:[C.numES(a),C.ES.mas,C.numES(b),C.ES.cuantosSon],est:`<div class="grupos">${g(a)}<span class="signo">+</span>${g(b)}</div>`,
     opciones:numerales(total,1,max,3).map(k=>numOp(k,k===total,C.numES)),alAcertar:[]};
 });
 J("m_restar","mates","➖","Restar",2,nivel=>{
   const max=nivel===1?5:10,a=azar(2,max),b=azar(1,a-1),obj=elegir(C.OBJ);
-  return {tipo:"eleccion",clave:a+"-"+b,decir:[C.numES(a),C.ES.menos,C.numES(b),C.ES.cuantosQuedan],est:objs(obj,a,5,i=>i>=a-b?"tachado":""),
+  return {tipo:"eleccion",clave:a+"-"+b,rotulo:"Restar: "+a+" − "+b,decir:[C.numES(a),C.ES.menos,C.numES(b),C.ES.cuantosQuedan],est:objs(obj,a,5,i=>i>=a-b?"tachado":""),
     opciones:numerales(a-b,1,max,3).map(k=>numOp(k,k===a-b,C.numES)),alAcertar:[]};
 });
 J("m_falta","mates","❓","¿Qué falta?",3,nivel=>{
   const ini=nivel===1?1:nivel===2?azar(1,6):azar(10,16),lim=nivel===3?20:nivel===2?10:5,sec=[0,1,2,3,4].map(i=>ini+i),h=azar(nivel===1?1:0,3),falta=sec[h];
   const cajas=sec.map((n,i)=>i===h?`<span class="caja hueco">?</span>`:`<span class="caja">${n}</span>`).join("");
-  return {tipo:"eleccion",clave:"f"+ini+"-"+h,decir:[C.ES.queFalta],est:`<div class="seq" style="--n:5">${cajas}</div>`,opciones:numerales(falta,Math.max(1,ini-1),Math.min(20,Math.max(lim,ini+5)),3).map(k=>numOp(k,k===falta,C.numES)),
+  return {tipo:"eleccion",clave:"f"+ini+"-"+h,rotulo:"Qué número falta: "+falta,decir:[C.ES.queFalta],est:`<div class="seq" style="--n:5">${cajas}</div>`,opciones:numerales(falta,Math.max(1,ini-1),Math.min(20,Math.max(lim,ini+5)),3).map(k=>numOp(k,k===falta,C.numES)),
     alAcertar:sec.map(C.numES),revelar:el=>{el.querySelector(".hueco").outerHTML=`<span class="caja lleno">${falta}</span>`}};
 });
 J("m_numeros","mates","7️⃣","Los números",3,nivel=>{
@@ -142,7 +148,7 @@ J("m_patron","mates","🔁","¿Qué sigue?",3,nivel=>{
   const [sec,sig]=elegir(PATRONES.slice(nivel===1?0:nivel===2?2:5,nivel===1?2:nivel===2?5:8)),fs=sacar(FICHAS,3),mapa={A:fs[0],B:fs[1],C:fs[2]};
   const mostrar=sec.map(x=>`<span class="caja">${mapa[x]}</span>`).join("")+`<span class="caja hueco">?</span>`;
   const op=["A","B","C"].filter(x=>x!==sig).slice(0,2).concat(sig);
-  return {tipo:"eleccion",clave:"p"+sec.join("")+sig+fs[0],decir:[C.ES.queSigue],est:`<div class="seq" style="--n:${sec.length+1}">${mostrar}</div>`,opciones:mezclar(op).map((x,i)=>({h:`<span class="e">${mapa[x]}</span>`,ok:x===sig,aria:"opción "+(i+1)})),
+  return {tipo:"eleccion",clave:"p"+sec.join("")+sig+fs[0],rotulo:"Patrones: ¿qué sigue?",decir:[C.ES.queSigue],est:`<div class="seq" style="--n:${sec.length+1}">${mostrar}</div>`,opciones:mezclar(op).map((x,i)=>({h:`<span class="e">${mapa[x]}</span>`,ok:x===sig,aria:"opción "+(i+1)})),
     alAcertar:[],revelar:el=>{el.querySelector(".hueco").outerHTML=`<span class="caja lleno">${mapa[sig]}</span>`}};
 });
 J("m_tamano","mates","🐘","Grande y chico",2,nivel=>{
@@ -160,13 +166,13 @@ const palabrasCon=f=>C.PAL.filter(f);
 J("l_inicial","lengua","🔠","¿Con qué letra empieza?",3,nivel=>{
   const filtro=nivel===1?x=>VOCALES.includes(x.ini)&&!x.ll:nivel===2?x=>"MPSLTNCDB".includes(x.ini)&&!x.ll&&!x.h:x=>!x.ll,w=elegir(palabrasCon(filtro));
   const pool=[...new Set(palabrasCon(filtro).map(x=>x.ini))].filter(x=>x!==w.ini&&!(C.SUENAN_IGUAL[w.ini]||"").includes(x)),ops=mezclar([w.ini].concat(sacar(pool,nivel===3?3:2)));   // (sin B con V, S con Z, C con Q…: suenan igual y la respuesta tendría dos lecturas)
-  return {tipo:"eleccion",clave:"i"+w.p,decir:[C.palClip(w),C.ES.conQue],est:`<div class="grande">${w.e}</div><div class="palabra" aria-hidden="true">&nbsp;</div>`,cols:nivel===3?2:3,ocultar:[0],
+  return {tipo:"eleccion",clave:"i"+w.p,rotulo:"Empieza con "+w.ini+": "+w.p,decir:[C.palClip(w),C.ES.conQue],est:`<div class="grande">${w.e}</div><div class="palabra" aria-hidden="true">&nbsp;</div>`,cols:nivel===3?2:3,ocultar:[0],
     opciones:ops.map(L=>({h:`<span class="let">${L}</span>`,ok:L===w.ini,decir:[C.letraES(L)],aria:"letra "+L})),alAcertar:[],
     revelar:el=>{const p=el.querySelector(".palabra");if(p)p.innerHTML=`<b>${w.p[0].toUpperCase()}</b>${w.p.slice(1).toUpperCase()}`}};
 });
 J("l_silabas","lengua","👏","Sílabas",2,nivel=>{
   const w=elegir(palabrasCon(x=>x.sil.length<=(nivel===1?3:4)&&!(nivel===2&&x.sil.length===1))),n=w.sil.length;
-  return {tipo:"eleccion",clave:"s"+w.p,decir:[C.palClip(w),C.ES.silabas],est:`<div class="grande">${w.e}</div><div class="sil" id="silabas"></div>`,cols:nivel===1?3:4,
+  return {tipo:"eleccion",clave:"s"+w.p,rotulo:"Sílabas de "+w.p+" ("+n+")",decir:[C.palClip(w),C.ES.silabas],est:`<div class="grande">${w.e}</div><div class="sil" id="silabas"></div>`,cols:nivel===1?3:4,
     opciones:Array.from({length:nivel===1?3:4},(_,i)=>numOp(i+1,i+1===n,C.numES)),alAcertar:[C.palClip(w)],
     revelar:el=>{const s=el.querySelector("#silabas");if(s)s.innerHTML=w.sil.map((x,i)=>`<span style="animation-delay:${i*.28}s">${x.toUpperCase()}</span>`).join("")}};
 });
@@ -175,7 +181,7 @@ J("l_rima","lengua","🎵","Rimas",2,nivel=>{
   const g=elegir(C.RIMAS.filter(g=>g.length>=2)),t=C.PALBY[elegir(g)],c=C.PALBY[elegir(g.filter(p=>p!==t.p))];
   const otros=C.PAL.filter(x=>rimaPorPalabra(x.p)&&rimaPorPalabra(x.p)!==g&&x.ase!==t.ase&&!x.ll),ds=[];
   mezclar(otros).forEach(x=>{if(ds.length<(nivel===1?2:3)&&!ds.some(y=>rimaPorPalabra(y.p)===rimaPorPalabra(x.p)))ds.push(x)});
-  return {tipo:"eleccion",clave:"r"+t.p+c.p,decir:[C.rimaClip(t.p)],est:`<div class="grande">${t.e}</div>`,cols:nivel===1?3:2,
+  return {tipo:"eleccion",clave:"r"+t.p+c.p,rotulo:"Rima: "+t.p+" con "+c.p,decir:[C.rimaClip(t.p)],est:`<div class="grande">${t.e}</div>`,cols:nivel===1?3:2,
     opciones:mezclar([c].concat(ds)).map(x=>({h:`<span class="e">${x.e}</span>`,ok:x===c,decir:[C.palClip(x)],aria:x.p})),alAcertar:[]};
 });
 J("l_palabra","lengua","🖼️","Palabras",2,nivel=>{
@@ -190,7 +196,7 @@ J("l_leer","lengua","📖","Leer",3,nivel=>{
     revelar:el=>{el.innerHTML=`<div class="grande">${w.e}</div>`}};
 });
 const letrasNombre=()=>[...C.sinAcento((ST.nombre||"").replace(/[ñÑ]/g,"\u0001")).toUpperCase()].map(x=>x==="\u0001"?"Ñ":x).filter(x=>C.LETRAS.includes(x));
-J("l_nombre","lengua","✏️","Mi nombre",1,()=>({tipo:"nombre",letras:letrasNombre(),clave:"nombre",decir:[C.ES.nombre]}),()=>letrasNombre().length<2,3);
+J("l_nombre","lengua","✏️","Mi nombre",1,()=>({tipo:"nombre",letras:letrasNombre(),clave:"nombre",rotulo:"Armar su nombre",decir:[C.ES.nombre]}),()=>letrasNombre().length<2,3);
 
 // ===== ENGLISH
 function genPack(p,nivel){
@@ -251,9 +257,22 @@ async function jugar(j){
   puntos(N,N);await pausa(250);if(id!==RONDA)return;
   terminar(j,aciertos,nivel,N);
 }
+// ---- resultados: cada pregunta que se termina cuenta «bien» (la contestó a la primera) o «mal» (se equivocó o necesitó ayuda); lo mal se anota con un rótulo para ver qué le cuesta
+const rotulo=(j,q)=>{if(q.rotulo)return q.rotulo;const ok=(q.opciones||[]).find(o=>o.ok);return j.nom+(ok&&ok.aria?": "+ok.aria:"")};
+function registrar(q,ok){
+  const j=JACT;if(!j)return;
+  const g=ST.juegos[j.id]=ST.juegos[j.id]||{nivel:Math.max(1,1+ST.dif),rondas:0,perfectas:0,mejor:0};
+  g.bien=g.bien||0;g.mal=g.mal||0;
+  const hoy=FECHA(),d=ST.dias[hoy]=ST.dias[hoy]||[0,0];
+  if(ok===true){ST.bien++;g.bien++;d[0]++}
+  else{ST.mal++;g.mal++;d[1]++;const r=String(rotulo(j,q)).slice(0,60);ST.fallas[r]=(ST.fallas[r]||0)+1}
+  const dias=Object.keys(ST.dias).sort();dias.slice(0,Math.max(0,dias.length-60)).forEach(k=>delete ST.dias[k]);   // sólo los últimos 60 días
+  const fs=Object.keys(ST.fallas);if(fs.length>150){fs.sort((a,b)=>ST.fallas[a]-ST.fallas[b]).slice(0,fs.length-150).forEach(k=>delete ST.fallas[k])}
+  guardar();
+}
 function preguntar(q,id){
   return new Promise(res=>{
-    const Qc={q,errores:0,resuelta:false,id,fin:res,res:v=>{clearTimeout(Qc.idle);res(v)}};
+    const Qc={q,errores:0,resuelta:false,id,fin:res,res:v=>{clearTimeout(Qc.idle);registrar(q,v);res(v)}};
     Q=Qc;
     $("jTexto").textContent=(q.decir||[]).map((k,i)=>q.ocultar&&q.ocultar.includes(i)?"…":(S5.audio[k]?S5.audio[k].tts:"")).join(" ");   // (en «Leer» y «¿Con qué letra empieza?» no se imprime la palabra: sería la respuesta)
     if(q.tipo==="canasta")return canasta(q,id);
@@ -286,7 +305,7 @@ async function elegirOp(i){
     if(o.etiqueta)el.insertAdjacentHTML("beforeend",`<small>${o.etiqueta}</small>`);
     if(q.revelar)q.revelar($("jEst"));
     await Voz.decir([].concat(o.decir||[],q.alAcertar||[],cheers(L)));
-    if(id!==RONDA||Q!==Qc)return;await pausa(350);if(id!==RONDA||Q!==Qc)return;
+    if(id!==RONDA||Q!==Qc)return;await pausa(250);if(id!==RONDA||Q!==Qc)return;
     Qc.res(Qc.errores===0);
   }else{
     Qc.errores++;sfx("no");el.classList.remove("pista");el.classList.add("no");
@@ -294,7 +313,7 @@ async function elegirOp(i){
       Qc.resuelta=true;const bueno=document.querySelector("#jOps [data-ok]");if(bueno)bueno.classList.add("pista");
       if(q.revelar)q.revelar($("jEst"));
       await Voz.decir([C.ES.esEste].concat((q.opciones.find(x=>x.ok)||{}).decir||[]));
-      if(id!==RONDA||Q!==Qc)return;await pausa(900);if(id!==RONDA||Q!==Qc)return;Qc.res(false);
+      if(id!==RONDA||Q!==Qc)return;await pausa(700);if(id!==RONDA||Q!==Qc)return;Qc.res(false);
     }else{
       if(Qc.errores===2)pista();
       await Voz.decir([].concat(o.decir||[],C.ES.retry));
@@ -321,12 +340,12 @@ function canasta(q,id){
   listo.onclick=async()=>{
     if(Qc.resuelta||Q!==Qc)return;clearTimeout(Qc.idle);
     if(cest.children.length===q.n){
-      Qc.resuelta=true;sfx("ok");await Voz.decir([C.numES(q.n),cheers("es")]);if(id!==RONDA||Q!==Qc)return;await pausa(350);if(id!==RONDA||Q!==Qc)return;Qc.res(Qc.errores===0);
+      Qc.resuelta=true;sfx("ok");await Voz.decir([C.numES(q.n),cheers("es")]);if(id!==RONDA||Q!==Qc)return;await pausa(250);if(id!==RONDA||Q!==Qc)return;Qc.res(Qc.errores===0);
     }else{
       Qc.errores++;sfx("no");
       if(Qc.errores>=3){   // se lo armamos
         Qc.resuelta=true;while(cest.children.length<q.n&&pila.firstChild)cest.appendChild(pila.firstChild);while(cest.children.length>q.n)pila.appendChild(cest.lastChild);cuadra();
-        await Voz.decir([C.ES.esEste,C.numES(q.n)]);if(id!==RONDA||Q!==Qc)return;await pausa(700);if(id!==RONDA||Q!==Qc)return;Qc.res(false);
+        await Voz.decir([C.ES.esEste,C.numES(q.n)]);if(id!==RONDA||Q!==Qc)return;await pausa(500);if(id!==RONDA||Q!==Qc)return;Qc.res(false);
       }else{if(Qc.errores===2)Qc.ayuda();await Voz.decir([C.numES(cest.children.length),C.ES.retry]);if(Q===Qc&&!Qc.resuelta)esperar()}
     }
   };
@@ -344,7 +363,7 @@ function nombre(q,id){
   const poner=(b,aMano)=>{   // la letra que sigue va a su hueco (aMano: la pusimos nosotros después de tres equivocaciones seguidas)
     const x=b.dataset.l;b.classList.remove("pista");b.classList.add("usada");huecos[pos].textContent=x;huecos[pos].classList.add("puesto");pos++;seguidos=0;sfx("ok");
     const dice=[].concat(aMano?[C.ES.esEste]:[],C.letraES(x));
-    if(pos===L.length){Qc.resuelta=true;(async()=>{await Voz.decir(dice.concat(cheers("es")));if(id!==RONDA||Q!==Qc)return;await pausa(500);if(id!==RONDA||Q!==Qc)return;Qc.res(Qc.errores===0)})()}
+    if(pos===L.length){Qc.resuelta=true;(async()=>{await Voz.decir(dice.concat(cheers("es")));if(id!==RONDA||Q!==Qc)return;await pausa(350);if(id!==RONDA||Q!==Qc)return;Qc.res(Qc.errores===0)})()}
     else Voz.decir(dice);
   };
   mezclar(L.map((x,i)=>({x,i}))).forEach(({x})=>{
@@ -376,6 +395,7 @@ function premio(j,aciertos,peg,subio,N){
   $("premioPeg").textContent=peg>=0?PEGATINAS[peg]:"🏆";
   $("premioTit").textContent=peg>=0?"¡Ganaste una figurita!":"¡Completaste el álbum!";
   $("premioEst").textContent="⭐".repeat(aciertos)+"☆".repeat(Math.max(0,N-aciertos));
+  $("premioRes").textContent="✔ "+aciertos+" bien · ✖ "+Math.max(0,N-aciertos)+" mal";
   $("premio").hidden=false;bloquear(700);sfx("fin");confeti();
   Voz.decir([peg>=0?C.ES.premio:C.ES.albumLleno]);
   $("premioOtra").onclick=()=>{$("premio").hidden=true;jugar(j)};
@@ -394,13 +414,36 @@ function abrirAlbum(desde){
 }
 
 // ---- para grandes: se abre manteniendo apretado el ⚙️
+const TXT_BORRAR="Borrar figuritas, avances y resultados";
 function abrirPadres(){
-  $("pNombre").value=ST.nombre||"";$("pVoz").checked=!!ST.voz;$("pDif").value=String(ST.dif||0);$("pMin").checked=!!ST.min;
-  $("pBorrar").textContent="Borrar figuritas y avances";$("pBorrar").dataset.seguro="";$("padres").hidden=false;
+  $("pNombre").value=ST.nombre||"";$("pVoz").checked=!!ST.voz;$("pVel").value=String(ST.vel);$("pDif").value=String(ST.dif||0);$("pMin").checked=!!ST.min;
+  $("pBorrar").textContent=TXT_BORRAR;$("pBorrar").dataset.seguro="";$("padres").hidden=false;
 }
+const velElegida=()=>VELOCIDADES.includes(+$("pVel").value)?+$("pVel").value:1.25;
 function cerrarPadres(){
-  ST.nombre=LIMPIAR_NOMBRE($("pNombre").value);ST.voz=$("pVoz").checked;ST.dif=+$("pDif").value||0;ST.min=$("pMin").checked;
+  ST.nombre=LIMPIAR_NOMBRE($("pNombre").value);ST.voz=$("pVoz").checked;ST.vel=velElegida();ST.dif=+$("pDif").value||0;ST.min=$("pMin").checked;
   guardar();$("padres").hidden=true;bloquear(350);saludo();if(!$("pArea").hidden)abrirArea($("pArea").dataset.area);
+}
+// ---- resultados para los grandes: cuántas preguntas bien y cuántas mal en todo, hoy, por área, por juego y lo que más le cuesta
+const ESC=t=>String(t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const PCT=(b,m)=>b+m?Math.round(100*b/(b+m)):0;
+const AREA_NOM={lengua:"Lengua",mates:"Matemática",ingles:"English"};
+const filaRes=(nom,b,m,extra)=>`<div class="fila-res"><span class="rnom">${nom}${extra?` <small>${extra}</small>`:""}</span><span class="rb">✔ ${b}</span><span class="rm">✖ ${m}</span><span class="rp">${PCT(b,m)}%</span><span class="barra-res" aria-hidden="true"><i style="width:${PCT(b,m)}%"></i></span></div>`;
+function abrirResultados(){
+  const tot=ST.bien+ST.mal,hoy=ST.dias[FECHA()]||[0,0];let h="";
+  if(!tot)h=`<p class="res-vacio">Todavía no hay resultados. Cuando juegue, van a aparecer acá cuántas preguntas contestó bien y cuántas mal.</p>`;
+  else{
+    h+=`<div class="res-grande"><div class="res-num bien"><b>${ST.bien}</b><span>✔ bien</span></div><div class="res-num mal"><b>${ST.mal}</b><span>✖ mal</span></div><div class="res-num"><b>${PCT(ST.bien,ST.mal)}%</b><span>de ${tot} en todo</span></div></div>`;
+    h+=`<h3>Hoy</h3>`+(hoy[0]+hoy[1]?filaRes("Preguntas de hoy",hoy[0],hoy[1]):`<p class="res-vacio">Hoy todavía no jugó.</p>`);
+    const dias=Object.keys(ST.dias).filter(k=>k!==FECHA()).sort().reverse().slice(0,7);
+    if(dias.length)h+=`<h3>Días anteriores</h3>`+dias.map(k=>{const f=k.slice(5).split("-");return filaRes(f[1]+"/"+f[0],ST.dias[k][0],ST.dias[k][1])}).join("");
+    h+=`<h3>Por área</h3>`+Object.keys(AREA_NOM).map(a=>{let b=0,m=0;JUEGOS.filter(j=>j.area===a).forEach(j=>{const g=ST.juegos[j.id];if(g){b+=g.bien||0;m+=g.mal||0}});return b+m?filaRes(AREA_NOM[a],b,m):""}).join("");
+    h+=`<h3>Por juego</h3>`+JUEGOS.filter(j=>{const g=ST.juegos[j.id];return g&&(g.bien||0)+(g.mal||0)>0}).map(j=>{const g=ST.juegos[j.id];return filaRes(j.ico+" "+ESC(j.nom),g.bien||0,g.mal||0,"nivel "+Math.min(g.nivel,j.niv)+" de "+j.niv)}).join("");
+    const f=Object.keys(ST.fallas).sort((a,b)=>ST.fallas[b]-ST.fallas[a]||(a<b?-1:1)).slice(0,10);
+    if(f.length)h+=`<h3>Lo que más le cuesta</h3><ul class="res-fallas">`+f.map(k=>`<li>${ESC(k)} <b>✖ ${ST.fallas[k]}</b></li>`).join("")+`</ul>`;
+  }
+  h+=`<p class="res-nota">Cada pregunta cuenta una vez: <b>✔ bien</b> si la contestó a la primera, <b>✖ mal</b> si se equivocó o necesitó ayuda. Se cuenta desde que se actualizó la app; «Borrar» también borra estos resultados.</p>`;
+  $("resCuerpo").innerHTML=h;$("resultados").hidden=false;$("resultados").querySelector(".caja-modal").scrollTop=0;
 }
 function iniciarEventos(){
   document.addEventListener("click",e=>{if(Date.now()<BLOQUEO&&!window.S5_SIN_BLOQUEO){e.stopPropagation();e.preventDefault()}},true);   // (S5_SIN_BLOQUEO: lo prenden las pruebas para no tener que esperar)
@@ -414,11 +457,14 @@ function iniciarEventos(){
   ["pointerup","pointerleave","pointercancel"].forEach(ev=>bp.addEventListener(ev,soltar));
   bp.addEventListener("contextmenu",e=>e.preventDefault());
   $("pCerrar").onclick=cerrarPadres;
+  $("pProbar").onclick=()=>{ST.vel=velElegida();ST.voz=$("pVoz").checked;Voz.decir(C.ES.hola)};   // para oír cómo suena con lo elegido (se guarda con «Listo»)
+  $("pResultados").onclick=abrirResultados;
+  $("resCerrar").onclick=()=>{$("resultados").hidden=true;bloquear(350)};
   $("pBorrar").onclick=()=>{
     const b=$("pBorrar");
-    if(!b.dataset.seguro){b.dataset.seguro="1";b.dataset.t=String(Date.now());b.textContent="¿Seguro? Tocá otra vez para borrar";setTimeout(()=>{b.dataset.seguro="";b.textContent="Borrar figuritas y avances"},4000);return}
+    if(!b.dataset.seguro){b.dataset.seguro="1";b.dataset.t=String(Date.now());b.textContent="¿Seguro? Tocá otra vez para borrar";setTimeout(()=>{b.dataset.seguro="";b.textContent=TXT_BORRAR},4000);return}
     if(Date.now()-(+b.dataset.t||0)<1200)return;   // un doble toque apurado no alcanza para borrar todo
-    ST.juegos={};ST.peg=[];ST.rondas=0;guardar();actualizarPegatinas();b.dataset.seguro="";b.textContent="Listo: se borró todo";
+    ST.juegos={};ST.peg=[];ST.rondas=0;ST.bien=0;ST.mal=0;ST.dias={};ST.fallas={};guardar();actualizarPegatinas();b.dataset.seguro="";b.textContent="Listo: se borró todo";
   };
   $("bJugar").onclick=()=>{
     $("splash").hidden=true;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();AC.resume()}catch(e){}

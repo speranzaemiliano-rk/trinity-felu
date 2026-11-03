@@ -1,3 +1,5 @@
 tools/audio/texts.json
 node_modules/
 tools/audio/sala5_texts.json
+tools/audio/crudos/
+__pycache__/

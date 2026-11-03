@@ -97,7 +97,7 @@ r=await sw.pedir('una-pagina-que-no-esta.html',{mode:'navigate'});t=await txt(r)
 chk('SIN INTERNET: una dirección desconocida de la raíz cae en el inicio',/<title>Trinity GESE · Inicio<\/title>/.test(t));
 r=await sw.pedir('estilos.css?b=otra-marca-que-nunca-se-guardo');t=await txt(r);
 chk('SIN INTERNET: los estilos se encuentran aunque la página pida otra marca «?b=»',t===fs.readFileSync(path.join(RAIZ,'estilos.css'),'utf8'));
-for(const [n,u,extra] of [['la consulta de versión nueva (?c=)','motor.js?c=123'],['la recarga (?v=)','raphina/?v=123'],['un audio mp3','audio/abc.mp3'],['un POST','motor.js',{method:'POST'}]]){
+for(const [n,u,extra] of [['la consulta de versión nueva (?c=)','motor.js?c=123'],['la recarga (?v=)','raphina/?v=123'],['un audio mp3','audio/abc.mp3'],['un audio mp3 con su versión (?a=…, como los pide Sala de 5)','sala5/audio/es_hola.mp3?a=b9008605'],['un POST','motor.js',{method:'POST'}]]){
   r=await sw.pedir(u,extra);chk('el service worker no se mete con '+n,!r.respondio)}
 r=await evento_otroOrigen();
 async function evento_otroOrigen(){return sw.evento('fetch',{request:{url:'https://otro.sitio/x.js',method:'GET'}})}

@@ -31,6 +31,21 @@ const raros=mp3s.filter(k=>{const b=fs.readFileSync(path.join(dirAudio,k+'.mp3')
 chk('todos los mp3 son audio de verdad (no una página de error guardada con extensión .mp3)',raros.length===0,j(raros.slice(0,5)));
 const peso=mp3s.reduce((s,k)=>s+fs.statSync(path.join(dirAudio,k+'.mp3')).size,0);
 chk('los audios pesan poco ('+(peso/1e6).toFixed(1)+' MB en total): se bajan de a uno, sólo los que se usan',peso<12e6);
+const manifestTxt=fs.readFileSync(path.join(dirAudio,'manifest.js'),'utf8'),verManifiesto=(manifestTxt.match(/S5_AUDIO_V="([0-9a-f]{8})"/)||[])[1];
+const resumenAudio=require('crypto').createHash('md5');manifest.slice().sort().forEach(k=>{resumenAudio.update(k);resumenAudio.update(fs.readFileSync(path.join(dirAudio,k+'.mp3')))});
+chk('el manifiesto trae la versión de los audios (S5_AUDIO_V) y coincide con los mp3 que hay (si no, hay que volver a correr «node tools/audio/sala5.js»: el navegador seguiría usando audios viejos guardados)',verManifiesto===resumenAudio.digest('hex').slice(0,8),String(verManifiesto));
+const sinMarca=mp3s.filter(k=>!fs.readFileSync(path.join(dirAudio,k+'.mp3')).slice(0,600).includes('sala5-audio-v2'));
+chk('todos los mp3 pasaron por el proceso de volumen (marca «sala5-audio-v2»: más fuertes y sin silencios al principio y al final; ver tools/audio/procesar_sala5.py)',sinMarca.length===0,j(sinMarca.slice(0,5)));
+const cp=require('child_process');
+if(cp.spawnSync('ffmpeg',['-version']).status===0){
+  const muestra=mp3s.filter((k,i)=>i%11===0);const flojos=[],picos=[],cortos=[];
+  for(const k of muestra){
+    const r=cp.spawnSync('ffmpeg',['-hide_banner','-nostats','-i',path.join(dirAudio,k+'.mp3'),'-af','volumedetect','-f','null','-'],{encoding:'utf8'}).stderr||'';
+    const media=+(r.match(/mean_volume: (-?[\d.]+)/)||[])[1],pico=+(r.match(/max_volume: (-?[\d.]+)/)||[])[1],d=r.match(/Duration: (\d+):(\d+):([\d.]+)/),dur=d?(+d[1])*3600+(+d[2])*60+(+d[3]):0;
+    if(!(media>-17.5))flojos.push(k+' '+media);if(!(pico<=-0.9))picos.push(k+' '+pico);if(!(dur>=0.2&&dur<=6))cortos.push(k+' '+dur);
+  }
+  chk('volumen de las voces (medido en '+muestra.length+' mp3): ninguna queda bajita (volumen medio mejor que -17,5 dB; antes estaban en -20) ni satura (pico a -0,9 dB o menos), y ninguna quedó vacía',flojos.length===0&&picos.length===0&&cortos.length===0,j([flojos.slice(0,3),picos.slice(0,3),cortos.slice(0,3)]));
+}else console.log('(omitida: la medición del volumen necesita ffmpeg)');
 const html=fs.readFileSync(path.join(RAIZ,'sala5','index.html'),'utf8');
 chk('la página está en español, con viewport para celular, título, manifiesto e ícono',/<html lang="es">/.test(html)&&/name="viewport"/.test(html)&&/<title>Sala de 5/.test(html)&&/rel="manifest"/.test(html)&&/rel="apple-touch-icon"/.test(html));
 
@@ -54,10 +69,10 @@ async function abrir(o){
     document.addEventListener('click',()=>{window.__enClic=true;setTimeout(()=>{window.__enClic=false},0)},true);
     // el audio se parece al de un navegador de verdad: tarda un rato en sonar; si lo pausan o le cambian el archivo, ESA frase ya no termina; y si el mp3 no baja, avisa con «error» y rechaza la promesa
     HTMLMediaElement.prototype.pause=function(){this.__tok=null};
-    HTMLMediaElement.prototype.play=function(){const s=this,src=String(s.src);window.__plays.push({src:src.replace(/^.*\/audio\//,''),enClic:window.__enClic});
+    HTMLMediaElement.prototype.play=function(){const s=this,src=String(s.src);window.__plays.push({src:src.replace(/^.*\/audio\//,'').replace(/\?.*$/,''),url:src,enClic:window.__enClic});
       if(oo.audioRoto)return new Promise((ok,no)=>setTimeout(()=>{s.onerror&&s.onerror(new Event('error'));no(new DOMException('no hay fuente','NotSupportedError'))},12));
       const tok=s.__tok={};setTimeout(()=>{if(s.__tok===tok&&String(s.src)===src)s.onended&&s.onended()},oo.audioLento||12);return Promise.resolve()};
-    speechSynthesis.speak=u=>{window.__voz.push({texto:u.text,lang:u.lang});setTimeout(()=>u.onend&&u.onend(),oo.vozLenta||12)};
+    speechSynthesis.speak=u=>{window.__voz.push({texto:u.text,lang:u.lang,rate:u.rate,volume:u.volume});setTimeout(()=>u.onend&&u.onend(),oo.vozLenta||12)};
     speechSynthesis.cancel=()=>{};
     if(oo.rapido){const st=window.setTimeout,d=oo.rapido===true?100:oo.rapido;window.setTimeout=(f,ms,...a)=>st(f,ms>=5000?ms/d:ms,...a)}   // lo que tarda 5 s o más pasa 100 veces más rápido (o «rapido» veces): la espera de «no toca nada»
     if(oo.estado&&!localStorage.getItem('__sembrado')){localStorage.setItem('__sembrado','1');localStorage.setItem('sala5_estado',typeof oo.estado==='string'?oo.estado:JSON.stringify(oo.estado))}   // se siembra una sola vez (si no, al recargar volvería a pisar lo que la página guardó)
@@ -154,6 +169,8 @@ chk('arranca con la pantalla de «¡Jugar!» tapando todo (el primer toque habil
 await p.click('#bJugar',{force:true});await p.waitForSelector('#pInicio:not([hidden])');await p.waitForTimeout(150);
 const plays0=await p.evaluate(()=>window.__plays.slice());
 chk('el primer sonido (el «Hola») sale DENTRO del toque de ¡Jugar! — así el iPhone y el iPad dejan sonar los siguientes ('+(plays0[0]?plays0[0].src:'ninguno')+')',plays0.length>=1&&plays0[0].enClic===true&&/^es_hola/.test(plays0[0].src),j(plays0));
+const verAudio=await p.evaluate(()=>window.S5_AUDIO_V);
+chk('los audios se piden con su versión en la dirección (?a=…): si cambia algún mp3 el navegador no usa el viejo que tiene guardado',/^[0-9a-f]{8}$/.test(verAudio)&&plays0.length>=1&&plays0.every(x=>x.url.endsWith('?a='+verAudio)),j([verAudio,plays0.map(x=>x.url)]));
 const ini=await p.evaluate(()=>({splash:document.getElementById('splash').hidden,areas:[...document.querySelectorAll('.area')].map(a=>a.dataset.area+':'+a.innerText.replace(/\s+/g,' ').trim()),saludo:document.getElementById('saludo').textContent,peg:document.getElementById('nPeg').textContent}));
 chk('el inicio tiene tres botones enormes (Lengua, Matemática, English), un saludo sin nombre y 0 figuritas',ini.splash&&ini.areas.length===3&&/lengua:.*Lengua/.test(ini.areas[0])&&/mates:.*Matem/.test(ini.areas[1])&&/ingles:.*English/.test(ini.areas[2])&&ini.saludo==='¡Hola!'&&ini.peg==='0',j(ini));
 const cuentaTiles={};
@@ -538,6 +555,79 @@ const fuente=['contenido.js','juego.js','index.html'].map(f=>fs.readFileSync(pat
 const nuevos=['🪜','🪑','🧃','🪁','🟠','🟡','🟢','🟣','🟤'].filter(e=>fuente.includes(e));
 chk('ninguna lista usa emoji de Unicode 12 o más nuevo (🪜 🪑 🧃 🪁 🟠🟡🟢🟣): en aparatos de antes de 2019 salen como cuadrados vacíos',nuevos.length===0,nuevos.join(' '));
 
+// ---------- 12d) velocidad de la voz (más rápida) y resultados (cuántas bien y cuántas mal)
+({ctx,p}=await abrir({sinSplash:true}));
+await p.click('#bJugar',{force:true});await p.waitForSelector('#pInicio:not([hidden])');await p.waitForTimeout(150);
+const vel0=await p.evaluate(()=>({estado:S5.estado().vel,rate:S5.voz.a.playbackRate,def:S5.voz.a.defaultPlaybackRate}));
+chk('la voz arranca más rápida (1,25×, antes sonaba lenta) y se pone la velocidad también como «por defecto» (al cambiar de archivo el navegador vuelve a esa)',vel0.estado===1.25&&vel0.rate===1.25&&vel0.def===1.25,j(vel0));
+const abrirPadres2=async()=>{const r=await p.locator('#bPadres').boundingBox();await p.mouse.move(r.x+r.width/2,r.y+r.height/2);await p.mouse.down();await p.waitForTimeout(1700);await p.mouse.up();await p.waitForSelector('#padres:not([hidden])')};
+await abrirPadres2();
+const opt=await p.evaluate(()=>({sel:document.getElementById('pVel').value,ops:[...document.getElementById('pVel').options].map(o=>o.textContent).join()}));
+chk('el panel de grandes tiene «Velocidad de la voz» (Normal, Rápida, Muy rápida) y arranca en Rápida',opt.sel==='1.25'&&opt.ops==='Normal,Rápida,Muy rápida',j(opt));
+await p.selectOption('#pVel','1.5');await p.click('#pProbar');await p.waitForTimeout(100);
+const prob=await p.evaluate(()=>({rate:S5.voz.a.playbackRate,dijo:S5.hablados.includes(S5.C.ES.hola),guardado:JSON.parse(localStorage.getItem('sala5_estado')||'{}').vel}));
+chk('«🔊 Probar la voz» la dice enseguida con la velocidad elegida (sin salir del panel; se guarda recién con «Listo»)',prob.rate===1.5&&prob.dijo&&prob.guardado!==1.5,j(prob));
+await p.click('#pCerrar');await p.waitForTimeout(100);
+await p.evaluate(()=>S5.voz.decir([S5.C.ES.retry]));await p.waitForTimeout(100);
+await p.reload();await p.waitForSelector('#bJugar');
+chk('lo elegido (muy rápida) se guarda y vuelve al abrir la página',(await estado(p)).vel===1.5,j((await estado(p)).vel));
+await p.click('#bJugar',{force:true});await p.waitForSelector('#pInicio:not([hidden])');await p.waitForTimeout(200);
+chk('y se usa en la voz: el audio suena a 1,5×',await p.evaluate(()=>S5.voz.a.playbackRate===1.5));
+await ctx.close();
+for(const [nom,v,esperado] of [['sin velocidad guardada (versión anterior)',{nombre:'Sofi',voz:true},1.25],['velocidad inventada',{vel:7},1.25],['velocidad de texto',{vel:'rapidísima'},1.25],['velocidad normal guardada',{vel:1},1]]){
+  ({ctx,p}=await abrir({estado:v,sinSplash:true}));
+  chk('velocidad de la voz con lo guardado «'+nom+'»: '+esperado+'×',(await estado(p)).vel===esperado,j((await estado(p)).vel));
+  await ctx.close();
+}
+// la voz del aparato (si un mp3 no baja) también va a la velocidad elegida y al volumen máximo
+({ctx,p}=await abrir({audioRoto:true,estado:{vel:1.5}}));await p.waitForTimeout(300);
+const dv=await p.evaluate(()=>window.__voz.slice());
+chk('si el mp3 no baja, la voz del aparato también va a la velocidad elegida (antes iba lentísima, a 0,85×) y a volumen máximo',dv.length>=1&&dv.every(x=>x.rate===1.5&&x.volume===1),j(dv));
+await ctx.close();
+
+// resultados: cada pregunta terminada cuenta bien (a la primera) o mal (se equivocó o necesitó ayuda)
+({ctx,p}=await abrir());
+const hoyKey=await p.evaluate(()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')});
+await iniciar(p,'e_animals');await ronda(p,['bien','mal1','mal3','bien','bien']);
+const premioRes=await p.evaluate(()=>document.getElementById('premioRes').textContent);
+st=await estado(p);
+chk('una ronda con 3 bien y 2 mal: el premio dice «✔ 3 bien · ✖ 2 mal» y se anota en todo, en el juego y en el día de hoy',premioRes==='✔ 3 bien · ✖ 2 mal'&&st.bien===3&&st.mal===2&&st.juegos.e_animals.bien===3&&st.juegos.e_animals.mal===2&&j(st.dias[hoyKey])==='[3,2]',j([premioRes,st.bien,st.mal,st.dias]));
+chk('lo que falló se anota con un rótulo para ver qué le cuesta («Animals: …» una vez cada una de las dos)',Object.keys(st.fallas).length===2&&Object.keys(st.fallas).every(k=>/^Animals: [a-z]+$/.test(k))&&Object.values(st.fallas).every(n=>n===1),j(st.fallas));
+await p.click('#premioSalir');await p.waitForSelector('#pArea:not([hidden])');
+await iniciar(p,'m_contar',1);await esperarPregunta(p);await contestar(p,'mal');await p.click('#jAtras');await p.waitForSelector('#pArea:not([hidden])');
+st=await estado(p);
+chk('una pregunta que no se terminó (salió con ⬅ a la mitad) no cuenta ni como bien ni como mal',st.bien===3&&st.mal===2,j([st.bien,st.mal]));
+await iniciar(p,'m_dame',1);await ronda(p,['bien','bien','bien','bien','bien']);
+await p.click('#premioSalir');await p.waitForSelector('#pArea:not([hidden])');await p.click('#aAtras');await p.waitForSelector('#pInicio:not([hidden])');
+st=await estado(p);
+const sumaJuegos=Object.values(st.juegos).reduce((a,g)=>a+(g.bien||0)+(g.mal||0),0);
+chk('lo de todos los juegos suma lo de «en todo» (8 bien y 2 mal) y la nena puede equivocarse sin que se rompa nada',st.bien===8&&st.mal===2&&sumaJuegos===10&&p.errs.length===0,j([st.bien,st.mal,sumaJuegos,p.errs]));
+await abrirPadres2();await p.click('#pResultados');await p.waitForSelector('#resultados:not([hidden])');
+const rep1=await p.evaluate(()=>({bien:document.querySelector('.res-num.bien b').textContent,mal:document.querySelector('.res-num.mal b').textContent,pct:document.querySelectorAll('.res-num b')[2].textContent,
+  titulos:[...document.querySelectorAll('#resCuerpo h3')].map(h=>h.textContent),filas:[...document.querySelectorAll('#resCuerpo .fila-res')].map(e=>['.rnom','.rb','.rm','.rp'].map(c=>e.querySelector(c).textContent.replace(/\s+/g,' ').trim()).join('|')),
+  fallas:[...document.querySelectorAll('#resCuerpo .res-fallas li')].map(e=>e.textContent.replace(/\s+/g,' ').trim())}));
+chk('el panel de grandes abre «Resultados»: en todo ✔ 8 · ✖ 2 · 80 %, con Hoy, Por área y Por juego',rep1.bien==='8'&&rep1.mal==='2'&&rep1.pct==='80%'&&rep1.titulos.includes('Hoy')&&rep1.titulos.includes('Por área')&&rep1.titulos.includes('Por juego'),j(rep1));
+chk('«Por área» (English 3 bien/2 mal y Matemática 5/0), «Por juego» con su nivel y «Lo que más le cuesta» con los dos que falló',rep1.filas.includes('English|✔ 3|✖ 2|60%')&&rep1.filas.includes('Matemática|✔ 5|✖ 0|100%')&&rep1.filas.some(f=>/^🐶 Animals nivel 1 de 2\|✔ 3\|✖ 2\|60%$/.test(f))&&rep1.fallas.length===2&&rep1.fallas.every(f=>/^Animals: [a-z]+ ✖ 1$/.test(f)),j(rep1));
+await p.click('#resCerrar');await p.waitForTimeout(100);
+chk('«Cerrar» vuelve al panel de grandes (que sigue abierto)',await visible(p,'#padres')&&!(await visible(p,'#resultados')));
+await p.reload();await p.waitForSelector('#bJugar');st=await estado(p);
+chk('los resultados sobreviven a cerrar y abrir la página',st.bien===8&&st.mal===2&&Object.keys(st.fallas).length===2,j([st.bien,st.mal]));
+await p.click('#bJugar',{force:true});await p.waitForSelector('#pInicio:not([hidden])');
+await abrirPadres2();await p.click('#pBorrar');await p.waitForTimeout(1300);await p.click('#pBorrar');st=await estado(p);
+chk('«Borrar figuritas, avances y resultados» borra también los resultados (en todo, por día, por juego y lo que le cuesta)',st.bien===0&&st.mal===0&&Object.keys(st.dias).length===0&&Object.keys(st.fallas).length===0&&Object.keys(st.juegos).length===0,j(st));
+await p.click('#pResultados');await p.waitForSelector('#resultados:not([hidden])');
+chk('sin resultados avisa que todavía no hay (no muestra ceros ni tablas vacías)',await p.evaluate(()=>/Todavía no hay resultados/.test(document.getElementById('resCuerpo').textContent)&&!document.querySelector('.res-grande')));
+await ctx.close();
+// lo guardado roto en los resultados no rompe nada, y un rótulo con etiquetas HTML no se mete en la página
+({ctx,p}=await abrir({estado:{bien:'muchas',mal:-5,dias:{ayer:[1,2],'2026-11-02':[3,'x'],'2026-11-03':'no','2026-13-99x':[1,1]},fallas:{'<img src=x onerror=alert(1)>':4,'Contar: 7':'tres',['x'.repeat(100)]:3,'Letras: B':2},juegos:{m_contar:{nivel:2,bien:'a',mal:3}}},sinSplash:true}));
+st=await estado(p);
+chk('resultados guardados rotos: se revisan campo por campo (números válidos, días con fecha, rótulos cortos)',st.bien===0&&st.mal===0&&Object.keys(st.dias).join()==='2026-11-02'&&j(st.dias['2026-11-02'])==='[3,0]'&&st.fallas['Letras: B']===2&&Object.keys(st.fallas).every(k=>k.length<=60&&st.fallas[k]>0)&&st.juegos.m_contar.bien===0&&st.juegos.m_contar.mal===3,j([st.bien,st.mal,st.dias,st.fallas]));
+await p.click('#bJugar',{force:true});await p.waitForSelector('#pInicio:not([hidden])');
+await p.evaluate(()=>{S5.estado().bien=2;S5.estado().mal=1});await abrirPadres2();await p.click('#pResultados');await p.waitForSelector('#resultados:not([hidden])');
+chk('un rótulo con etiquetas HTML se muestra como texto y no se ejecuta ni agrega elementos',await p.evaluate(()=>!document.querySelector('#resCuerpo img')&&/<img src=x/.test(document.getElementById('resCuerpo').textContent)),'');
+chk('sin errores de página con los resultados',p.errs.length===0,j(p.errs));
+await ctx.close();
+
 // ---------- 13) DISEÑO: cinco tamaños de pantalla × todos los juegos × todos los niveles
 const TAMANOS=[[360,640,'celular chico'],[390,844,'celular'],[768,1024,'tablet vertical'],[1024,768,'tablet horizontal'],[844,390,'celular de costado']];
 for(const [w,h,nom] of TAMANOS){
@@ -582,6 +672,16 @@ for(const [w,h,nom] of TAMANOS){
     if(caja(pm).b>H+1||caja(pm).t<-1)out.push({nom:'panel de grandes',prob:['se sale de la pantalla']});
     if(pm.scrollHeight>pm.clientHeight+1&&getComputedStyle(pm).overflowY==='visible')out.push({nom:'panel de grandes',prob:['no se puede desplazar']});
     document.getElementById('padres').hidden=true;
+    // los resultados (con datos de verdad)
+    Object.assign(S.estado(),{bien:120,mal:35,dias:{'2026-10-30':[10,3],'2026-10-31':[12,5],'2026-11-01':[8,2],'2026-11-02':[20,6],'2026-11-03':[15,4]},fallas:{'Contar: 7':5,'Letras: B':4,'Animals: sheep':3,'Empieza con G: girasol':2,'Sumar: 3 + 4':2}});
+    S.juegos.forEach((g,i)=>{S.estado().juegos[g.id]={nivel:1,rondas:2,perfectas:0,mejor:3,bien:4+i%5,mal:i%3}});
+    document.getElementById('padres').hidden=false;document.getElementById('pResultados').click();
+    const rm=document.querySelector('#resultados .caja-modal'),rr=caja(rm);
+    if(rr.b>H+1||rr.t<-1||rr.r>W+1||rr.l<-1)out.push({nom:'resultados',prob:['no entran en la pantalla']});
+    if(rm.scrollHeight>rm.clientHeight+1&&getComputedStyle(rm).overflowY==='visible')out.push({nom:'resultados',prob:['no se pueden desplazar']});
+    if(rm.scrollWidth>rm.clientWidth+1)out.push({nom:'resultados',prob:['se salen a lo ancho']});
+    const bt=document.getElementById('resCerrar');bt.scrollIntoView({block:'end'});const rb=caja(bt);if(rb.b>H+1||rb.t<-1)out.push({nom:'resultados',prob:['el botón Cerrar no se alcanza']});
+    document.getElementById('resultados').hidden=true;document.getElementById('padres').hidden=true;
     return out;
   });
   chk('DISEÑO en '+nom+' ('+w+'×'+h+'): ningún juego se sale de la pantalla, se pisa o deja botones chicos, y el premio y el panel de grandes entran',rr.length===0&&p.errs.length===0,j(rr.slice(0,4))+j(p.errs));

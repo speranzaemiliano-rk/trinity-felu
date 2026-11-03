@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="sala5.css?b=2026-11-03-sala-de-5">
+<link rel="stylesheet" href="sala5.css?b=2026-11-03-voz-mas-fuerte-y-resultados">
 </head>
 <body>
 
@@ -73,6 +73,7 @@
     <div class="grande" id="premioPeg">🦄</div>
     <h2 id="premioTit">¡Muy bien!</h2>
     <div class="estrellas" id="premioEst">⭐⭐⭐⭐⭐</div>
+    <div class="premio-res" id="premioRes"></div>
     <div class="acciones">
       <button class="chip" id="premioOtra" aria-label="Jugar otra vez">🔁</button>
       <button class="chip" id="premioSalir" aria-label="Terminar">🏠</button>
@@ -88,13 +89,27 @@
     <input type="text" id="pNombre" maxlength="14" autocomplete="off" placeholder="Por ejemplo: Sofi">
     <small>Se usa para saludarla y para el juego «Mi nombre» (armar las letras). Queda sólo en este aparato.</small>
     <div class="fila"><input type="checkbox" id="pVoz"><label for="pVoz" style="margin:0">Con sonido (voces y efectos)</label></div>
+    <label for="pVel">Velocidad de la voz</label>
+    <select id="pVel"><option value="1">Normal</option><option value="1.25">Rápida</option><option value="1.5">Muy rápida</option></select>
+    <button class="btn sec" id="pProbar" type="button">🔊 Probar la voz</button>
+    <small>El volumen se sube con los botones del celular o de la tablet.</small>
     <label for="pDif">Dificultad</label>
     <select id="pDif"><option value="0">Fácil (empieza desde lo más simple)</option><option value="1">Un poco más difícil</option></select>
     <small>Los juegos suben de nivel solos cuando le salen bien (4 de 5).</small>
     <div class="fila"><input type="checkbox" id="pMin"><label for="pMin" style="margin:0">Mostrar letras minúsculas en el nivel más difícil</label></div>
+    <button class="btn sec" id="pResultados" type="button">📊 Ver resultados: cuántas bien y cuántas mal</button>
     <button class="btn" id="pCerrar">Listo</button>
-    <button class="btn peligro" id="pBorrar">Borrar figuritas y avances</button>
+    <button class="btn peligro" id="pBorrar">Borrar figuritas, avances y resultados</button>
     <a href="../">← Volver al inicio del sitio</a>
+  </div>
+</div>
+
+<!-- Resultados para los grandes (se abren desde el panel de arriba): cuántas preguntas bien y cuántas mal -->
+<div class="modal" id="resultados" role="dialog" aria-modal="true" aria-label="Resultados" hidden>
+  <div class="caja-modal res-form">
+    <h2>📊 Resultados</h2>
+    <div id="resCuerpo"></div>
+    <button class="btn" id="resCerrar" type="button">Cerrar</button>
   </div>
 </div>
 
@@ -105,9 +120,9 @@
   <button class="jugar" id="bJugar">▶ ¡Jugar!</button>
 </div>
 
-<script src="audio/manifest.js?b=2026-11-03-sala-de-5"></script>
-<script src="contenido.js?b=2026-11-03-sala-de-5"></script>
-<script src="juego.js?b=2026-11-03-sala-de-5"></script>
+<script src="audio/manifest.js?b=2026-11-03-voz-mas-fuerte-y-resultados"></script>
+<script src="contenido.js?b=2026-11-03-voz-mas-fuerte-y-resultados"></script>
+<script src="juego.js?b=2026-11-03-voz-mas-fuerte-y-resultados"></script>
 <script>
 if("serviceWorker"in navigator&&location.protocol==="https:")navigator.serviceWorker.register("../sw.js").catch(function(){});
 </script>

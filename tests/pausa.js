@@ -17,14 +17,15 @@ export function getGenerativeModel(ai,params){return {async generateContent(req)
   return {response:{text:()=>'hi'}};}}}`;
 const js=body=>({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body});
 const lanzar=wav=>chromium.launch({args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--use-file-for-fake-audio-capture='+D+wav,'--autoplay-policy=no-user-gesture-required']});
-async function pagina(b,texto){
+async function pagina(b,texto,crudo){   // crudo: sin el filtrado del navegador (eco, ruido, ganancia automática), para que el micrófono falso llegue tal cual
   const ctx=await b.newContext({viewport:{width:430,height:900},serviceWorkers:'block'});
   const p=await ctx.newPage();p.errs=[];p.on('pageerror',e=>p.errs.push(e.message));
   await p.route('**/firebase-config.js',r=>r.fulfill(js(`window.TRINITY_FB={config:{apiKey:"k",projectId:"p",appId:"a"},models:["m1"]};`)));
   await p.route('https://www.gstatic.com/firebasejs/**/firebase-app.js',r=>r.fulfill(js(`export function initializeApp(c){return {}}`)));
   await p.route('https://www.gstatic.com/firebasejs/**/firebase-ai.js',r=>r.fulfill(js(MOCK_AI)));
-  await p.addInitScript(tx=>{
+  await p.addInitScript(([tx,crudo])=>{
     try{localStorage.setItem('trinity_sonido3','{"tts":1,"mp3":1}')}catch(e){}
+    if(crudo){const real=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);navigator.mediaDevices.getUserMedia=()=>real({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}})}
     Object.defineProperty(window,'webkitSpeechRecognition',{value:undefined,configurable:true});Object.defineProperty(window,'SpeechRecognition',{value:undefined,configurable:true});
     window.__texto=tx?new Function('k','return ('+tx+')(k)'):null;window.__tEnt=[];
     speechSynthesis.speak=u=>{setTimeout(()=>u.onstart&&u.onstart(),20);setTimeout(()=>u.onend&&u.onend(),80)};
@@ -33,7 +34,7 @@ async function pagina(b,texto){
     window.addEventListener('DOMContentLoaded',()=>{   // cuándo pasa a «Entendiendo lo que dijiste…» (= la app dio por terminada la respuesta)
       new MutationObserver(()=>{const m=document.getElementById('practice-mict');if(m&&/Entendiendo/.test(m.textContent)&&!window.__tEnt.some(x=>performance.now()-x<500))window.__tEnt.push(performance.now())})
         .observe(document.body,{subtree:true,childList:true,characterData:true})});
-  },texto||null);
+  },[texto||null,!!crudo]);
   await p.goto(process.env.URL||'file://'+require('path').resolve(__dirname,'..','felu','index.html'));
   return {p,ctx};
 }
@@ -49,7 +50,15 @@ let t,e;
   await p.goto('file://'+require('path').resolve(__dirname,'..','felu','index.html'));
   const CASOS=[['I went to the beach with my',1],['I went to the beach with my family.',0],['My name is Felu',0],['My name is',1],['My favourite colour is',1],['Yes, it is.',0],['Yes, it is',0],['It is',1],['I like',1],
     ['I like football',0],['I like football and',1],['Because',1],['I play football, ',1],['Um...',1],['I live in',1],['I live in a house.',0],['I think so.',0],['I want to',1],['I want to.',0],['Yes, I do',0],["No, I don't",0],
-    ["I'm",1],["It's",1],['I have a dog and a',1],['Me too',0],['Blue',0],['',0],['I like playing with my',1],["I'm from Argentina.",0],['And you?',0],['I have',1],['Yes, I have.',0],['yes i have',0],['I go to school by',1]];
+    ["I'm",1],["It's",1],['I have a dog and a',1],['Me too',0],['Blue',0],['',0],['I like playing with my',1],["I'm from Argentina.",0],['And you?',0],['I have',1],['Yes, I have.',0],['yes i have',0],['I go to school by',1],
+    // las cifras cuentan como palabra y una pregunta cerrada con «?» está completa
+    ["I'm 10.",0],["It's 5.",0],['I have 2',0],["I'm 10",0],['Where are you from?',0],['What are you looking at?',0],['Who do you live with?',0],
+    // palabras que pueden cerrar una frase con punto, y respuestas cortas que terminan en «am», «is», «don't»
+    ['So do I.',0],['Come on.',0],['Yes, very.',0],["It's Felu's.",0],['Yes, I am.',0],['Yes, I am',0],['No, I am not',0],
+    // frases a medias que antes pasaban por completas
+    ['I am',1],["I don't",1],['Yes, I want to',1],['Yes, I would like to',1],['No, I like',1],
+    // respuestas cortas y comunes de un chico: completas
+    ['Two brothers',0],['Monday and Tuesday',0],['In the kitchen',0],["I'm ten.",0],['Yes, it is.',0]];
   const mal=await p.evaluate(c=>c.filter(([t,e])=>(escuchaIncompleta(t)?1:0)!==e).map(x=>x[0]),CASOS);
   chk('«parece cortada a la mitad» acierta en '+CASOS.length+' frases (termina en «and», «with my», «because», «I\'m», una coma, «um…»: sí · «Yes, it is.», «I like football», «Me too»: no)',mal.length===0,JSON.stringify(mal));
   await b.close();
@@ -103,6 +112,55 @@ let t,e;
   chk('al recargar sigue en «Más paciencia»',e.fin===3200&&e.a==='larga'&&e.o==='larga');
   await p.click('#t-speak');await p.selectOption('#practice-pausa','normal');e=await est();
   chk('y volver a «Normal» borra lo guardado',e.fin===2000&&e.g===null&&e.o==='normal'&&p.errs.length===0,JSON.stringify([e,p.errs]));
+  await b.close();
+}
+// 4) un ruido que SUBE después de hablar (control automático de ganancia, un ventilador) no puede «seguir hablando» para siempre: la respuesta termina igual
+//    (una versión intermedia usaba el umbral bajo de voz sin límite de tiempo y la respuesta recién cerraba a los 45 s)
+{
+  const b=await lanzar('habla_y_ruido_que_sube.wav');
+  t=await pagina(b,'k=>"I like football"',true);
+  await t.p.click('#t-speak');await t.p.click('#practice-start');
+  await t.p.waitForFunction(()=>!document.getElementById('practice-mic').hidden&&/Te escucho/.test(document.getElementById('practice-mict').textContent),null,{timeout:40000});
+  const t0=Date.now();let llego=true;
+  await t.p.waitForFunction(()=>document.querySelectorAll('#practice-chat .msg.kid').length>=1,null,{timeout:25000}).catch(()=>{llego=false});
+  const seg=((Date.now()-t0)/1000);
+  chk('el ruido sube después de hablar (picos entre el umbral bajo y el de voz): la respuesta se da por terminada a los '+seg.toFixed(1)+' s (esperable ~5; sin el límite de tiempo no terminaba hasta los 45 s)',llego&&seg<10);
+  await t.ctx.close();await b.close();
+}
+
+// 5) dictado del navegador (sin IA): quien se queda callado no espera 45 s, y las esperas siguen al selector «Pausas»
+{
+  const b=await chromium.launch({args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--autoplay-policy=no-user-gesture-required']});
+  const medir=async(habla,larga)=>{
+    const ctx=await b.newContext({viewport:{width:430,height:900},serviceWorkers:'block'});const p=await ctx.newPage();p.errs=[];p.on('pageerror',x=>p.errs.push(x.message));
+    await p.route('**/firebase-config.js',r=>r.fulfill({status:200,contentType:'application/javascript',body:'window.TRINITY_FB={config:{},models:[]};'}));
+    await p.addInitScript(([habla,larga])=>{
+      try{localStorage.setItem('trinity_sonido3','{"tts":1,"mp3":1}');if(larga)localStorage.setItem('trinity_pausa','larga')}catch(e){}
+      class FakeSR{start(){setTimeout(()=>{this.onstart&&this.onstart();this.onaudiostart&&this.onaudiostart()},30);
+          if(habla)setTimeout(()=>{window.__tRes=performance.now();this.onresult&&this.onresult({results:[[{transcript:'I like football'}]]})},400);
+          else this._t=setTimeout(()=>{this.onerror&&this.onerror({error:'no-speech'});this.onend&&this.onend()},5000)}   // como Chrome con nadie hablando: «no-speech» a los ~5 s y se cierra
+        stop(){clearTimeout(this._t)} abort(){clearTimeout(this._t)}}
+      window.SpeechRecognition=window.webkitSpeechRecognition=FakeSR;
+      speechSynthesis.speak=u=>{setTimeout(()=>u.onstart&&u.onstart(),20);setTimeout(()=>u.onend&&u.onend(),80)};
+      HTMLMediaElement.prototype.play=function(){const s=this,src=this.src;Object.defineProperty(s,'paused',{value:false,configurable:true});
+        setTimeout(()=>{if(s.src!==src)return;Object.defineProperty(s,'paused',{value:true,configurable:true});s.onended&&s.onended()},100);return Promise.resolve()};
+      window.__ev=[];
+      window.addEventListener('DOMContentLoaded',()=>{
+        new MutationObserver(()=>{
+          const m=document.getElementById('practice-mict');if(m&&/Te escucho/.test(m.textContent)&&!window.__ev.some(x=>x[1]==='escucha'))window.__ev.push([performance.now(),'escucha']);
+          const k=document.querySelectorAll('#practice-chat .msg.kid').length;if(k>=1&&!window.__ev.some(x=>x[1]==='kid'))window.__ev.push([performance.now(),'kid']);
+          const ex=document.querySelectorAll('#practice-chat .msg.ex').length;if(ex>=2&&!window.__ev.some(x=>x[1]==='ex2'))window.__ev.push([performance.now(),'ex2'])
+        }).observe(document.body,{subtree:true,childList:true,characterData:true})});
+    },[habla,larga]);
+    await p.goto(process.env.URL||'file://'+require('path').resolve(__dirname,'..','felu','index.html'));
+    await p.click('#t-speak');await p.click('#practice-start');
+    await p.waitForFunction(w=>(window.__ev||[]).some(x=>x[1]===w),habla?'kid':'ex2',{timeout:70000}).catch(()=>{});
+    const r=await p.evaluate(()=>({ev:window.__ev,tRes:window.__tRes}));await ctx.close();
+    const g=k=>(r.ev.find(x=>x[1]===k)||[])[0];
+    return habla?(g('kid')-r.tRes)/1000:(g('ex2')-g('escucha'))/1000};
+  const normal=await medir(true,false),larga=await medir(true,true),callado=await medir(false,false);
+  chk('dictado: tras la última palabra espera '+normal.toFixed(1)+' s con «Normal» (3) y '+larga.toFixed(1)+' s con «Más paciencia» (4,2)',normal>2.5&&normal<4&&larga>3.7&&larga<5.2);
+  chk('dictado: quien no dice nada espera '+callado.toFixed(1)+' s hasta el «Sorry, I can\'t hear you» (esperable ~20; antes del arreglo eran 45)',callado>16&&callado<28);
   await b.close();
 }
 console.log(res.every(Boolean)?'\nTODO OK ('+res.length+' chequeos)':'\nHAY FALLOS: '+res.filter(x=>!x).length);

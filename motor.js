@@ -851,7 +851,7 @@ function mountConv(rootId,mode){
   // Escucha por grabación: graba en WAV, corta sola tras un silencio (o con «Listo») y la IA lo pasa a texto
   function listenRec(){
     return new Promise(async res=>{
-      let chunks=[],done=false,spoke=false,lastVoice=0,t0=0,capT=null,vigia=null,nf=0,th=0.02,rate=44100,pk=0,adelanto=null;
+      let chunks=[],done=false,spoke=false,lastVoice=0,t0=0,capT=null,vigia=null,nf=0,th=0.02,rate=44100,pk=0,adelanto=null,ultFuerte=0;
       const cleanup=()=>{clearTimeout(capT);clearTimeout(vigia);finishNow=null;recAbort=null;listoOcultar();
         if(PERSISTENTE&&_cap)_cap.onFrame=null;   // manos libres: el micrófono sigue abierto, sólo se deja de escuchar hasta la próxima pregunta
         else capDetener();                        // si no: se suelta SIEMPRE, así el examinador se oye
@@ -898,7 +898,12 @@ function mountConv(rootId,mode){
           if(m>pk)pk=m;el("lvl").style.width=Math.min(100,m*260)+"%";
           const now=performance.now();
           if(now-t0<500){if(m>nf)nf=m;th=Math.min(0.04,Math.max(0.008,nf*3))}   // los primeros 0,5 s miden el ruido de fondo
-          else if(m>(spoke?Math.min(th,Math.max(th*.7,nf*2)):th)){if(!spoke)el("heard").textContent="🎙️ te escucho…";spoke=true;lastVoice=now;adelanto=null}   // (ya hablando, la voz que se apaga —el final de una palabra— también cuenta: umbral al 70 %, pero nunca por debajo del doble del ruido de fondo medido, así un cuarto ruidoso no «sigue hablando» para siempre; y si volvió a hablar se descarta la transcripción adelantada)
+          else{
+            if(m>th)ultFuerte=now;
+            // Una vez que habló, la voz que se apaga (el final de una palabra) también cuenta, PERO sólo hasta 1,2 s después de la última voz fuerte: más allá, un ruido que sube
+            // (el control automático de ganancia del micrófono, un ventilador) no puede «seguir hablando» para siempre. Si volvió a hablar se descarta la transcripción adelantada.
+            if(m>th||(spoke&&now-ultFuerte<1200&&m>Math.min(th,Math.max(th*.7,nf*2)))){if(!spoke)el("heard").textContent="🎙️ te escucho…";spoke=true;lastVoice=now;adelanto=null}
+          }
           const sil=now-lastVoice;
           if(spoke&&!adelanto&&sil>SIL_ADELANTO_MS){   // 1 s de silencio: se empieza a pasar a texto ya (si sigue hablando, se descarta)
             const a={texto:undefined};a.p=iaTranscribir(_aWav(chunks.slice(),rate)).then(x=>{a.texto=x||"";return x},e=>{a.texto=null;throw e});a.p.catch(()=>{});adelanto=a}
@@ -929,9 +934,9 @@ function mountConv(rootId,mode){
       typedResolve=null;finishNow=()=>{el("talk").hidden=true;finishNow=null;r("cancel")}
     }):Promise.resolve()).then(go=>go==="cancel"?null:(sttRec&&IA_ON)?listenRec():new Promise(res=>{
       try{synth.cancel()}catch(e){}
-      let done=false,started=false,text="",silence=null,noSound=null,cap=null;
+      let done=false,started=false,text="",silence=null,noSound=null,cap=null,capSin=null;
       let lastErr="",restarts=0,base="";
-      const fin=v=>{if(done)return;done=true;lvlStop();clearTimeout(silence);clearTimeout(noSound);clearTimeout(cap);finishNow=null;
+      const fin=v=>{if(done)return;done=true;lvlStop();clearTimeout(silence);clearTimeout(noSound);clearTimeout(cap);clearTimeout(capSin);finishNow=null;
         if(rec){try{rec.stop()}catch(e){}}rec=null;micUI(false);res(v&&v.trim()?v.trim():null)};
       finishNow=()=>fin(text);
       try{rec=new SR()}catch(e){typeMode();return listen().then(res)}
@@ -944,14 +949,14 @@ function mountConv(rootId,mode){
           status(pk<2?"Casi no llega sonido del micrófono: hablá más cerca y más fuerte, o subí el volumen de entrada en Windows (Sistema → Sonido → Entrada). Mientras, tocá <b>⌨️ Escribir</b>.":"El micrófono sí capta tu voz, pero el servicio de voz de Chrome no devuelve texto"+(lastErr?" (error: <b>"+lastErr+"</b>)":"")+". Suele ser la red, una VPN, un antivirus o el navegador. Probá en <b>Microsoft Edge</b> (PC) o <b>Chrome</b> (Android). En iPhone ningún navegador trae dictado confiable: ahí hace falta la IA o el 🎤 del teclado. Mientras, tocá <b>⌨️ Escribir</b>.")},6000)};
       rec.onresult=e=>{let s="";for(let r=0;r<e.results.length;r++)s+=e.results[r][0].transcript+" ";text=(base+" "+s).replace(/\s+/g," ").trim();
         el("heard").textContent=text;status("");clearTimeout(noSound);clearTimeout(silence);
-        silence=setTimeout(()=>fin(text),escuchaIncompleta(text)?4500:3000)};
+        silence=setTimeout(()=>fin(text),(escuchaIncompleta(text)?SIL_FIN_MAX_MS:SIL_FIN_MS)+1000)};   // (el dictado del navegador corta solo antes: se le da un segundo más que a la grabación)
       rec.onerror=e=>{lastErr=e.error;
         if(e.error==="not-allowed"||e.error==="service-not-allowed"){done=true;rec=null;micUI(false);if(IS_IOS)return typeMode("En iPhone el dictado de Safari necesita <b>Ajustes → General → Teclado → Activar dictado</b> (y Siri activado). Mientras, escribí o dictá con el 🎤 del teclado:"),void listen().then(res);typeMode("No hay permiso para el micrófono. Tocá el ícono del micrófono o del candado junto a la dirección → Permitir, y recargá. Mientras tanto, escribí:");listen().then(res)}
         else if(e.error==="audio-capture"){done=true;rec=null;micUI(false);typeMode("No se encontró micrófono. Escribí la respuesta:");listen().then(res)}
         else if(e.error==="network"){status("El reconocimiento de voz necesita internet. Revisá la conexión.");fin(text)}
         else if(e.error!=="no-speech"&&e.error!=="aborted")status("Error del micrófono: "+e.error)};
       rec.onend=()=>{if(!done){ if(text){base=text;try{rec.start()}catch(e){fin(text)}} else { restarts++;try{rec.lang=restarts%2?"en-US":"en-GB";rec.start()}catch(e){fin(null)} } }};
-      cap=setTimeout(()=>fin(text),TOPE_RESP_MS);
+      cap=setTimeout(()=>fin(text),TOPE_RESP_MS);capSin=setTimeout(()=>{if(!text)fin(text)},20000);   // si en 20 s no salió ni una palabra, se da por no contestada (el tope largo es sólo para quien sí está hablando)
       micUI(true,"Preparando el micrófono…");
       setTimeout(()=>{if(!started&&!done){done=true;try{rec.abort()}catch(e){}rec=null;micUI(false);typeMode("El micrófono no arrancó. Escribí la respuesta (o probá con <b>Chrome</b> / <b>Edge</b>):");listen().then(res)}},9000);
       try{rec.start()}catch(e){done=true;rec=null;typeMode();listen().then(res)}
@@ -1419,7 +1424,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-02 · pausas y examen escrito";
+const BUILD="2026-11-03 · pausas más finas";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};

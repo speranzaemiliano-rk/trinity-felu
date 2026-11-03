@@ -17,11 +17,11 @@
 </head>
 <body>
 
-<!-- Inicio: tres botones enormes (Lengua, Matemática, English), las pegatinas y, escondido, el panel para grandes -->
+<!-- Inicio: tres botones enormes (Lengua, Matemática, English), las figuritas y, escondido, el panel para grandes -->
 <section id="pInicio" class="pantalla inicio" hidden>
   <header class="barra">
     <div class="saludo" id="saludo">¡Hola!</div>
-    <button class="chip" id="bAlbum" aria-label="Mis pegatinas">🏆 <b id="nPeg">0</b></button>
+    <button class="chip" id="bAlbum" aria-label="Mis figuritas">🏆 <b id="nPeg">0</b></button>
     <button class="chip padres" id="bPadres" aria-label="Para grandes: mantené apretado">⚙️</button>
   </header>
   <div class="mascota" id="mascota" aria-hidden="true">🐥</div>
@@ -37,7 +37,7 @@
   <header class="barra">
     <button class="atras" id="aAtras" aria-label="Volver">⬅</button>
     <div class="titulo" id="aTitulo"></div>
-    <button class="chip" id="aAlbum" aria-label="Mis pegatinas">🏆 <b id="aPeg">0</b></button>
+    <button class="chip" id="aAlbum" aria-label="Mis figuritas">🏆 <b id="aPeg">0</b></button>
   </header>
   <div class="tiles" id="tiles"></div>
 </section>
@@ -55,11 +55,11 @@
   </main>
 </section>
 
-<!-- Las pegatinas ganadas -->
+<!-- Las figuritas ganadas -->
 <section id="pAlbum" class="pantalla" data-area="album" hidden>
   <header class="barra">
     <button class="atras" id="gAtras" aria-label="Volver">⬅</button>
-    <div class="titulo">Mis pegatinas</div>
+    <div class="titulo">Mis figuritas</div>
     <span class="chip">🏆 <b id="gPeg">0</b></span>
   </header>
   <div class="pegatinas" id="pegatinas"></div>
@@ -68,7 +68,7 @@
 <div class="mascota-chica" id="mascotaChica" aria-hidden="true">🐥</div>
 
 <!-- Premio al terminar una ronda -->
-<div class="modal premio" id="premio" hidden>
+<div class="modal premio" id="premio" role="dialog" aria-modal="true" aria-label="Premio" hidden>
   <div class="caja-modal">
     <div class="grande" id="premioPeg">🦄</div>
     <h2 id="premioTit">¡Muy bien!</h2>
@@ -80,8 +80,8 @@
   </div>
 </div>
 
-<!-- Para grandes (se abre manteniendo apretado el ⚙️): nombre, voz, dificultad y borrar todo -->
-<div class="modal" id="padres" hidden>
+<!-- Para grandes (se abre manteniendo apretado el ⚙️): nombre, sonido, dificultad y borrar todo -->
+<div class="modal" id="padres" role="dialog" aria-modal="true" aria-label="Para grandes" hidden>
   <div class="caja-modal padres-form">
     <h2>Para grandes ⚙️</h2>
     <label for="pNombre">Nombre de la nena (opcional)</label>
@@ -93,7 +93,7 @@
     <small>Los juegos suben de nivel solos cuando le salen bien (4 de 5).</small>
     <div class="fila"><input type="checkbox" id="pMin"><label for="pMin" style="margin:0">Mostrar letras minúsculas en el nivel más difícil</label></div>
     <button class="btn" id="pCerrar">Listo</button>
-    <button class="btn peligro" id="pBorrar">Borrar pegatinas y avances</button>
+    <button class="btn peligro" id="pBorrar">Borrar figuritas y avances</button>
     <a href="../">← Volver al inicio del sitio</a>
   </div>
 </div>

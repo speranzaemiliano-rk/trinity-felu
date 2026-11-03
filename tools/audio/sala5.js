@@ -13,3 +13,12 @@ fs.writeFileSync(path.join(AUDIO,'manifest.js'),'// Lista de audios guardados en
 const faltan=frases.filter(x=>!hay.has(x.k)),sobran=claves.filter(k=>!frases.some(x=>x.k===k));
 console.log('frases con voz:',frases.length,'| con audio:',frases.length-faltan.length,'| faltan:',faltan.length,'| mp3 que ya no se usan:',sobran.length);
 if(faltan.length&&faltan.length<=8)faltan.forEach(x=>console.log('  falta:',x.k,'«'+x.tts+'»'));
+// mp3 de frases que ya no existen: se listan, y con «--borrar» se borran (y se vuelve a escribir el manifiesto)
+if(sobran.length){
+  if(process.argv.includes('--borrar')){
+    sobran.forEach(k=>fs.unlinkSync(path.join(AUDIO,k+'.mp3')));
+    const quedan=claves.filter(k=>!sobran.includes(k));
+    fs.writeFileSync(path.join(AUDIO,'manifest.js'),fs.readFileSync(path.join(AUDIO,'manifest.js'),'utf8').split('\n')[0]+'\nwindow.S5_AUDIO='+JSON.stringify(quedan)+';\n');
+    console.log('borrados:',sobran.length,'mp3 que ya no se usaban');
+  }else console.log('  sobran (con --borrar se borran):',sobran.join(' '));
+}

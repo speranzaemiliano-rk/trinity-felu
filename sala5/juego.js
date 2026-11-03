@@ -91,7 +91,7 @@ const cheers=l=>elegir(l==="en"?C.CHEERS_EN:C.CHEERS_ES);
 //   eleccion → {tipo:"eleccion", decir:[claves], est:html, montar(el), opciones:[{h,ok,decir,etiqueta,clase,estilo,aria}], cols, alAcertar:[claves], revelar(el), len:"es"|"en", clave}
 //   canasta  → {tipo:"canasta", n, total, obj, decir}     nombre → {tipo:"nombre", letras, decir}
 const JUEGOS=[];
-const J=(id,area,ico,nom,niv,gen,ocultar)=>JUEGOS.push({id,area,ico,nom,niv,gen,ocultar});
+const J=(id,area,ico,nom,niv,gen,ocultar,n)=>JUEGOS.push({id,area,ico,nom,niv,gen,ocultar,n:n||5});   // n = preguntas por ronda (5; «Mi nombre» son 3: armar el mismo nombre cinco veces seguidas cansa)
 
 // ===== MATEMÁTICA
 J("m_contar","mates","🍎","Contar",3,nivel=>{
@@ -105,7 +105,7 @@ J("m_dame","mates","🧺","Poné",2,nivel=>{
 J("m_mas","mates","⚖️","Más y menos",3,nivel=>{
   const max=nivel===1?5:10,modo=nivel===1?"mas":elegir(["mas","menos"]);let a,b;
   do{a=azar(1,max);b=azar(1,max)}while(Math.abs(a-b)<(nivel===1?2:1));
-  const obj=elegir(C.OBJ),gana=modo==="mas"?Math.max(a,b):Math.min(a,b),col=n=>n<=4?2:n<=6?3:5;
+  const obj=elegir(C.OBJ),gana=modo==="mas"?Math.max(a,b):Math.min(a,b),col=n=>n<=4?2:n<=9?3:4;
   return {tipo:"eleccion",clave:modo+a+"-"+b,decir:[modo==="mas"?C.ES.masGrupo:C.ES.menosGrupo],cols:2,
     opciones:[a,b].map(n=>({clase:"panel",estilo:"--c:"+col(n),h:Array.from({length:n},()=>`<span>${obj}</span>`).join(""),ok:n===gana,aria:String(n)})),alAcertar:[]};
 });
@@ -136,13 +136,13 @@ J("m_figuras","mates","🔺","Figuras",3,nivel=>{
   const t=elegir(lista),ops=mezclar([t].concat(sacar(lista.filter(f=>f!==t),nivel===1?2:3))),cols=mezclar(COL_FIG);
   return {tipo:"eleccion",clave:"g"+t,decir:[C.tocaForma(t)],cols:nivel===1?3:2,opciones:ops.map((f,i)=>({h:C.svg(f,cols[i]),ok:f===t,aria:C.FORMAS[f].n})),alAcertar:[]};
 });
-const FICHAS=[C.punto("#e53935"),C.punto("#1e88e5"),C.punto("#fdd835"),C.punto("#43a047"),C.punto("#8e24aa"),C.punto("#fb8c00"),"🍎","🍌","🐶","🐱","⭐","🌸"];   // los círculos de color se dibujan con CSS (los emoji 🟡🟢🟣🟠 no existen en aparatos de antes de 2019 y saldrían como cuadrados vacíos)
+const FICHAS=[C.punto("#e53935"),C.punto("#1e88e5"),C.punto("#fdd835"),C.punto("#43a047"),C.punto("#8e24aa"),C.punto("#fb8c00"),"🍎","🍌","🐶","🐱","⭐","🌸"];   // los círculos de color se dibujan con CSS (los emoji de círculos de colores son de 2019 y en aparatos más viejos saldrían como cuadrados vacíos)
 const PATRONES=[[["A","B","A","B","A"],"B"],[["A","B","A","B","A","B"],"A"],[["A","B","C","A","B"],"C"],[["A","A","B","B","A"],"A"],[["A","B","C","A","B","C"],"A"],[["A","A","B","A","A"],"B"],[["A","B","B","A","B"],"B"],[["A","B","A","C","A"],"B"]];
 J("m_patron","mates","🔁","¿Qué sigue?",3,nivel=>{
   const [sec,sig]=elegir(PATRONES.slice(nivel===1?0:nivel===2?2:5,nivel===1?2:nivel===2?5:8)),fs=sacar(FICHAS,3),mapa={A:fs[0],B:fs[1],C:fs[2]};
   const mostrar=sec.map(x=>`<span class="caja">${mapa[x]}</span>`).join("")+`<span class="caja hueco">?</span>`;
   const op=["A","B","C"].filter(x=>x!==sig).slice(0,2).concat(sig);
-  return {tipo:"eleccion",clave:"p"+sec.join("")+sig+fs[0],decir:[C.ES.queSigue],est:`<div class="seq" style="--n:${sec.length+1}">${mostrar}</div>`,opciones:mezclar(op).map(x=>({h:`<span class="e">${mapa[x]}</span>`,ok:x===sig,aria:"opción"})),
+  return {tipo:"eleccion",clave:"p"+sec.join("")+sig+fs[0],decir:[C.ES.queSigue],est:`<div class="seq" style="--n:${sec.length+1}">${mostrar}</div>`,opciones:mezclar(op).map((x,i)=>({h:`<span class="e">${mapa[x]}</span>`,ok:x===sig,aria:"opción "+(i+1)})),
     alAcertar:[],revelar:el=>{el.querySelector(".hueco").outerHTML=`<span class="caja lleno">${mapa[sig]}</span>`}};
 });
 J("m_tamano","mates","🐘","Grande y chico",2,nivel=>{
@@ -159,8 +159,8 @@ J("l_letra","lengua","🔤","Las letras",3,nivel=>{
 const palabrasCon=f=>C.PAL.filter(f);
 J("l_inicial","lengua","🔠","¿Con qué letra empieza?",3,nivel=>{
   const filtro=nivel===1?x=>VOCALES.includes(x.ini)&&!x.ll:nivel===2?x=>"MPSLTNCDB".includes(x.ini)&&!x.ll&&!x.h:x=>!x.ll,w=elegir(palabrasCon(filtro));
-  const pool=[...new Set(palabrasCon(filtro).map(x=>x.ini))],ops=mezclar([w.ini].concat(sacar(pool.filter(x=>x!==w.ini),nivel===3?3:2)));
-  return {tipo:"eleccion",clave:"i"+w.p,decir:[C.palClip(w),C.ES.conQue],est:`<div class="grande">${w.e}</div><div class="palabra" aria-hidden="true">&nbsp;</div>`,cols:nivel===3?2:3,
+  const pool=[...new Set(palabrasCon(filtro).map(x=>x.ini))].filter(x=>x!==w.ini&&!(C.SUENAN_IGUAL[w.ini]||"").includes(x)),ops=mezclar([w.ini].concat(sacar(pool,nivel===3?3:2)));   // (sin B con V, S con Z, C con Q…: suenan igual y la respuesta tendría dos lecturas)
+  return {tipo:"eleccion",clave:"i"+w.p,decir:[C.palClip(w),C.ES.conQue],est:`<div class="grande">${w.e}</div><div class="palabra" aria-hidden="true">&nbsp;</div>`,cols:nivel===3?2:3,ocultar:[0],
     opciones:ops.map(L=>({h:`<span class="let">${L}</span>`,ok:L===w.ini,decir:[C.letraES(L)],aria:"letra "+L})),alAcertar:[],
     revelar:el=>{const p=el.querySelector(".palabra");if(p)p.innerHTML=`<b>${w.p[0].toUpperCase()}</b>${w.p.slice(1).toUpperCase()}`}};
 });
@@ -179,18 +179,18 @@ J("l_rima","lengua","🎵","Rimas",2,nivel=>{
     opciones:mezclar([c].concat(ds)).map(x=>({h:`<span class="e">${x.e}</span>`,ok:x===c,decir:[C.palClip(x)],aria:x.p})),alAcertar:[]};
 });
 J("l_palabra","lengua","🖼️","Palabras",2,nivel=>{
-  const w=elegir(C.PAL),ops=mezclar([w].concat(sacar(C.PAL.filter(x=>x!==w&&x.e!==w.e),nivel===1?2:3)));
+  const w=elegir(C.PAL),ops=mezclar([w].concat(sacar(C.PAL.filter(x=>x!==w&&x.e!==w.e&&!C.ambPal(x,w)),nivel===1?2:3)));
   return {tipo:"eleccion",clave:"w"+w.p,decir:[C.ES.toca,C.palArtClip(w)],cols:nivel===1?3:2,opciones:ops.map(x=>({h:`<span class="e">${x.e}</span>`,ok:x===w,aria:x.p,etiqueta:x===w?x.p.toUpperCase():""})),alAcertar:[]};
 });
 J("l_leer","lengua","📖","Leer",3,nivel=>{
   const largo=x=>nivel===1?x.n<=4:nivel===2?x.n>=4&&x.n<=6:x.n>=5,w=elegir(C.PAL.filter(largo));
   const ds=[];mezclar(C.PAL.filter(x=>largo(x)&&x.p[0]!==w.p[0])).forEach(x=>{if(ds.length<(nivel===1?2:3)&&!ds.some(y=>y.p[0]===x.p[0]))ds.push(x)});
-  return {tipo:"eleccion",clave:"e"+w.p,decir:[C.ES.tocaPalabra,C.palClip(w)],est:"",cols:nivel===1?3:2,
+  return {tipo:"eleccion",clave:"e"+w.p,decir:[C.ES.tocaPalabra,C.palClip(w)],ocultar:[1],est:"",cols:nivel===1?3:2,
     opciones:mezclar([w].concat(ds)).map(x=>({h:`<span class="pal${x.p.length>=8?" muy-larga":x.p.length>=6?" larga":""}">${x.p.toUpperCase()}</span>`,ok:x===w,aria:x.p})),alAcertar:[],
     revelar:el=>{el.innerHTML=`<div class="grande">${w.e}</div>`}};
 });
 const letrasNombre=()=>[...C.sinAcento((ST.nombre||"").replace(/[ñÑ]/g,"\u0001")).toUpperCase()].map(x=>x==="\u0001"?"Ñ":x).filter(x=>C.LETRAS.includes(x));
-J("l_nombre","lengua","✏️","Mi nombre",1,()=>({tipo:"nombre",letras:letrasNombre(),clave:"nombre",decir:[C.ES.nombre]}),()=>letrasNombre().length<2);
+J("l_nombre","lengua","✏️","Mi nombre",1,()=>({tipo:"nombre",letras:letrasNombre(),clave:"nombre",decir:[C.ES.nombre]}),()=>letrasNombre().length<2,3);
 
 // ===== ENGLISH
 function genPack(p,nivel){
@@ -199,11 +199,11 @@ function genPack(p,nivel){
   else if(p.id==="numbers")pool=p.items.slice(0,nivel===1?5:10);
   else if(p.id==="colors")pool=p.items.slice(0,nivel===1?5:10);
   else if(nivel===1)pool=p.items.slice(0,Math.min(8,p.items.length));
-  const t=elegir(pool),cant=Math.min(pool.length,nivel===1?3:4),ops=mezclar([t].concat(sacar(pool.filter(x=>x!==t),cant-1))),cols=mezclar(COL_FIG);
+  const t=elegir(pool),cant=Math.min(pool.length,nivel===1?3:4),ops=mezclar([t].concat(sacar(pool.filter(x=>x!==t&&!C.ambEn(x,t)),cant-1))),cols=mezclar(COL_FIG);
   return {tipo:"eleccion",clave:p.id+t.w,len:"en",decir:[C.packFrase(p,t)],cols:cant<=3?3:2,
     opciones:ops.map((it,i)=>({h:it.forma?C.svg(it.forma,cols[i]):it.h,ok:it===t,decir:[C.packPalabra(p,it)],aria:it.w,etiqueta:(it===t&&!it.letra&&!it.n&&!it.forma&&p.id!=="colors")?it.w:""})),alAcertar:[]};
 }
-C.PACKS.forEach(p=>J("e_"+p.id,"ingles",p.ico,p.tit,2,nivel=>genPack(p,nivel)));
+C.PACKS.forEach(p=>J("e_"+p.id,"ingles",p.ico,p.tit,p.id==="abc"?3:2,nivel=>genPack(p,nivel)));   // (ABC tiene 3 niveles: 8, 16 y las 26 letras)
 J("e_contar","ingles","🧮","Count",2,nivel=>{
   const max=nivel===1?5:10,n=azar(1,max),obj=elegir(C.OBJ);
   return {tipo:"eleccion",clave:"ec"+n,len:"en",decir:[C.EN.howMany],est:objs(obj,n,5,null,"button"),
@@ -212,11 +212,13 @@ J("e_contar","ingles","🧮","Count",2,nivel=>{
 
 // ---------------- pantalla en curso
 const PANT=["pInicio","pArea","pJuego","pAlbum"];
-let RONDA=0,Q=null,JACT=null,VOLVER="pInicio";
+let RONDA=0,Q=null,JACT=null,VOLVER="pInicio",VOLVER_AREA="",BLOQUEO=0;
+// A esta edad el doble toque es lo normal: después de cambiar de pantalla se ignoran los toques de un instante (si no, el 2º toque caía sobre lo que había debajo: abría un área, arrancaba un juego, contestaba la 1ª pregunta…)
+function bloquear(ms){BLOQUEO=Date.now()+ms}
 function ir(p){
   PANT.forEach(x=>{$(x).hidden=x!==p});
   if(p!=="pJuego"){RONDA++;limpiarQ()}
-  Voz.parar();window.scrollTo(0,0);
+  Voz.parar();window.scrollTo(0,0);bloquear(350);
 }
 function limpiarQ(){if(Q){clearTimeout(Q.idle);Q.cancelado=true;if(Q.fin)Q.fin(null)}Q=null}
 function actualizarPegatinas(){["nPeg","aPeg","gPeg"].forEach(i=>{$(i).textContent=ST.peg.length})}
@@ -235,25 +237,25 @@ function abrirArea(a){
 }
 
 // ---- una ronda: 5 preguntas
-function puntos(i){$("jPuntos").innerHTML=Array.from({length:5},(_,k)=>`<i class="${k<i?"ya":k===i?"ahora":""}"></i>`).join("")}
+function puntos(i,N){$("jPuntos").innerHTML=Array.from({length:N||5},(_,k)=>`<i class="${k<i?"ya":k===i?"ahora":""}"></i>`).join("")}
 async function jugar(j){
   const id=++RONDA;limpiarQ();Voz.parar();JACT=j;ir("pJuego");RONDA=id;
   $("pJuego").dataset.area=j.area;
-  const nivel=nivelDe(j),usadas=new Set();let aciertos=0;
-  for(let i=0;i<5;i++){
-    puntos(i);let q,k=0;do{q=j.gen(nivel,i)}while(q.clave&&usadas.has(q.clave)&&++k<12);usadas.add(q.clave);
+  const nivel=nivelDe(j),usadas=new Set(),N=j.n||5;let aciertos=0;
+  for(let i=0;i<N;i++){
+    puntos(i,N);let q,k=0;do{q=j.gen(nivel,i)}while(q.clave&&usadas.has(q.clave)&&++k<12);usadas.add(q.clave);
     const r=await preguntar(q,id);
     if(id!==RONDA)return;
     if(r)aciertos++;
   }
-  puntos(5);await pausa(250);if(id!==RONDA)return;
-  terminar(j,aciertos,nivel);
+  puntos(N,N);await pausa(250);if(id!==RONDA)return;
+  terminar(j,aciertos,nivel,N);
 }
 function preguntar(q,id){
   return new Promise(res=>{
     const Qc={q,errores:0,resuelta:false,id,fin:res,res:v=>{clearTimeout(Qc.idle);res(v)}};
     Q=Qc;
-    $("jTexto").textContent=(q.decir||[]).map(k=>S5.audio[k]?S5.audio[k].tts:"").join(" ");
+    $("jTexto").textContent=(q.decir||[]).map((k,i)=>q.ocultar&&q.ocultar.includes(i)?"…":(S5.audio[k]?S5.audio[k].tts:"")).join(" ");   // (en «Leer» y «¿Con qué letra empieza?» no se imprime la palabra: sería la respuesta)
     if(q.tipo==="canasta")return canasta(q,id);
     if(q.tipo==="nombre")return nombre(q,id);
     mostrar(q);hablarPregunta();
@@ -264,7 +266,8 @@ function esperar(){   // si no toca nada: repite la consigna y después marca la
   if(!Q)return;clearTimeout(Q.idle);const q=Q;
   q.idle=setTimeout(()=>{if(Q!==q||q.resuelta)return;Voz.decir(q.q.decir);q.idle=setTimeout(()=>{if(Q===q&&!q.resuelta)pista()},10000)},13000);
 }
-function pista(){document.querySelectorAll("#jOps [data-ok],#jEst [data-ok],#jOps .panel[data-ok]").forEach(e=>e.classList.add("pista"))}
+function pista(){if(Q&&Q.ayuda){Q.ayuda();return}document.querySelectorAll("#jOps [data-ok],#jEst [data-ok]").forEach(e=>e.classList.add("pista"))}
+const rearmar=()=>{if(Q&&!Q.resuelta)esperar()};
 function mostrar(q){
   $("jEst").innerHTML=q.est||"";
   const ops=$("jOps");ops.style.setProperty("--cols",q.cols||q.opciones.length);ops.dataset.n=q.opciones.length;ops.dataset.c=q.cols||q.opciones.length;ops.innerHTML="";
@@ -301,7 +304,7 @@ async function elegirOp(i){
 }
 function contarToques(el,numClip){   // tocar cada cosa la cuenta en voz alta: uno, dos, tres…
   let k=0;
-  el.querySelectorAll(".obj").forEach(b=>b.onclick=()=>{if(b.classList.contains("contado"))return;k++;b.classList.add("contado");b.insertAdjacentHTML("beforeend",`<span class="cuenta">${k}</span>`);Voz.decir(numClip(k))});
+  el.querySelectorAll(".obj").forEach(b=>b.onclick=()=>{if(b.classList.contains("contado"))return;k++;b.classList.add("contado");b.insertAdjacentHTML("beforeend",`<span class="cuenta">${k}</span>`);Voz.decir(numClip(k));rearmar()});
 }
 
 // ---- «Poné 4 en la canasta»
@@ -309,20 +312,22 @@ function canasta(q,id){
   const est=$("jEst"),ops=$("jOps"),Qc=Q;
   est.innerHTML=`<div class="canasta-meta">${q.n}</div><div class="pila"></div><div class="canasta"></div>`;
   ops.style.setProperty("--cols",1);ops.innerHTML=`<button class="listo" aria-label="Listo">✔</button>`;
-  const pila=est.querySelector(".pila"),cest=est.querySelector(".canasta");
-  const mover=(b,a)=>{a.appendChild(b);if(a===cest)Voz.decir(C.numES(cest.children.length))};
+  const pila=est.querySelector(".pila"),cest=est.querySelector(".canasta"),listo=ops.querySelector(".listo");
+  const cuadra=()=>{listo.classList.toggle("pista",cest.children.length===q.n);cest.classList.remove("pista")};   // con la cantidad justa el ✔ late solo
+  Qc.ayuda=()=>{if(cest.children.length===q.n)listo.classList.add("pista");else cest.classList.add("pista")};
+  const mover=(b,a)=>{a.appendChild(b);cuadra();if(a===cest)Voz.decir(C.numES(cest.children.length));rearmar()};
   for(let i=0;i<q.total;i++){const b=document.createElement("button");b.className="ficha";b.textContent=q.obj;b.setAttribute("aria-label","cosa");b.onclick=()=>{if(Qc.resuelta)return;mover(b,b.parentNode===cest?pila:cest)};pila.appendChild(b)}
   hablarPregunta();
-  ops.querySelector(".listo").onclick=async()=>{
+  listo.onclick=async()=>{
     if(Qc.resuelta||Q!==Qc)return;clearTimeout(Qc.idle);
     if(cest.children.length===q.n){
       Qc.resuelta=true;sfx("ok");await Voz.decir([C.numES(q.n),cheers("es")]);if(id!==RONDA||Q!==Qc)return;await pausa(350);if(id!==RONDA||Q!==Qc)return;Qc.res(Qc.errores===0);
     }else{
       Qc.errores++;sfx("no");
       if(Qc.errores>=3){   // se lo armamos
-        Qc.resuelta=true;while(cest.children.length<q.n&&pila.firstChild)cest.appendChild(pila.firstChild);while(cest.children.length>q.n)pila.appendChild(cest.lastChild);
+        Qc.resuelta=true;while(cest.children.length<q.n&&pila.firstChild)cest.appendChild(pila.firstChild);while(cest.children.length>q.n)pila.appendChild(cest.lastChild);cuadra();
         await Voz.decir([C.ES.esEste,C.numES(q.n)]);if(id!==RONDA||Q!==Qc)return;await pausa(700);if(id!==RONDA||Q!==Qc)return;Qc.res(false);
-      }else{await Voz.decir([C.numES(cest.children.length),C.ES.retry]);if(Q===Qc&&!Qc.resuelta)esperar()}
+      }else{if(Qc.errores===2)Qc.ayuda();await Voz.decir([C.numES(cest.children.length),C.ES.retry]);if(Q===Qc&&!Qc.resuelta)esperar()}
     }
   };
 }
@@ -333,18 +338,24 @@ function nombre(q,id){
   est.innerHTML=`<div class="huecos">${L.map(()=>`<span class="hueco-l"></span>`).join("")}</div><div class="fichas"></div>`;
   ops.innerHTML="";ops.style.setProperty("--cols",1);
   const huecos=est.querySelectorAll(".hueco-l"),fichas=est.querySelector(".fichas");
+  const siguiente=()=>[...fichas.children].find(f=>f.dataset.l===L[pos]&&!f.classList.contains("usada"));
+  const marcar=()=>{const f=siguiente();if(f)f.classList.add("pista")};
+  Qc.ayuda=marcar;
+  const poner=(b,aMano)=>{   // la letra que sigue va a su hueco (aMano: la pusimos nosotros después de tres equivocaciones seguidas)
+    const x=b.dataset.l;b.classList.remove("pista");b.classList.add("usada");huecos[pos].textContent=x;huecos[pos].classList.add("puesto");pos++;seguidos=0;sfx("ok");
+    const dice=[].concat(aMano?[C.ES.esEste]:[],C.letraES(x));
+    if(pos===L.length){Qc.resuelta=true;(async()=>{await Voz.decir(dice.concat(cheers("es")));if(id!==RONDA||Q!==Qc)return;await pausa(500);if(id!==RONDA||Q!==Qc)return;Qc.res(Qc.errores===0)})()}
+    else Voz.decir(dice);
+  };
   mezclar(L.map((x,i)=>({x,i}))).forEach(({x})=>{
     const b=document.createElement("button");b.className="letra-f";b.textContent=x;b.dataset.l=x;b.setAttribute("aria-label","letra "+x);
-    b.onclick=async()=>{
-      if(Qc.resuelta||b.classList.contains("usada"))return;
-      if(x===L[pos]){
-        b.classList.add("usada");huecos[pos].textContent=x;huecos[pos].classList.add("puesto");pos++;seguidos=0;sfx("ok");
-        if(pos===L.length){Qc.resuelta=true;await Voz.decir([C.letraES(x),cheers("es")]);if(id!==RONDA||Q!==Qc)return;await pausa(500);if(id!==RONDA||Q!==Qc)return;Qc.res(Qc.errores===0)}
-        else Voz.decir(C.letraES(x));
-      }else{
+    b.onclick=()=>{
+      if(Qc.resuelta||b.classList.contains("usada"))return;rearmar();
+      if(x===L[pos])poner(b,false);
+      else{
         Qc.errores++;seguidos++;sfx("no");b.classList.remove("no");void b.offsetWidth;b.classList.add("no");
-        if(seguidos>=2)[...fichas.children].filter(f=>f.dataset.l===L[pos]&&!f.classList.contains("usada")).slice(0,1).forEach(f=>f.classList.add("pista"));
-        Voz.decir(C.ES.retry);
+        if(seguidos>=3){const f=siguiente();if(f)poner(f,true)}   // nunca se queda trabada
+        else{if(seguidos>=2)marcar();Voz.decir(C.ES.retry)}
       }
     };
     fichas.appendChild(b);
@@ -353,19 +364,19 @@ function nombre(q,id){
 }
 
 // ---- fin de la ronda: sube de nivel solo y da una pegatina
-function terminar(j,aciertos,nivel){
+function terminar(j,aciertos,nivel,N){
   const g=ST.juegos[j.id]=ST.juegos[j.id]||{nivel:Math.max(1,1+ST.dif),rondas:0,perfectas:0,mejor:0};
-  g.rondas++;if(aciertos===5)g.perfectas++;g.mejor=Math.max(g.mejor||0,aciertos);
-  let subio=false;if(aciertos>=4&&g.nivel<j.niv&&nivel>=g.nivel){g.nivel=Math.min(j.niv,g.nivel+1);subio=true}
+  g.rondas++;if(aciertos===N)g.perfectas++;g.mejor=Math.max(g.mejor||0,aciertos);
+  let subio=false;if(aciertos>=Math.min(4,N-1)&&g.nivel<j.niv&&nivel>=g.nivel){g.nivel=Math.min(j.niv,g.nivel+1);subio=true}
   ST.rondas++;
   const libres=PEGATINAS.map((_,i)=>i).filter(i=>!ST.peg.includes(i));let peg=-1;if(libres.length){peg=elegir(libres);ST.peg.push(peg)}
-  guardar();actualizarPegatinas();premio(j,aciertos,peg,subio);
+  guardar();actualizarPegatinas();premio(j,aciertos,peg,subio,N);
 }
-function premio(j,aciertos,peg,subio){
+function premio(j,aciertos,peg,subio,N){
   $("premioPeg").textContent=peg>=0?PEGATINAS[peg]:"🏆";
-  $("premioTit").textContent=peg>=0?"¡Ganaste una pegatina!":"¡Completaste el álbum!";
-  $("premioEst").textContent="⭐".repeat(aciertos)+"☆".repeat(5-aciertos);
-  $("premio").hidden=false;sfx("fin");confeti();
+  $("premioTit").textContent=peg>=0?"¡Ganaste una figurita!":"¡Completaste el álbum!";
+  $("premioEst").textContent="⭐".repeat(aciertos)+"☆".repeat(Math.max(0,N-aciertos));
+  $("premio").hidden=false;bloquear(700);sfx("fin");confeti();
   Voz.decir([peg>=0?C.ES.premio:C.ES.albumLleno]);
   $("premioOtra").onclick=()=>{$("premio").hidden=true;jugar(j)};
   $("premioSalir").onclick=()=>{$("premio").hidden=true;abrirArea(j.area)};
@@ -378,22 +389,23 @@ function confeti(){
 
 // ---- las pegatinas
 function abrirAlbum(desde){
-  VOLVER=desde||"pInicio";ir("pAlbum");actualizarPegatinas();
+  VOLVER=desde||"pInicio";if(VOLVER==="pArea")VOLVER_AREA=$("pArea").dataset.area||"";ir("pAlbum");actualizarPegatinas();
   $("pegatinas").innerHTML=PEGATINAS.map((e,i)=>ST.peg.includes(i)?`<div class="peg">${e}</div>`:`<div class="peg no">❔</div>`).join("");
 }
 
 // ---- para grandes: se abre manteniendo apretado el ⚙️
 function abrirPadres(){
   $("pNombre").value=ST.nombre||"";$("pVoz").checked=!!ST.voz;$("pDif").value=String(ST.dif||0);$("pMin").checked=!!ST.min;
-  $("pBorrar").textContent="Borrar pegatinas y avances";$("pBorrar").dataset.seguro="";$("padres").hidden=false;
+  $("pBorrar").textContent="Borrar figuritas y avances";$("pBorrar").dataset.seguro="";$("padres").hidden=false;
 }
 function cerrarPadres(){
   ST.nombre=LIMPIAR_NOMBRE($("pNombre").value);ST.voz=$("pVoz").checked;ST.dif=+$("pDif").value||0;ST.min=$("pMin").checked;
-  guardar();$("padres").hidden=true;saludo();if(!$("pArea").hidden)abrirArea($("pArea").dataset.area);
+  guardar();$("padres").hidden=true;bloquear(350);saludo();if(!$("pArea").hidden)abrirArea($("pArea").dataset.area);
 }
 function iniciarEventos(){
+  document.addEventListener("click",e=>{if(Date.now()<BLOQUEO&&!window.S5_SIN_BLOQUEO){e.stopPropagation();e.preventDefault()}},true);   // (S5_SIN_BLOQUEO: lo prenden las pruebas para no tener que esperar)
   document.querySelectorAll(".area").forEach(b=>b.onclick=()=>{const a=b.dataset.area;abrirArea(a);Voz.decir(AREAS[a].voz())});
-  $("aAtras").onclick=inicio;$("jAtras").onclick=()=>{if(JACT)abrirArea(JACT.area);else inicio()};$("gAtras").onclick=()=>{if(VOLVER==="pArea"&&JACT)abrirArea(JACT.area);else inicio()};
+  $("aAtras").onclick=inicio;$("jAtras").onclick=()=>{if(JACT)abrirArea(JACT.area);else inicio()};$("gAtras").onclick=()=>{if(VOLVER==="pArea"&&VOLVER_AREA)abrirArea(VOLVER_AREA);else inicio()};
   $("bAlbum").onclick=()=>abrirAlbum("pInicio");$("aAlbum").onclick=()=>abrirAlbum("pArea");
   $("jRepetir").onclick=()=>{if(Q&&!Q.resuelta)hablarPregunta()};
   const bp=$("bPadres");let tp=null;
@@ -404,17 +416,20 @@ function iniciarEventos(){
   $("pCerrar").onclick=cerrarPadres;
   $("pBorrar").onclick=()=>{
     const b=$("pBorrar");
-    if(!b.dataset.seguro){b.dataset.seguro="1";b.textContent="¿Seguro? Tocá otra vez para borrar";setTimeout(()=>{b.dataset.seguro="";b.textContent="Borrar pegatinas y avances"},4000);return}
+    if(!b.dataset.seguro){b.dataset.seguro="1";b.dataset.t=String(Date.now());b.textContent="¿Seguro? Tocá otra vez para borrar";setTimeout(()=>{b.dataset.seguro="";b.textContent="Borrar figuritas y avances"},4000);return}
+    if(Date.now()-(+b.dataset.t||0)<1200)return;   // un doble toque apurado no alcanza para borrar todo
     ST.juegos={};ST.peg=[];ST.rondas=0;guardar();actualizarPegatinas();b.dataset.seguro="";b.textContent="Listo: se borró todo";
   };
   $("bJugar").onclick=()=>{
     $("splash").hidden=true;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();AC.resume()}catch(e){}
     inicio();Voz.decir(C.ES.hola);
   };
-  document.addEventListener("visibilitychange",()=>{if(document.hidden)Voz.parar()});
+  document.addEventListener("visibilitychange",()=>{if(document.hidden){Voz.parar();if(Q)clearTimeout(Q.idle)}else rearmar()});
 }
 
 S5.voz=Voz;S5.juegos=JUEGOS;S5.gen=(id,n)=>JUEGOS.find(j=>j.id===id).gen(n||1);S5.estado=()=>ST;S5.nivelDe=nivelDe;S5.jugar=id=>{jugar(JUEGOS.find(j=>j.id===id))};   // (sin devolver la promesa de toda la ronda: las pruebas no tienen que esperarla)
+const ajustarVh=()=>document.documentElement.style.setProperty("--vh",(window.innerHeight/100)+"px");   // «vh» de verdad: el alto que se ve (en Safari con la barra de direcciones, 100vh es más alto que la pantalla visible)
+ajustarVh();window.addEventListener("resize",ajustarVh);window.addEventListener("orientationchange",ajustarVh);
 iniciarEventos();
 $("pInicio").hidden=false;saludo();actualizarPegatinas();
 })();

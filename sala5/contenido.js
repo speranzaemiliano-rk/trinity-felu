@@ -33,9 +33,9 @@ LETRAS.forEach(L=>{letraES(L);tocaLetraES(L);if(NOM_EN[L]){letraEN(L);tocaLetraE
 // ---------------- frases sueltas
 const ES={
   hola:A("es","¡Hola! ¿A qué querés jugar?"),
-  lengua:A("es","Lengua"),mates:A("es","Matemática"),ingles:A("es","English","english-es"),
+  lengua:A("es","Lengua"),mates:A("es","Matemática"),ingles:A("en","English","english"),
   retry:A("es","Probá de nuevo"),esEste:A("es","¡Es este!"),
-  premio:A("es","¡Terminaste! ¡Ganaste una pegatina!"),albumLleno:A("es","¡Completaste el álbum!"),chau:A("es","¡Hasta pronto!"),
+  premio:A("es","¡Terminaste! ¡Ganaste una figurita!"),albumLleno:A("es","¡Completaste el álbum!"),
   nombre:A("es","Armá tu nombre"),
   cuantos:A("es","¿Cuántos hay?"),mas:A("es","más"),menos:A("es","menos"),cuantosSon:A("es","¿Cuántos son?"),cuantosQuedan:A("es","¿Cuántos quedan?"),
   masGrupo:A("es","Tocá donde hay más"),menosGrupo:A("es","Tocá donde hay menos"),queFalta:A("es","¿Qué número falta?"),queSigue:A("es","¿Qué sigue?"),
@@ -44,7 +44,7 @@ const ES={
 };
 const CHEERS_ES=["¡Muy bien!","¡Genial!","¡Excelente!","¡Bravo!","¡Lo lograste!"].map(t=>A("es",t));
 const CHEERS_EN=["Very good!","Great!","Well done!","Excellent!","Super!"].map(t=>A("en",t));
-const EN={retry:A("en","Try again"),esEste:A("en","This one!"),howMany:A("en","How many?")};
+const EN={howMany:A("en","How many?")};
 const poneCanasta=n=>A("es","Poné "+NUM_ES[n]+" en la canasta");
 const tocaNum=n=>A("es","Tocá el "+NUM_ES[n]);
 const touchNum=n=>A("en","Touch number "+NUM_EN[n]);
@@ -68,7 +68,7 @@ const tocaForma=k=>A("es","Tocá "+FORMAS[k].art+" "+FORMAS[k].n,"toca-"+k);
 
 // ---------------- colores
 const COLORES={red:"#e53935",blue:"#1e88e5",yellow:"#fdd835",green:"#43a047",orange:"#fb8c00",purple:"#8e24aa",pink:"#f06292",black:"#212121",white:"#ffffff",brown:"#6d4c41"};
-const punto=c=>`<span class="punto" style="background:${c}" aria-hidden="true"></span>`;
+const punto=c=>`<span class="punto" style="background:${c}${c==="#ffffff"?";border-color:rgba(0,0,0,.4)":""}" aria-hidden="true"></span>`;
 
 // ---------------- cosas para contar
 const OBJ=["🍎","🍓","⭐","🐟","🎈","🚗","🌸","⚽","🐞","🦋","🍪","🧸","🍌","🐥"];
@@ -76,23 +76,23 @@ const OBJ=["🍎","🍓","⭐","🐟","🎈","🚗","🌸","⚽","🐞","🦋","
 // ---------------- palabras con dibujo (lengua): [palabra, dibujo, artículo, sílabas]
 const PAL_RAW=[
  ["avión","✈️","el","a-vión"],["araña","🕷️","la","a-ra-ña"],["abeja","🐝","la","a-be-ja"],["árbol","🌳","el","ár-bol"],["anillo","💍","el","a-ni-llo"],["ardilla","🐿️","la","ar-di-lla"],
- ["elefante","🐘","el","e-le-fan-te"],["escalera","🪜","la","es-ca-le-ra"],["estrella","⭐","la","es-tre-lla"],["escoba","🧹","la","es-co-ba"],
+ ["elefante","🐘","el","e-le-fan-te"],["estrella","⭐","la","es-tre-lla"],["escoba","🧹","la","es-co-ba"],
  ["iglesia","⛪","la","i-gle-sia"],["isla","🏝️","la","is-la"],["iguana","🦎","la","i-gua-na"],["imán","🧲","el","i-mán"],
  ["oso","🐻","el","o-so"],["ojo","👁️","el","o-jo"],["oveja","🐑","la","o-ve-ja"],["oreja","👂","la","o-re-ja"],["ola","🌊","la","o-la"],
  ["uva","🍇","la","u-va"],["unicornio","🦄","el","u-ni-cor-nio"],["uno","1️⃣","el","u-no"],
  ["mariposa","🦋","la","ma-ri-po-sa"],["manzana","🍎","la","man-za-na"],["mono","🐵","el","mo-no"],["moto","🏍️","la","mo-to"],["mochila","🎒","la","mo-chi-la"],["mano","✋","la","ma-no"],
  ["pato","🦆","el","pa-to"],["pelota","⚽","la","pe-lo-ta"],["perro","🐶","el","pe-rro"],["pez","🐟","el","pez"],["pan","🍞","el","pan"],["payaso","🤡","el","pa-ya-so"],["paraguas","☂️","el","pa-ra-guas"],["pingüino","🐧","el","pin-güi-no"],["pera","🍐","la","pe-ra"],["pie","🦶","el","pie"],["puente","🌉","el","puen-te"],
- ["sol","☀️","el","sol"],["silla","🪑","la","si-lla"],["sandía","🍉","la","san-dí-a"],["serpiente","🐍","la","ser-pien-te"],["sombrero","🎩","el","som-bre-ro"],["semáforo","🚦","el","se-má-fo-ro"],
- ["luna","🌙","la","lu-na"],["león","🦁","el","le-ón"],["lápiz","✏️","el","lá-piz"],["leche","🥛","la","le-che"],["lobo","🐺","el","lo-bo"],["limón","🍋","el","li-món"],["libro","📖","el","li-bro"],["loro","🦜","el","lo-ro"],["llama","🦙","la","lla-ma"],
+ ["sol","☀️","el","sol"],["sandía","🍉","la","san-dí-a"],["serpiente","🐍","la","ser-pien-te"],["sombrero","🎩","el","som-bre-ro"],["semáforo","🚦","el","se-má-fo-ro"],
+ ["luna","🌙","la","lu-na"],["león","🦁","el","le-ón"],["lápiz","✏️","el","lá-piz"],["leche","🥛","la","le-che"],["lobo","🐺","el","lo-bo"],["limón","🍋","el","li-món"],["libro","📖","el","li-bro"],["loro","🦜","el","lo-ro"],
  ["tren","🚂","el","tren"],["tortuga","🐢","la","tor-tu-ga"],["tigre","🐯","el","ti-gre"],["tomate","🍅","el","to-ma-te"],["teléfono","📞","el","te-lé-fo-no"],["tijera","✂️","la","ti-je-ra"],["tambor","🥁","el","tam-bor"],
  ["nube","☁️","la","nu-be"],["naranja","🍊","la","na-ran-ja"],["nariz","👃","la","na-riz"],["nieve","❄️","la","nie-ve"],
  ["casa","🏠","la","ca-sa"],["caballo","🐴","el","ca-ba-llo"],["conejo","🐰","el","co-ne-jo"],["cama","🛏️","la","ca-ma"],["camión","🚚","el","ca-mión"],["corazón","❤️","el","co-ra-zón"],["cohete","🚀","el","co-he-te"],["cuchara","🥄","la","cu-cha-ra"],["campana","🔔","la","cam-pa-na"],
  ["dedo","☝️","el","de-do"],["dinosaurio","🦖","el","di-no-sau-rio"],["dado","🎲","el","da-do"],["delfín","🐬","el","del-fín"],["diente","🦷","el","dien-te"],
  ["barco","🚢","el","bar-co"],["bicicleta","🚲","la","bi-ci-cle-ta"],["ballena","🐳","la","ba-lle-na"],["banana","🍌","la","ba-na-na"],["bota","👢","la","bo-ta"],["beso","💋","el","be-so"],["bandera","🚩","la","ban-de-ra"],["boca","👄","la","bo-ca"],
- ["flor","🌸","la","flor"],["fresa","🍓","la","fre-sa"],["fuego","🔥","el","fue-go"],["fantasma","👻","el","fan-tas-ma"],
+ ["flor","🌸","la","flor"],["frutilla","🍓","la","fru-ti-lla"],["fuego","🔥","el","fue-go"],["fantasma","👻","el","fan-tas-ma"],
  ["gato","🐱","el","ga-to"],["globo","🎈","el","glo-bo"],["guitarra","🎸","la","gui-ta-rra"],["gorra","🧢","la","go-rra"],["gallina","🐔","la","ga-lli-na"],["girasol","🌻","el","gi-ra-sol"],["gota","💧","la","go-ta"],
- ["jirafa","🦒","la","ji-ra-fa"],["jabón","🧼","el","ja-bón"],["jugo","🧃","el","ju-go"],
- ["rana","🐸","la","ra-na"],["ratón","🐭","el","ra-tón"],["reloj","⏰","el","re-loj"],["robot","🤖","el","ro-bot"],["rosa","🌹","la","ro-sa"],["regalo","🎁","el","re-ga-lo"],["rojo","🔴","el","ro-jo"],
+ ["jirafa","🦒","la","ji-ra-fa"],["jabón","🧼","el","ja-bón"],
+ ["rana","🐸","la","ra-na"],["ratón","🐭","el","ra-tón"],["reloj","⏰","el","re-loj"],["robot","🤖","el","ro-bot"],["rosa","🌹","la","ro-sa"],["regalo","🎁","el","re-ga-lo"],
  ["vaca","🐮","la","va-ca"],["vela","🕯️","la","ve-la"],["volcán","🌋","el","vol-cán"],["violín","🎻","el","vio-lín"],
  ["zapato","👞","el","za-pa-to"],["zorro","🦊","el","zo-rro"],["zanahoria","🥕","la","za-na-ho-ria"],
  ["queso","🧀","el","que-so"],
@@ -107,7 +107,7 @@ PAL.forEach(x=>{palClip(x);palArtClip(x)});
 
 // rimas: grupos de palabras con la misma terminación (rima de verdad, no sólo las vocales)
 const RIMAS=[["gato","pato","zapato"],["rana","manzana","campana","banana"],["mariposa","rosa"],["avión","camión","corazón","ratón","limón","jabón"],["queso","hueso","beso"],
-  ["pelota","bota","gota"],["cama","llama"],["pera","escalera","bandera"],["silla","ardilla"],["diente","serpiente","puente"],["ojo","rojo"]];
+  ["pelota","bota","gota"],["pera","bandera"],["diente","serpiente","puente"]];
 const rimaClip=p=>A("es","¿Cuál rima con "+p+"?","rima-"+slug(p));
 RIMAS.forEach(g=>g.forEach(p=>{if(!PALBY[p])throw new Error("rima: falta la palabra «"+p+"»");rimaClip(p)}));
 
@@ -115,12 +115,12 @@ RIMAS.forEach(g=>g.forEach(p=>{if(!PALBY[p])throw new Error("rima: falta la pala
 const em=(w,e)=>({w,h:`<span class="e">${e}</span>`});
 const PACKS=[
  {id:"animals",ico:"🐶",tit:"Animals",tpl:"Touch the {w}",items:[em("dog","🐶"),em("cat","🐱"),em("bird","🐦"),em("fish","🐟"),em("horse","🐴"),em("cow","🐮"),em("pig","🐷"),em("duck","🦆"),em("rabbit","🐰"),em("elephant","🐘"),em("lion","🦁"),em("monkey","🐵"),em("sheep","🐑"),em("frog","🐸"),em("bear","🐻"),em("mouse","🐭")]},
- {id:"food",ico:"🍎",tit:"Food",tpl:"Touch the {w}",items:[em("apple","🍎"),em("banana","🍌"),em("bread","🍞"),em("milk","🥛"),em("cheese","🧀"),em("egg","🥚"),em("orange","🍊"),em("cake","🎂"),em("ice cream","🍦"),em("pizza","🍕"),em("carrot","🥕"),em("grapes","🍇"),em("strawberry","🍓"),em("juice","🧃")]},
+ {id:"food",ico:"🍎",tit:"Food",tpl:"Touch the {w}",items:[em("apple","🍎"),em("banana","🍌"),em("bread","🍞"),em("milk","🥛"),em("cheese","🧀"),em("egg","🥚"),em("orange","🍊"),em("cake","🎂"),em("ice cream","🍦"),em("pizza","🍕"),em("carrot","🥕"),em("grapes","🍇"),em("strawberry","🍓")]},
  {id:"body",ico:"✋",tit:"Body",tpl:"Touch the {w}",items:[em("hand","✋"),em("foot","🦶"),em("eye","👁️"),em("nose","👃"),em("mouth","👄"),em("ear","👂"),em("tooth","🦷"),em("leg","🦵"),em("arm","💪")]},
  {id:"family",ico:"👪",tit:"Family",tpl:"Touch the {w}",items:[em("mum","👩"),em("dad","👨"),em("baby","👶"),em("boy","👦"),em("girl","👧"),em("grandma","👵"),em("grandpa","👴")]},
- {id:"things",ico:"🏠",tit:"Things",tpl:"Touch the {w}",items:[em("house","🏠"),em("car","🚗"),em("ball","⚽"),em("book","📖"),em("bed","🛏️"),em("chair","🪑"),em("star","⭐"),em("sun","☀️"),em("moon","🌙"),em("tree","🌳"),em("flower","🌸"),em("balloon","🎈"),em("bike","🚲"),em("boat","⛵"),em("train","🚂"),em("plane","✈️"),em("clock","⏰"),em("door","🚪"),em("key","🔑"),em("kite","🪁")]},
+ {id:"things",ico:"🏠",tit:"Things",tpl:"Touch the {w}",items:[em("house","🏠"),em("car","🚗"),em("ball","⚽"),em("book","📖"),em("bed","🛏️"),em("star","⭐"),em("sun","☀️"),em("moon","🌙"),em("tree","🌳"),em("flower","🌸"),em("balloon","🎈"),em("bike","🚲"),em("boat","⛵"),em("train","🚂"),em("plane","✈️"),em("clock","⏰"),em("door","🚪"),em("key","🔑")]},
  {id:"clothes",ico:"👕",tit:"Clothes",tpl:"Touch the {w}",items:[em("hat","🎩"),em("shoes","👟"),em("socks","🧦"),em("shirt","👕"),em("dress","👗"),em("coat","🧥"),em("glasses","👓"),em("bag","🎒")]},
- {id:"colors",ico:"🎨",tit:"Colors",tpl:"Touch {w}",items:Object.keys(COLORES).map(w=>({w,h:punto(COLORES[w])}))},
+ {id:"colors",ico:"🎨",tit:"Colours",tpl:"Touch {w}",items:Object.keys(COLORES).map(w=>({w,h:punto(COLORES[w])}))},
  {id:"numbers",ico:"🔢",tit:"Numbers",tpl:"Touch number {w}",items:NUM_EN.slice(1,11).map((w,i)=>({w,h:`<span class="num">${i+1}</span>`,n:i+1}))},
  {id:"feelings",ico:"😀",tit:"Feelings",tpl:"I'm {w}",items:[em("happy","😀"),em("sad","😢"),em("angry","😠"),em("tired","😴"),em("scared","😨"),em("hot","🥵"),em("cold","🥶"),em("hungry","🤤")]},
  {id:"actions",ico:"🏃",tit:"Actions",tpl:"I can {w}",items:[em("run","🏃"),em("walk","🚶"),em("swim","🏊"),em("dance","💃"),em("clap","👏"),em("sing","🎤"),em("eat","🍽️"),em("drink","🥤"),em("sleep","🛌")]},
@@ -132,6 +132,14 @@ const packFrase=(p,it)=>p.id==="abc"?tocaLetraEN(it.w):p.id==="numbers"?touchNum
 const packPalabra=(p,it)=>p.id==="abc"?letraEN(it.w):p.id==="numbers"?numEN(it.n):A("en",it.w,"w-"+slug(it.w));
 PACKS.forEach(p=>p.items.forEach(it=>{packFrase(p,it);packPalabra(p,it)}));
 
+// ---------------- cosas que una nena de 5 años llamaría igual: no se ponen juntas como opciones (si no, la respuesta tendría dos lecturas)
+const AMB_PAL=[["flor","rosa"],["flor","girasol"],["boca","beso"],["uno","dedo"],["mano","dedo"],["iguana","dinosaurio"]];
+const ambPal=(a,b)=>AMB_PAL.some(([x,y])=>(x===a.p&&y===b.p)||(x===b.p&&y===a.p));
+const AMB_EN=[["bird","duck"],["foot","leg"]];
+const ambEn=(a,b)=>AMB_EN.some(([x,y])=>(x===a.w&&y===b.w)||(x===b.w&&y===a.w));
+// letras que en el habla de acá suenan igual al empezar una palabra (barco/vaca, sol/zapato, casa/queso, girasol/jirafa…) y la H muda (helado, hueso…: suenan a vocal)
+const SUENAN_IGUAL={B:"V",V:"B",S:"ZC",Z:"SC",C:"QKSZ",Q:"CK",K:"CQ",G:"J",J:"G",H:"AEIOU"};
+
 S5.C={NUM_ES,NUM_EN,numES,numEN,LETRAS,NOM_ES,NOM_EN,letraES,tocaLetraES,letraEN,tocaLetraEN,ES,EN,CHEERS_ES,CHEERS_EN,poneCanasta,tocaNum,touchNum,FORMAS,svg,tocaForma,
-  COLORES,punto,OBJ,PAL,PALBY,palClip,palArtClip,RIMAS,rimaClip,PACKS,PACKBY,packFrase,packPalabra,sinAcento};
+  COLORES,punto,OBJ,PAL,PALBY,palClip,palArtClip,RIMAS,rimaClip,PACKS,PACKBY,packFrase,packPalabra,sinAcento,ambPal,ambEn,SUENAN_IGUAL};
 })();

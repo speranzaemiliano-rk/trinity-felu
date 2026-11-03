@@ -1,5 +1,5 @@
 // Service worker: guarda la app para abrirla sin conexión (la voz y el dictado igual necesitan internet)
-const CACHE="trinity-felu-v13";
+const CACHE="trinity-felu-v14";
 // Sirve al inicio («./», con el menú) y a los dos módulos (Felu en «./felu/» y Raphina en «./raphina/»): comparten motor, estilos y audios.
 // («./felu/» va aparte de «./felu/index.html»: la app instalada abre la carpeta, y para el caché es otra dirección)
 const ARCHIVOS=["./","./index.html","./manifest.json","./icon.svg","./icon-192.png","./icon-512.png","./estilos.css","./comun.js","./escucha.js","./contenido-g3.js","./contenido-g4.js","./motor.js","./firebase-config.js","./audio/manifest.js","./felu/","./felu/index.html","./felu/manifest.json","./felu/icon.svg","./felu/icon-192.png","./felu/icon-512.png","./raphina/","./raphina/index.html","./raphina/manifest.json","./raphina/icon.svg","./raphina/icon-192.png","./raphina/icon-512.png"];

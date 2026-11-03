@@ -58,7 +58,17 @@ let t,e;
     // frases a medias que antes pasaban por completas
     ['I am',1],["I don't",1],['Yes, I want to',1],['Yes, I would like to',1],['No, I like',1],
     // respuestas cortas y comunes de un chico: completas
-    ['Two brothers',0],['Monday and Tuesday',0],['In the kitchen',0],["I'm ten.",0],['Yes, it is.',0]];
+    ['Two brothers',0],['Monday and Tuesday',0],['In the kitchen',0],["I'm ten.",0],['Yes, it is.',0],
+    // «yes/no» + una oración que termina en ser/tener NO es una respuesta corta: está a medias
+    ['No, my favourite colour is',1],['Yes, my name is',1],['No, my brother is',1],['Yes, the dog is',1],['No, I am not',0],["No, he isn't",0],['Yes, there are',0],
+    // las palabras que nunca cierran una frase la dejan a medias aunque tenga punto (la IA a veces se lo pone)
+    ['I live in.',1],["I'm.",1],["It's.",1],['Because I.',1],['In.',1],["My name's.",1],["I've.",1],
+    // frases hechas y preguntas del chico sin «?» (el dictado no las pone): completas
+    ['Here you are.',0],['here you are',0],['so do i',0],['me too',0],['Where are you from',0],['What food do you like',0],['Who did you go with',0],['What are you looking at',0],
+    // frases que no se sostienen solas
+    ['I want',1],['I need',1],['I went',1],['I think',1],['My name',1],['My favourite colour',1],['They',1],['Because it',1],['I play',1],
+    // sin puntuación y en minúsculas, como el dictado
+    ['my name is felu',0],['i like football',0],['yes i do',0],['yes i am',0],['i live in',1],['i like pizza and',1],['i want to',1]];
   const mal=await p.evaluate(c=>c.filter(([t,e])=>(escuchaIncompleta(t)?1:0)!==e).map(x=>x[0]),CASOS);
   chk('«parece cortada a la mitad» acierta en '+CASOS.length+' frases (termina en «and», «with my», «because», «I\'m», una coma, «um…»: sí · «Yes, it is.», «I like football», «Me too»: no)',mal.length===0,JSON.stringify(mal));
   await b.close();

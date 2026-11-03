@@ -267,23 +267,31 @@ function escuchaPregunta(raw){   // → {pregunta: ¿hay una pregunta para el ex
 }
 // ¿Lo que se dijo parece una frase CORTADA a la mitad? (termina en una palabra que pide otra: «and», «with my», «because», «I'm»…, en una coma, en «…» o en un «um»).
 // Sirve para esperar un poco más antes de dar la respuesta por terminada: quien arma la frase en inglés hace pausas para buscar una palabra y no tiene que quedar cortado.
-// Hay palabras que no pueden cerrar una frase (siempre piden otra) y otras que sí («Yes, it is.», «So do I.», «Come on.», «It's Felu's.»): esas sólo cuentan si no cerró con punto.
-// Una pregunta ya cerrada con «?» («Where are you from?») está completa, y las cifras cuentan como palabra («I'm 10.»).
-const ESC_COLGADA=/^(and|but|or|because|if|when|while|than|the|a|an|my|your|his|her|our|their|of|with|for|from|um|uh|uhm|er|eh|ehh|mm|hmm)$/;   // no cierran una frase ni con punto
-const ESC_COLGADA_FLOJA=/^(to|in|on|at|by|about|as|also|very|i|like|is|are|am|was|were|have|has|had)$|'(m|s|re|ve|ll|d)$|n't$/;   // sólo si no cerró con punto
-const ESC_CIERRA_RESPUESTA=/^(is|are|am|was|were|have|has|had)$|n't$/;   // «Yes, it is» · «No, I don't»: una respuesta corta que termina así está completa
+// Hay palabras que no pueden cerrar una frase (siempre piden otra: «the», «in», «I'm», «it's») y otras que sí («Come on.», «It's Felu's.», «I like her.», «Yes, I am.»): esas sólo
+// cuentan si no cerró con punto. Una pregunta cerrada con «?» está completa, las cifras cuentan como palabra («I'm 10.») y hay frases hechas que terminan en una palabra «floja»
+// («here you are», «so do I»). La IA a veces le pone punto a una frase cortada: por eso las palabras que nunca cierran valen aunque haya punto.
+const ESC_COLGADA=/^(and|but|or|because|if|when|while|than|the|a|an|my|your|our|their|of|with|for|from|in|at|by|about|as|um|uh|uhm|er|eh|ehh|mm|hmm)$|'(m|re|ve|ll|d)$|^(it|he|she|that|there|what|who|here|let|how|where)'s$|(^|\s)name's$/;   // no cierran una frase ni con punto
+const ESC_COLGADA_FLOJA=/^(to|on|his|her|also|very|i|like|is|are|am|was|were|have|has|had)$|'s$|n't$/;   // sólo si no cerró con punto
+const ESC_CIERRA_RESPUESTA=/^(is|are|am|was|were|have|has|had)$|n't$/;   // «Yes, it is» · «No, I don't»: una respuesta corta que termina así está completa…
+const ESC_PRONOMBRE=/^(i|you|he|she|it|we|they|there|that|this)$/;        // …si lo anterior es un pronombre («Yes, I am»; no «No, my brother is»)
+const ESC_FRASE_HECHA=/(^|\s)(here you are|here it is|here they are|come on|you too|me too|me neither|so (do|am|can|did|have|will) i|neither (do|am|can|did|have) i)$/;
+const ESC_PREGUNTA_WH=/^(what|where|who|whom|which|how|why)\b.*\b(do|does|did|is|are|am|was|were|can|could|will|would)\s+(you|he|she|it|they|we|i)\b/;   // «Where are you from», «What food do you like» (sin «?», como lo escribe el dictado)
+const ESC_MEDIAS=/^(i|we|they|you|he|she)\s+(want|wants|wanted|need|needs|needed|love|loves|loved|went|think|thinks|live|lives|study|studies|visit|visits|visited|play|plays|played|go|goes|eat|eats|ate|watch|watches|watched)$|^(he|she|they|we|i|it)$|^(my|his|her|your|our|their)\s+(name|favou?rite(\s+\w+)?)$|^because\s+(it|i|he|she|we|they|you|my|the|a)$/;   // frases que no se sostienen solas
 function escuchaIncompleta(t){
   t=String(t||"").trim();if(!t)return false;
   if(/\?["')\]]*\s*$/.test(t))return false;                           // una pregunta cerrada
   if(/(,|…|\.\.\.|–|—|-|:)\s*$/.test(t))return true;                  // se quedó en una coma, en puntos suspensivos o en un guion
-  const fin=/[.!]["')\]]*\s*$/.test(t),ws=t.toLowerCase().replace(/[’`]/g,"'").replace(/[^a-z0-9' ]+/g," ").split(/\s+/).filter(Boolean),u=ws[ws.length-1]||"";
+  const fin=/[.!]["')\]]*\s*$/.test(t),ws=t.toLowerCase().replace(/[’`]/g,"'").replace(/[^a-z0-9' ]+/g," ").split(/\s+/).filter(Boolean),u=ws[ws.length-1]||"",ant=ws[ws.length-2]||"",sola=ws.join(" ");
   if(!u)return false;
-  if(ESC_COLGADA.test(u))return true;
-  if(ESC_COLGADA_FLOJA.test(u)){
-    if(fin)return false;
-    if(/^(yes|yeah|yep|no|nope)$/.test(ws[0])&&ESC_CIERRA_RESPUESTA.test(u))return false;
-    return true}
-  return false;
+  if(ESC_MEDIAS.test(sola))return true;
+  if(ESC_FRASE_HECHA.test(sola))return false;
+  const pideMas=ESC_COLGADA.test(u),floja=ESC_COLGADA_FLOJA.test(u);
+  if(!pideMas&&!floja)return false;
+  if(ESC_PREGUNTA_WH.test(sola)&&!/^(and|but|or|because|if|when|while|than|the|a|an|my|your|our|their|of|um|uh|uhm|er|eh|ehh|mm|hmm)$/.test(u))return false;   // una pregunta suya que termina en «from», «with», «like»…
+  if(pideMas)return true;
+  if(fin)return false;
+  if(/^(yes|yeah|yep|no|nope)$/.test(ws[0])&&ESC_CIERRA_RESPUESTA.test(u)&&ESC_PRONOMBRE.test(ant))return false;
+  return true;
 }
 function escuchaResponder(raw){const e=escuchaPregunta(raw);return e.pregunta?reaccionPregunta(e.q):null}   // lo que contesta el examinador, o null si no le preguntaron nada
 

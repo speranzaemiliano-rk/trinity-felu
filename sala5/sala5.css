@@ -32,6 +32,9 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
 /* inicio */
 .mascota{flex:none;text-align:center;font-size:clamp(3.2rem,14vw,5.2rem);line-height:1;font-family:var(--emoji);margin:2px 0 0;transform-origin:50% 100%}
 .mascota.habla,.mascota-chica.habla{animation:salto .55s ease-in-out infinite}
+.desafio{flex:none;display:flex;align-items:center;justify-content:center;gap:14px;min-height:clamp(72px,calc(11*var(--vh)),104px);margin-top:6px;border-radius:28px;color:#3a2c00;background:linear-gradient(135deg,#ffe066,#ffb300);box-shadow:0 8px 0 #a86f00;font-weight:800;font-size:clamp(1.7rem,7.5vw,2.5rem);line-height:1}
+.desafio:active{transform:translateY(5px);box-shadow:0 3px 0 #a86f00}
+.desafio .dico{font-size:1.35em;font-family:var(--emoji);animation:late 1.8s ease-in-out infinite}
 .areas{flex:1;min-height:0;display:flex;flex-direction:column;gap:14px}
 .area{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:18px;border-radius:30px;color:#fff;background:linear-gradient(135deg,var(--c1),var(--c2));box-shadow:0 9px 0 var(--cs);font-weight:800}
 .area:active{transform:translateY(5px);box-shadow:0 4px 0 var(--cs)}
@@ -107,11 +110,12 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
 .panel.pista{animation:late .7s ease-in-out infinite;border-color:#ffb300}
 .paneles{display:flex;gap:12px;width:100%}
 .paneles .panel{flex:1;min-width:0}
-.seq{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;--cw:clamp(34px,min(15vw,calc((100vw - 24px - (var(--n,5) - 1)*8px)/var(--n,5))),92px)}   /* --n = cuántas cajas hay: el ancho de cada una se reparte para que entren todas en una fila, y la letra va con el ancho de la caja */
-.caja{width:var(--cw);height:clamp(60px,min(18vw,calc(22*var(--vh))),108px);border-radius:18px;background:#fff;border:5px solid var(--c1);display:flex;align-items:center;justify-content:center;font-size:calc(var(--cw)*.62);font-weight:800;color:var(--cs);box-shadow:0 5px 0 var(--sombra)}
+.seq{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;--cw:clamp(28px,min(15vw,calc((100vw - 24px - (var(--n,5) - 1)*8px)/var(--n,5))),92px)}   /* --n = cuántas cajas hay: el ancho de cada una se reparte para que entren todas en una fila, y la letra va con el ancho de la caja */
+.caja{width:var(--cw);height:clamp(60px,min(18vw,calc(22*var(--vh))),108px);border-radius:18px;background:#fff;border:5px solid var(--c1);display:flex;align-items:center;justify-content:center;font-size:calc((var(--cw) - 10px)/1.4);font-weight:800;color:var(--cs);box-shadow:0 5px 0 var(--sombra)}
 .caja.hueco{border-style:dashed;background:rgba(255,255,255,.55);color:#e91e63}
 .caja.lleno{background:#c8f7c5;border-color:#2e9e5b}
 .caja .e,.caja .punto{font-size:.8em}
+.caja .punto{border-width:3px}   /* el borde de la bolita no se achica con la caja: en una fila de 8 cajas no entraba */
 
 /* canasta («poné 4») */
 .canasta-meta{font-size:clamp(3rem,16vw,6rem);font-weight:800;color:#e91e63;line-height:1}
@@ -138,6 +142,46 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
 /* sílabas */
 .sil{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
 .sil span{background:#fff;border:4px solid var(--c1);border-radius:14px;padding:2px 12px;font-size:clamp(1.8rem,9vw,3.2rem);font-weight:800;color:var(--cs);animation:salto .5s ease both}
+
+/* los juegos que se sumaron después (juegos2.js) */
+.est .grande.peq{font-size:clamp(3.4rem,min(22vw,calc(15*var(--vh))),6rem)}   /* un dibujo más chico para dejar lugar a lo de abajo («Armá la palabra», problemas) */
+.ecu{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:clamp(6px,2vw,16px);font-weight:800;color:var(--cs);font-size:clamp(2.2rem,min(11vw,calc(10*var(--vh))),5rem);line-height:1}   /* cuentas escritas: 8 + 7  ·  5 + ? = 9 */
+.ecu b{min-width:1.3em;text-align:center;padding:.1em .16em;border-radius:.3em;background:#fff;border:5px solid var(--c1);box-shadow:0 5px 0 var(--sombra)}
+.ecu span{color:#e91e63}
+.ecu .hueco-n{border-style:dashed;background:rgba(255,255,255,.55);color:#e91e63}
+.ecu .hueco-n.lleno{border-style:solid;background:#c8f7c5;border-color:#2e9e5b;color:var(--cs)}
+.fig-grande .fig{width:min(44vw,calc(26*var(--vh)),200px);height:min(44vw,calc(26*var(--vh)),200px)}   /* ¿cuántos lados tiene? */
+.op .largo{display:block;align-self:flex-start;height:clamp(18px,calc(5*var(--vh)),34px);border-radius:99px;background:var(--c1)}   /* el más largo / el más corto */
+.op.si .largo{background:#2e9e5b}
+.b10{display:flex;align-items:center;justify-content:center;gap:clamp(10px,3vw,24px);--sq:min(calc((100vw - 84px)/13),calc(34*var(--vh)/var(--d,5) - 8px),26px)}   /* decenas y unidades: cada barra son 10 cuadraditos, cada bolita 1 (--d = cuántas barras: con pocas, los cuadraditos son más grandes) */
+.b10 .decs{display:flex;flex-direction:column;gap:calc(var(--sq)*.28)}
+.b10 .dec{display:flex;gap:2px;padding:2px;border-radius:6px;background:#fff;border:2px solid var(--c1)}
+.b10 .dec i{display:block;width:var(--sq);height:var(--sq);background:var(--c1);border-radius:3px}
+.b10 .unis{display:flex;flex-wrap:wrap;gap:3px;width:calc(var(--sq)*3 + 6px);align-content:center}
+.b10 .unis i{display:block;width:var(--sq);height:var(--sq);border-radius:50%;background:#ffb300}
+.reloj{display:block;width:100%;height:auto;font-family:var(--f)}   /* la hora */
+.reloj-grande{width:min(56vw,calc(30*var(--vh)),260px)}
+.reloj.chico{max-width:min(30vw,calc(17*var(--vh)),150px);margin:0 auto}
+.reloj .rc{fill:#fff;stroke:var(--c1);stroke-width:5}
+.reloj .rn{font-size:12px;font-weight:800;fill:var(--cs);font-family:var(--f)}
+.reloj .rh{stroke:var(--cs);stroke-width:5.5;stroke-linecap:round}
+.reloj .rm{stroke:#e91e63;stroke-width:3.2;stroke-linecap:round}
+.reloj .rp{fill:var(--cs)}
+.nums .hueco-l,.nums .letra-f{width:clamp(54px,17vw,92px);font-size:clamp(1.5rem,7.5vw,2.6rem)}   /* ordenar números: las fichas con números de dos cifras */
+/* memotest */
+.memo{--card:min(calc((min(100vw,640px) - 24px - (var(--cols) - 1)*10px)/var(--cols)),calc((100*var(--vh) - 175px - (var(--filas) - 1)*10px)/var(--filas)),150px);display:flex;flex-wrap:wrap;justify-content:center;gap:10px;width:100%;max-width:640px}
+.carta{position:relative;flex:none;width:var(--card);height:var(--card);min-width:44px;min-height:44px;border-radius:18px;font-size:calc(var(--card)*.5)}
+.carta .dorso,.carta .frente{position:absolute;top:0;right:0;bottom:0;left:0;display:flex;align-items:center;justify-content:center;border-radius:18px;border:5px solid var(--c1);box-shadow:0 5px 0 var(--sombra);line-height:1;font-weight:800}
+.carta .dorso{background:var(--c1);color:#fff;font-family:var(--emoji);font-size:.7em}
+.carta .frente{display:none;background:#fff;color:var(--cs);overflow:hidden}
+.carta.vuelta .frente,.carta.par .frente{display:flex;animation:pop .35s ease}
+.carta.vuelta .dorso,.carta.par .dorso{display:none}
+.carta.par .frente{background:#c8f7c5;border-color:#2e9e5b}
+.carta.pista{animation:late .7s ease-in-out infinite;outline:5px solid #ffb300;outline-offset:2px}
+.carta .eq{font-size:.62em;white-space:nowrap}
+.carta .e{font-size:.9em;font-family:var(--emoji)}
+.carta .q{display:flex;flex-wrap:wrap;justify-content:center;align-content:center;width:100%;padding:0 6%;font-size:.38em;line-height:1.1}
+.carta .q i{font-style:normal;font-family:var(--emoji)}
 
 /* mascota chica y repetir */
 .mascota-chica{position:fixed;left:10px;bottom:max(8px,env(safe-area-inset-bottom));font-size:2.2rem;pointer-events:none;opacity:0;font-family:var(--emoji)}
@@ -170,6 +214,8 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
 
 /* resultados para los grandes */
 .premio-res{font:700 .95rem system-ui,-apple-system,"Segoe UI",sans-serif;color:#5d6190;margin:0 0 6px}
+.premio-nivel{font:800 1.25rem var(--f);color:#1b7a3a;margin:0 0 8px}
+.premio-nivel:empty{display:none}
 .res-form{width:min(94vw,560px);text-align:left;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#2a2350;-webkit-user-select:text;user-select:text}
 .res-form h2{margin:0 0 8px;font-size:1.4rem;text-align:center;font-family:var(--f)}
 .res-form h3{margin:16px 0 4px;font-size:1rem;color:#5d6190}
@@ -207,6 +253,7 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
 /* apaisado y bajito (celular de costado): lo de arriba y las opciones lado a lado */
 @media (orientation:landscape) and (max-height:560px){
   .mascota{font-size:clamp(2.2rem,calc(13*var(--vh)),3.4rem)}
+  .desafio{min-height:clamp(54px,calc(14*var(--vh)),80px);margin-top:2px;font-size:clamp(1.4rem,calc(7*var(--vh)),2rem)}
   .tiles{grid-template-columns:repeat(4,1fr)}
   .tile{min-height:104px}
   .tile .tico{font-size:clamp(2rem,calc(14*var(--vh)),3.2rem)}
@@ -221,10 +268,10 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
   .op{min-height:clamp(80px,calc(28*var(--vh)),130px);font-size:clamp(2.6rem,calc(15*var(--vh)),5rem)}
   .ops[data-c] .op{font-size:clamp(2.6rem,calc(15*var(--vh)),5rem)}
   .obj{font-size:clamp(2.4rem,calc(14*var(--vh)),3.8rem)}
-  .objs.muchos .obj{font-size:clamp(1.7rem,calc(9*var(--vh)),2.6rem)}
+  .objs.muchos .obj{font-size:clamp(1.7rem,calc(9*var(--vh)),2.6rem);flex:0 0 44px}
   .est .grande{font-size:clamp(4rem,calc(32*var(--vh)),8rem)}
   .est{gap:6px}
-  .seq{gap:6px;--cw:clamp(34px,min(calc(15*var(--vh)),calc((50vw - 24px - (var(--n,5) - 1)*6px)/var(--n,5))),76px)}
+  .seq{gap:6px;--cw:clamp(28px,min(calc(15*var(--vh)),calc((50vw - 24px - (var(--n,5) - 1)*6px)/var(--n,5))),76px)}
   .caja{height:clamp(54px,calc(18*var(--vh)),92px)}
   .canasta-meta{font-size:clamp(2.2rem,calc(13*var(--vh)),3.6rem)}
   .pila,.canasta{min-height:calc(10*var(--vh));padding:4px}
@@ -232,7 +279,8 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
   .listo{min-height:64px}
   .fig{width:min(calc(16*var(--vh)),100px);height:min(calc(16*var(--vh)),100px)}
   .panel{min-height:0;min-width:0;font-size:min(clamp(1.6rem,calc(8*var(--vh)),2.6rem),calc((23vw - 34px)/var(--c,3)/1.25))}
-  .grupos .panel{font-size:min(clamp(1.6rem,calc(8*var(--vh)),2.6rem),calc((22vw - 34px)/var(--c,3)/1.25))}
+  .grupos .panel{min-width:0;font-size:min(clamp(1.5rem,calc(7.4*var(--vh)),2.5rem),calc((20.5vw - 34px)/var(--c,3)/1.25))}
+  .mas,.signo{font-size:clamp(1.8rem,calc(10*var(--vh)),3rem)}
   .premio .grande{font-size:clamp(3.4rem,calc(26*var(--vh)),6rem)}
   .premio h2{margin:2px 0;font-size:clamp(1.4rem,calc(7*var(--vh)),2rem)}
   .premio .estrellas{margin-bottom:2px;font-size:1.5rem}
@@ -240,6 +288,11 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
   .acciones{margin-top:6px}
   .acciones .chip{min-height:64px}
   .huecos,.fichas{gap:6px}
+  .est .grande.peq{font-size:clamp(3rem,calc(20*var(--vh)),5rem)}
+  .nums .hueco-l,.nums .letra-f{width:clamp(50px,calc(15*var(--vh)),76px);font-size:clamp(1.4rem,calc(7*var(--vh)),2.4rem)}
+  .ecu{font-size:clamp(2rem,calc(15*var(--vh)),4rem)}
+  .b10{--sq:min(calc((50vw - 78px)/13),calc(48*var(--vh)/var(--d,5) - 8px),26px)}
+  .fig-grande .fig{width:min(calc(30*var(--vh)),150px);height:min(calc(30*var(--vh)),150px)}
   .hueco-l{width:clamp(44px,calc(12*var(--vh)),68px);height:clamp(52px,calc(15*var(--vh)),80px);font-size:clamp(1.8rem,calc(8*var(--vh)),2.8rem)}
   .letra-f{width:clamp(48px,calc(13*var(--vh)),72px);height:clamp(54px,calc(15*var(--vh)),84px);font-size:clamp(1.8rem,calc(8*var(--vh)),2.8rem)}
 }

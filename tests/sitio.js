@@ -66,7 +66,7 @@ function simularSW(){
 const sw=simularSW();
 let ok=true,motivo='';try{await sw.evento('install')}catch(e){ok=false;motivo=e.message}
 chk('el service worker instala: los '+sw.ARCHIVOS.length+' archivos de su lista existen (si falta uno, no se instala nada)',ok&&sw.guardado.size===sw.ARCHIVOS.length&&sw.log.skip===1,motivo);
-chk('guarda las carpetas de Felu, de Raphina y de Sala de 5 («./felu/», «./raphina/», «./sala5/»: es lo que abre cada app instalada) además de sus index.html, y el inicio',['felu/','felu/index.html','raphina/','raphina/index.html','sala5/','sala5/index.html','sala5/sala5.css','sala5/contenido.js','sala5/juego.js','sala5/audio/manifest.js','','index.html','contenido-g3.js','contenido-g4.js'].every(x=>sw.guardado.has(sw.SITIO+x)));
+chk('guarda las carpetas de Felu, de Raphina y de Sala de 5 («./felu/», «./raphina/», «./sala5/»: es lo que abre cada app instalada) además de sus index.html, y el inicio',['felu/','felu/index.html','raphina/','raphina/index.html','sala5/','sala5/index.html','sala5/sala5.css','sala5/contenido.js','sala5/contenido2.js','sala5/adaptar.js','sala5/juego.js','sala5/juegos2.js','sala5/audio/manifest.js','','index.html','contenido-g3.js','contenido-g4.js'].every(x=>sw.guardado.has(sw.SITIO+x)));
 let a=await sw.evento('activate');
 chk('al activarse borra los cachés viejos y no el actual',sw.log.borrados.join()==='trinity-felu-v1',sw.log.borrados.join());
 sw.linea(false);
@@ -160,7 +160,7 @@ T.est.resp.length=0;T.est.fallos.length=0;p.errs.length=0;
 await Promise.all([p.waitForURL('**/sala5/'),p.click('.mod.m5')]);await p.waitForSelector('#bJugar');await p.waitForTimeout(300);
 const rS=T.est.resp.map(x=>x[0]);
 chk('tocar «Sala de 5» en el menú abre /sala5/ con todo funcionando: sus estilos, scripts y lista de audios ('+T.est.resp.length+' pedidos, ninguno con error), sin el motor de Trinity y sin errores de página',
-  new URL(p.url()).pathname==='/sala5/'&&await p.evaluate(()=>typeof S5==='object'&&S5.juegos.length>=30&&/Sala de 5/.test(document.title))&&['/sala5/sala5.css','/sala5/contenido.js','/sala5/juego.js','/sala5/audio/manifest.js'].every(x=>rS.includes(x))&&!rS.some(x=>/motor\.js|contenido-g|comun\.js|\/estilos\.css/.test(x))&&T.est.resp.every(x=>x[1]<400)&&T.est.fallos.length===0&&p.errs.length===0,JSON.stringify([rS,p.errs,T.est.fallos]));
+  new URL(p.url()).pathname==='/sala5/'&&await p.evaluate(()=>typeof S5==='object'&&S5.juegos.length>=43&&/Sala de 5/.test(document.title))&&['/sala5/sala5.css','/sala5/contenido.js','/sala5/contenido2.js','/sala5/adaptar.js','/sala5/juego.js','/sala5/juegos2.js','/sala5/audio/manifest.js'].every(x=>rS.includes(x))&&!rS.some(x=>/motor\.js|contenido-g|comun\.js|\/estilos\.css/.test(x))&&T.est.resp.every(x=>x[1]<400)&&T.est.fallos.length===0&&p.errs.length===0,JSON.stringify([rS,p.errs,T.est.fallos]));
 T.est.resp.length=0;await p.click('#bJugar',{force:true});await p.waitForTimeout(800);
 const mp3S=T.est.resp.filter(x=>/\.mp3$/.test(x[0]));
 chk('en «Sala de 5» la voz sale de /sala5/audio/ (mp3 grabados, no los de Trinity) y llega bien ('+(mp3S[0]?mp3S[0][0]:'ninguno')+')',mp3S.length>=1&&mp3S.every(x=>x[0].startsWith('/sala5/audio/')&&x[1]<400&&/audio\/mpeg/.test(x[2])),JSON.stringify(mp3S));

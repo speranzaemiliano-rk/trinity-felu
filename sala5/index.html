@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap">
-<link rel="stylesheet" href="sala5.css?b=2026-11-03-voz-mas-fuerte-y-resultados">
+<link rel="stylesheet" href="sala5.css?b=2026-11-04-desafio-y-juegos-nuevos">
 </head>
 <body>
 
@@ -25,6 +25,7 @@
     <button class="chip padres" id="bPadres" aria-label="Para grandes: mantené apretado">⚙️</button>
   </header>
   <div class="mascota" id="mascota" aria-hidden="true">🐥</div>
+  <button class="desafio" id="bDesafio" aria-label="Desafío"><span class="dico">🚀</span><span class="dnom">Desafío</span></button>
   <div class="areas">
     <button class="area a-lengua" data-area="lengua"><span class="aico">Aa</span><span class="anom">Lengua</span></button>
     <button class="area a-mates" data-area="mates"><span class="aico">123</span><span class="anom">Matemática</span></button>
@@ -74,6 +75,7 @@
     <h2 id="premioTit">¡Muy bien!</h2>
     <div class="estrellas" id="premioEst">⭐⭐⭐⭐⭐</div>
     <div class="premio-res" id="premioRes"></div>
+    <div class="premio-nivel" id="premioNivel"></div>
     <div class="acciones">
       <button class="chip" id="premioOtra" aria-label="Jugar otra vez">🔁</button>
       <button class="chip" id="premioSalir" aria-label="Terminar">🏠</button>
@@ -94,9 +96,9 @@
     <button class="btn sec" id="pProbar" type="button">🔊 Probar la voz</button>
     <small>El volumen se sube con los botones del celular o de la tablet.</small>
     <label for="pDif">Dificultad</label>
-    <select id="pDif"><option value="0">Fácil (empieza desde lo más simple)</option><option value="1">Un poco más difícil</option></select>
-    <small>Los juegos suben de nivel solos cuando le salen bien (4 de 5).</small>
-    <div class="fila"><input type="checkbox" id="pMin"><label for="pMin" style="margin:0">Mostrar letras minúsculas en el nivel más difícil</label></div>
+    <select id="pDif"><option value="0">Fácil (arranca en el nivel 1)</option><option value="1">Medio (arranca en el nivel 2)</option><option value="2">Más difícil (arranca en el nivel 3)</option><option value="3">Difícil (arranca en el nivel 4)</option></select>
+    <small>Es dónde arranca cada juego nuevo. Después sube y baja solo según cómo le va: cada pregunta se arma con el nivel justo, y los juegos que ya domina se juegan menos.</small>
+    <div class="fila"><input type="checkbox" id="pMin"><label for="pMin" style="margin:0">Mostrar la minúscula junto a cada letra (nivel 3 de «Las letras»; el 4 es sólo de minúsculas)</label></div>
     <button class="btn sec" id="pResultados" type="button">📊 Ver resultados: cuántas bien y cuántas mal</button>
     <button class="btn" id="pCerrar">Listo</button>
     <button class="btn peligro" id="pBorrar">Borrar figuritas, avances y resultados</button>
@@ -120,9 +122,12 @@
   <button class="jugar" id="bJugar">▶ ¡Jugar!</button>
 </div>
 
-<script src="audio/manifest.js?b=2026-11-03-voz-mas-fuerte-y-resultados"></script>
-<script src="contenido.js?b=2026-11-03-voz-mas-fuerte-y-resultados"></script>
-<script src="juego.js?b=2026-11-03-voz-mas-fuerte-y-resultados"></script>
+<script src="audio/manifest.js?b=2026-11-04-desafio-y-juegos-nuevos"></script>
+<script src="contenido.js?b=2026-11-04-desafio-y-juegos-nuevos"></script>
+<script src="contenido2.js?b=2026-11-04-desafio-y-juegos-nuevos"></script>
+<script src="adaptar.js?b=2026-11-04-desafio-y-juegos-nuevos"></script>
+<script src="juego.js?b=2026-11-04-desafio-y-juegos-nuevos"></script>
+<script src="juegos2.js?b=2026-11-04-desafio-y-juegos-nuevos"></script>
 <script>
 if("serviceWorker"in navigator&&location.protocol==="https:")navigator.serviceWorker.register("../sw.js").catch(function(){});
 </script>

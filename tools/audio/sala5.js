@@ -1,9 +1,9 @@
 // «Sala de 5»: arma la lista de TODAS las frases con voz (sala5_texts.json), reescribe sala5/audio/manifest.js con los mp3 que hay y dice cuántos faltan.
 // Uso (desde esta carpeta):  node sala5.js      (después:  python3 bajar_sala5.py  y otra vez  node sala5.js  hasta que diga «faltan: 0»)
-// No hace falta navegador: carga sala5/contenido.js tal cual, así la lista sigue sola a los cambios del contenido.
+// No hace falta navegador: carga sala5/contenido.js y contenido2.js tal cual, así la lista sigue sola a los cambios del contenido.
 const fs=require('fs'),path=require('path');
 const RAIZ=path.resolve(__dirname,'../..'),AUDIO=path.join(RAIZ,'sala5/audio');
-global.window={};require(path.join(RAIZ,'sala5/contenido.js'));
+global.window={};require(path.join(RAIZ,'sala5/contenido.js'));require(path.join(RAIZ,'sala5/contenido2.js'));
 const frases=window.S5.frases();
 fs.writeFileSync(path.join(__dirname,'sala5_texts.json'),JSON.stringify(frases));
 fs.mkdirSync(AUDIO,{recursive:true});

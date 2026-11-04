@@ -1,11 +1,11 @@
 // «Sala de 5» (carpeta sala5/): los juegos para una nena de 5 años que todavía no lee (inglés, lengua y matemática).
-// Cubre: que cada frase tenga su mp3 (y no sobre ninguno) y que los mp3 sean audio de verdad; que los 30 juegos armen siempre preguntas bien hechas
+// Cubre: que cada frase tenga su mp3 (y no sobre ninguno) y que los mp3 sean audio de verdad; que los 43 juegos armen siempre preguntas bien hechas
 // (UNA sola respuesta correcta, opciones distintas, todo lo que se dice con audio); el recorrido (¡Jugar!, áreas, juegos, figuritas, álbum);
 // que el primer sonido salga DENTRO del toque (así el iPhone habilita el audio); rondas de cada tipo (elegir, contar, canasta, armar el nombre);
 // que equivocarse nunca trabe (probá de nuevo → el bueno late → se lo muestra y sigue); que si no toca nada repita la consigna y marque la respuesta;
 // niveles que suben solos, figuritas y álbum lleno; el panel para grandes (se abre apretando 1,4 s, nombre, sonido, dificultad, borrar en dos toques);
 // que lo guardado roto no rompa nada; que no pida nada a otros sitios (sólo las fuentes de Google) y ande sin ellas; la voz del aparato si un audio no baja;
-// y el DISEÑO: ningún botón se sale de la pantalla ni se pisa, en 5 tamaños (celular chico, celular, tablet vertical y horizontal, celular de costado).
+// y el DISEÑO: ningún botón se sale de la pantalla ni se pisa, en 7 tamaños (celular chico, celular, tablet vertical y horizontal, celular de costado, el iPhone SE más angosto y el iPhone 8 de costado, el más bajo), con cada juego en cada uno de sus niveles.
 // Se puede probar el sitio publicado:  URL=https://speranzaemiliano-rk.github.io/trinity-felu/sala5/ node tests/sala5.js
 const {chromium,devices}=require('playwright');const fs=require('fs');const path=require('path');
 const RAIZ=path.resolve(__dirname,'..');
@@ -96,8 +96,8 @@ const contestar=(p,que,nombre)=>p.evaluate(([que,nombre])=>{
     listo.click();return 'canasta';
   }
   const fichas=[...document.querySelectorAll('#jEst .letra-f:not(.usada)')];
-  if(fichas.length||document.querySelector('#jEst .hueco-l')){   // armar el nombre: letras en orden
-    const L=[...nombre.normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase()].filter(x=>/[A-ZÑ]/.test(x));
+  if(fichas.length||document.querySelector('#jEst .hueco-l')){   // armar el nombre (o una palabra, o poner números en orden): las fichas en el orden que dice la pregunta en pantalla
+    const L=S5.actual().letras;
     const hechas=document.querySelectorAll('#jEst .hueco-l.puesto').length;
     if(que==='ok'){const f=fichas.find(x=>x.dataset.l===L[hechas]);if(f)f.click()}
     else{const f=fichas.find(x=>x.dataset.l!==L[hechas]);if(f)f.click()}
@@ -128,12 +128,12 @@ const data=await p.evaluate(()=>{
   const pal=C.PAL.map(x=>({p:x.p,ok:x.sil.join('')===x.p&&x.ini===C.sinAcento(x.p)[0].toUpperCase()&&x.n===x.p.length&&!!x.e&&/^(el|la)$/.test(x.art)&&x.sil.every(s=>s.length>0)&&HAY.has(C.palClip(x))&&HAY.has(C.palArtClip(x))}));
   return {n:reg.length,sinAudio:reg.filter(k=>!HAY.has(k)),sobra:[...HAY].filter(k=>!S5.audio[k]),idioma:reg.filter(k=>(k.startsWith('en_')?'en':'es')!==S5.audio[k].l),
     sinTexto:reg.filter(k=>!String(S5.audio[k].tts||'').trim()),pal:pal.filter(x=>!x.ok).map(x=>x.p),nPal:pal.length,
-    rimas:C.RIMAS.every(g=>g.every(w=>C.PALBY[w])&&g.length>=2),packs:C.PACKS.map(k=>({id:k.id,n:k.items.length})),juegos:S5.juegos.map(g=>g.id)};
+    rimas:C.RIMAS.every(g=>g.every(w=>C.PALBY[w])&&g.length>=2),packs:C.PACKS.map(k=>({id:k.id,n:k.items.length})),juegos:S5.juegos.map(g=>g.id),porArea:['mates','lengua','ingles'].map(a=>S5.juegos.filter(g=>g.area===a).length)};
 });
 chk('todo lo que la app puede decir ('+data.n+' frases) tiene su mp3, y no hay mp3 de frases que ya no existen',data.sinAudio.length===0&&data.sobra.length===0,j([data.sinAudio.slice(0,5),data.sobra.slice(0,5)]));
 chk('cada frase tiene texto y su idioma (es_/en_) coincide con el de la voz que se grabó',data.sinTexto.length===0&&data.idioma.length===0,j([data.sinTexto.slice(0,3),data.idioma.slice(0,3)]));
 chk('las '+data.nPal+' palabras con dibujo están bien armadas (sílabas que suman la palabra, inicial, artículo, dibujo y audio) y las rimas son de palabras que existen',data.pal.length===0&&data.rimas,j(data.pal));
-chk('los 12 temas de inglés tienen al menos 6 cosas cada uno, y hay 30 juegos en total',data.packs.length===12&&data.packs.every(k=>k.n>=6)&&data.juegos.length===30,j([data.packs,data.juegos.length]));
+chk('los 12 temas de inglés tienen al menos 6 cosas cada uno, y hay 43 juegos en total (16 de Matemática, 14 de Lengua y 13 de English)',data.packs.length===12&&data.packs.every(k=>k.n>=6)&&data.juegos.length===43&&data.porArea.join()==='16,14,13',j([data.packs,data.juegos.length,data.porArea]));
 await ctx.close();
 
 // ---------- 3) los generadores: preguntas bien hechas, muchas veces, en todos los niveles
@@ -141,7 +141,7 @@ await ctx.close();
 const gen=await p.evaluate(()=>{
   const mal=[],HAY=new Set(S5_AUDIO);let preguntas=0;
   S5.estado().nombre='Sofía';
-  const clavesDe=q=>[].concat(q.decir||[],q.alAcertar||[],...(q.opciones||[]).map(o=>o.decir||[]));
+  const clavesDe=q=>[].concat(q.decir||[],q.alAcertar||[],...(q.opciones||[]).map(o=>o.decir||[]),...(q.pares||[]).map(p=>[].concat(p.ka||[],p.kb||[])),...(q.decirItem?q.letras.map(x=>q.decirItem(x)):[]));
   S5.juegos.forEach(j=>{for(let n=1;n<=j.niv;n++)for(let i=0;i<120;i++){
     let q;try{q=j.gen(n)}catch(e){mal.push(j.id+' n'+n+': '+e.message);break}
     preguntas++;
@@ -153,14 +153,17 @@ const gen=await p.evaluate(()=>{
       const k=q.opciones.map(o=>(o.aria||'')+'|'+o.h);if(new Set(k).size!==k.length)mal.push(j.id+' n'+n+': opciones repetidas '+JSON.stringify(k).slice(0,90));
       if(q.opciones.some(o=>!o.aria))mal.push(j.id+': una opción sin nombre para lector de pantalla');
     }else if(q.tipo==='canasta'){
-      if(!(q.n>=1&&q.n<=10&&q.total>=q.n&&q.total<=12))mal.push(j.id+' n'+n+': canasta n='+q.n+' total='+q.total);
+      if(!(q.n>=1&&q.n<=12&&q.total>=q.n&&q.total<=14))mal.push(j.id+' n'+n+': canasta n='+q.n+' total='+q.total);
     }else if(q.tipo==='nombre'){
       if(!(q.letras&&q.letras.length>=2))mal.push(j.id+': nombre con menos de 2 letras');
+    }else if(q.tipo==='memo'){
+      const np=q.pares.length;if(!(np>=3&&np<=6))mal.push(j.id+' n'+n+': memotest con '+np+' pares');
+      const caras=q.pares.flatMap(x=>[x.a,x.b]);if(new Set(caras).size!==caras.length||q.pares.some(x=>x.a===x.b))mal.push(j.id+' n'+n+': cartas repetidas');
     }else mal.push(j.id+': tipo raro '+q.tipo);
   }});
   return {preguntas,mal:[...new Set(mal)].slice(0,15)};
 });
-chk('los 30 juegos arman '+gen.preguntas+' preguntas (todos los niveles) sin una sola mal hecha: UNA respuesta correcta, opciones distintas y con nombre, y todo lo que dicen tiene audio',gen.mal.length===0,j(gen.mal));
+chk('los 43 juegos arman '+gen.preguntas+' preguntas (todos los niveles) sin una sola mal hecha: UNA respuesta correcta, opciones distintas y con nombre, y todo lo que dicen tiene audio',gen.mal.length===0,j(gen.mal));
 await ctx.close();
 
 // ---------- 4) el recorrido: ¡Jugar!, el sonido sale dentro del toque, áreas, juegos, álbum
@@ -179,7 +182,7 @@ for(const a of ['lengua','mates','ingles']){
   cuentaTiles[a]=await p.evaluate(()=>({tit:document.getElementById('aTitulo').textContent,ids:[...document.querySelectorAll('#tiles .tile')].map(t=>t.dataset.j)}));
   await p.click('#aAtras');await p.waitForSelector('#pInicio:not([hidden])');
 }
-chk('cada área abre sus juegos con «Sorpresa» primero: Lengua 6 (sin «Mi nombre» hasta que haya nombre), Matemática 10, English 13',cuentaTiles.lengua.ids[0]==='*'&&cuentaTiles.lengua.ids.length===1+6&&!cuentaTiles.lengua.ids.includes('l_nombre')&&cuentaTiles.mates.ids.length===1+10&&cuentaTiles.ingles.ids.length===1+13&&cuentaTiles.mates.tit==='Matemática'&&cuentaTiles.ingles.tit==='English',j(cuentaTiles));
+chk('cada área abre sus juegos con «Sorpresa» primero: Lengua 13 (sin «Mi nombre» hasta que haya nombre), Matemática 16, English 13',cuentaTiles.lengua.ids[0]==='*'&&cuentaTiles.lengua.ids.length===1+13&&!cuentaTiles.lengua.ids.includes('l_nombre')&&cuentaTiles.mates.ids.length===1+16&&cuentaTiles.ingles.ids.length===1+13&&cuentaTiles.mates.tit==='Matemática'&&cuentaTiles.ingles.tit==='English',j(cuentaTiles));
 const hab1=await hablados(p);
 chk('al entrar a un área la voz dice cuál es (Lengua / Matemática / English)',await p.evaluate(()=>{const E=S5.C.ES;return [E.lengua,E.mates,E.ingles].every(k=>S5.hablados.includes(k))}),j(hab1.slice(0,8)));
 await p.click('#bAlbum');await p.waitForSelector('#pAlbum:not([hidden])');
@@ -216,6 +219,108 @@ st=await estado(p);
 chk('«Mi nombre»: se arma letra por letra con el nombre que cargaron los grandes; la ronda son 3 veces (no 5: repetir el mismo nombre cinco veces cansa) y da su figurita con 3 estrellas',st.juegos.l_nombre&&st.juegos.l_nombre.perfectas===1&&await p.evaluate(()=>document.getElementById('premioEst').textContent==='⭐⭐⭐'&&document.querySelectorAll('#jPuntos i').length===3),j(st.juegos));
 chk('sin errores de página en las rondas',p.errs.length===0,j(p.errs));
 await ctx.close();
+
+// ---------- 5b) los tipos de juego nuevos: memotest, ordenar números y armar una palabra con su dibujo
+// memotest: se resuelve con las parejas de verdad (cada carta trae su «data-par»); «fallos» = intentos equivocados antes de acertar todas
+async function memoResolver(p,fallos){
+  const sinPar=()=>p.evaluate(()=>{const g={};[...document.querySelectorAll('#jEst .carta')].forEach((c,i)=>{if(!c.classList.contains('par'))(g[c.dataset.par]=g[c.dataset.par]||[]).push(i)});return Object.values(g)});
+  const dar=(a,b)=>p.evaluate(([a,b])=>{const c=document.querySelectorAll('#jEst .carta');c[a].click();c[b].click()},[a,b]);
+  let G=await sinPar();
+  for(let k=0;k<fallos;k++){await dar(G[0][0],G[1][0]);await p.waitForTimeout(1150)}
+  for(const g of G){await dar(g[0],g[1]);await p.waitForTimeout(1150)}
+}
+({ctx,p}=await abrir());
+await p.evaluate(()=>{S5.nivelFijo=1});
+await iniciar(p,'m_memo');await p.waitForSelector('#jEst .carta');
+const m0=await p.evaluate(()=>({cartas:document.querySelectorAll('#jEst .carta').length,abiertas:document.querySelectorAll('#jEst .carta.vuelta,#jEst .carta.par').length,puntos:document.querySelectorAll('#jPuntos i').length,pares:new Set([...document.querySelectorAll('#jEst .carta')].map(c=>c.dataset.par)).size,dicho:S5.hablados.slice(),parejas:S5.C.ES.parejas,ops:document.getElementById('jOps').children.length,sinNombre:[...document.querySelectorAll('#jEst .carta')].filter(c=>!c.getAttribute('aria-label')).length}));
+chk('memotest: 6 cartas boca abajo (3 parejas), la ronda son 2 tableros (no 5: son largos), la voz dice «Encontrá las parejas» y cada carta tiene nombre para el lector de pantalla',m0.cartas===6&&m0.abiertas===0&&m0.puntos===2&&m0.pares===3&&m0.dicho.includes(m0.parejas)&&m0.ops===0&&m0.sinNombre===0,j(m0));
+const mm=await p.evaluate(async()=>{const c=[...document.querySelectorAll('#jEst .carta')],a=c[0],b=c.find(x=>x.dataset.par!==a.dataset.par),d=c.find(x=>x!==a&&x!==b);
+  a.click();b.click();d.click();await new Promise(r=>setTimeout(r,150));const vistas=document.querySelectorAll('#jEst .carta.vuelta').length,dicho=S5.hablados.slice(-4);
+  await new Promise(r=>setTimeout(r,1200));return {vistas,despues:document.querySelectorAll('#jEst .carta.vuelta,#jEst .carta.par').length,dicho}});
+chk('memotest: dos cartas de parejas distintas se ven un momento (una tercera no se da vuelta) y después se tapan de nuevo; al darlas vuelta la voz dice qué son',mm.vistas===2&&mm.despues===0&&mm.dicho.some(k=>/^es_n\d$/.test(k)),j(mm));
+const mp=await p.evaluate(async()=>{const c=[...document.querySelectorAll('#jEst .carta')],a=c[0],b=c.find(x=>x!==a&&x.dataset.par===a.dataset.par);a.click();b.click();await new Promise(r=>setTimeout(r,1300));
+  const antes=document.querySelectorAll('#jEst .carta.par').length;a.click();await new Promise(r=>setTimeout(r,100));return {pares:antes,vueltas:document.querySelectorAll('#jEst .carta.vuelta').length,sigue:document.querySelectorAll('#jEst .carta.par').length}});
+chk('memotest: una pareja encontrada se queda a la vista (verde) y no se puede volver a tocar',mp.pares===2&&mp.vueltas===0&&mp.sigue===2,j(mp));
+await memoResolver(p,0);await esperarPunto(p,1);
+chk('memotest: al encontrar todas las parejas pasa al segundo tablero (cartas nuevas, todas boca abajo)',await p.evaluate(()=>document.querySelectorAll('#jEst .carta').length===6&&document.querySelectorAll('#jEst .carta.vuelta,#jEst .carta.par').length===0));
+await memoResolver(p,7);   // 7 intentos equivocados (más del doble de las parejas) y recién ahí las encuentra
+await p.waitForSelector('#premio:not([hidden])',{timeout:15000});
+st=await estado(p);
+chk('memotest: el primer tablero (sin errores) cuenta «bien» y el segundo (7 intentos de más) «mal»: 1 estrella de 2, anotado por juego y lo que le cuesta',await p.evaluate(()=>document.getElementById('premioEst').textContent)==='⭐☆'&&st.bien===1&&st.mal===1&&st.juegos.m_memo.n===2&&st.fallas['Memotest de números']===1&&p.errs.length===0,j([st.bien,st.mal,st.fallas,p.errs]));
+await ctx.close();
+// ordenar números: las fichas salen en desorden, una equivocada no se pone y las correctas dicen su número
+({ctx,p}=await abrir());
+await p.evaluate(()=>{S5.nivelFijo=1});
+await iniciar(p,'m_orden');await esperarPregunta(p);
+const o1=await p.evaluate(()=>{const q=S5.actual();return {letras:q.letras,fichas:[...document.querySelectorAll('#jEst .letra-f')].map(f=>f.dataset.l),dicho:S5.hablados.slice(),menor:S5.C.ES.menorMayor,huecos:document.querySelectorAll('#jEst .hueco-l').length}});
+chk('ordenar números (nivel 1): 3 números del 1 al 10 en desorden (nunca ya ordenados), 3 huecos y la voz pide «de menor a mayor»',o1.letras.length===3&&o1.letras.slice().sort((a,b)=>a-b).join()===o1.letras.join()&&o1.fichas.length===3&&o1.fichas.join()!==o1.letras.join()&&o1.huecos===3&&o1.dicho.includes(o1.menor),j(o1));
+await contestar(p,'mal');await p.waitForTimeout(80);
+const o2=await p.evaluate(()=>({puestas:document.querySelectorAll('#jEst .hueco-l.puesto').length,dicho:S5.hablados.slice(-2)}));
+await contestar(p,'ok');await p.waitForTimeout(80);
+const o3=await p.evaluate(()=>({puestas:document.querySelectorAll('#jEst .hueco-l.puesto').length,primero:document.querySelector('#jEst .hueco-l').textContent,esperado:S5.actual().letras[0],dicho:S5.hablados.slice(-2),clip:S5.C.numES(+S5.actual().letras[0])}));
+chk('ordenar números: una ficha equivocada no se pone (y dice «Probá de nuevo»); la correcta va al primer hueco y dice su número',o2.puestas===0&&o3.puestas===1&&o3.primero===o3.esperado&&o3.dicho.includes(o3.clip),j([o2,o3]));
+await ronda(p,['bien','bien','bien','bien','bien']);
+st=await estado(p);
+chk('ordenar números: una ronda de 5 da figurita; la pregunta donde se equivocó a propósito (una ficha de más) no cuenta como «bien»: 4 estrellas de 5',await p.evaluate(()=>document.getElementById('premioEst').textContent)==='⭐⭐⭐⭐☆'&&st.juegos.m_orden&&st.juegos.m_orden.mejor===4&&st.bien===4&&st.mal===1&&st.peg.length===1&&p.errs.length===0,j([st.juegos.m_orden,st.bien,st.mal,p.errs]));
+await ctx.close();
+// armar la palabra: el dibujo arriba, las letras en desorden abajo
+({ctx,p}=await abrir());
+await p.evaluate(()=>{S5.nivelFijo=1});
+await iniciar(p,'l_armar');await esperarPregunta(p);
+await p.waitForTimeout(250);
+const a1=await p.evaluate(()=>{const q=S5.actual(),g=document.querySelector('#jEst .grande.peq');return {letras:q.letras,fichas:[...document.querySelectorAll('#jEst .letra-f')].map(f=>f.dataset.l),dibujo:g?g.textContent:null,esperado:q.dibujo,dicho:S5.hablados.slice(),armar:S5.C.ES.armar,palabra:q.decir[1]}});
+chk('armar la palabra (nivel 1): el dibujo de la palabra arriba, sus 3 letras en desorden (nunca ya armadas) y la voz dice «Armá la palabra» y la palabra',a1.letras.length===3&&a1.dibujo===a1.esperado&&a1.fichas.slice().sort().join()===a1.letras.slice().sort().join()&&a1.fichas.join()!==a1.letras.join()&&a1.dicho.includes(a1.armar)&&a1.dicho.includes(a1.palabra),j(a1));
+await ronda(p,['bien','bien','bien','bien','bien']);
+st=await estado(p);
+chk('armar la palabra: una ronda con las letras en orden da 5 estrellas',await p.evaluate(()=>document.getElementById('premioEst').textContent)==='⭐⭐⭐⭐⭐'&&st.juegos.l_armar&&st.juegos.l_armar.perfectas===1&&p.errs.length===0,j([st.juegos.l_armar,p.errs]));
+await ctx.close();
+
+// ---------- 5c) el «Desafío»: 8 preguntas de juegos distintos que elige el motor; la «Sorpresa» y la subida de nivel
+({ctx,p}=await abrir({estado:{nombre:'Sofi'}}));
+await p.evaluate(()=>{S5.hablados.length=0});await p.click('#bDesafio');await p.waitForSelector('#pJuego:not([hidden])');
+const d0=await p.evaluate(()=>({puntos:document.querySelectorAll('#jPuntos i').length,dicho:S5.hablados.slice(),desafio:S5.C.ES.desafio}));
+chk('Desafío: el botón 🚀 del inicio arranca un desafío de 8 preguntas y la voz dice «¡Desafío!»',d0.puntos===8&&d0.dicho.includes(d0.desafio),j(d0));
+const areas=[],juegosJ=[];
+for(let i=0;i<8;i++){await esperarPunto(p,i);await esperarPregunta(p);
+  const info=await p.evaluate(()=>({area:document.getElementById('pJuego').dataset.area,juego:S5.juegoActual().id,largo:S5.juegoActual().largo}));areas.push(info.area);juegosJ.push(info.juego);
+  await contestar(p,'ok');
+  if(await p.evaluate(()=>!!document.querySelector('#jEst .letra-f')))for(let k=0;k<20&&await p.evaluate(()=>!!document.querySelector('#jEst .letra-f:not(.usada)'));k++)await contestar(p,'ok');
+  if(i===3){   // ⬅ en medio del desafío vuelve al INICIO (no a un área): no hay un «área» del desafío
+    const med=await p.evaluate(()=>({juegos:Object.keys(S5.estado().juegos).length,rondas:S5.estado().rondas}));
+    chk('Desafío: a mitad de camino lleva mezcladas preguntas de varios juegos, y sigue sin dar premio hasta terminar',med.juegos>=2&&med.rondas===0,j(med));
+  }
+}
+await p.waitForSelector('#premio:not([hidden])',{timeout:15000});
+st=await estado(p);
+chk('Desafío: 8 aciertos = 8 estrellas, UNA figurita, anotado como desafío (no como ronda de un juego), las preguntas de varias áreas y ningún memotest (son muy largos)',await p.evaluate(()=>document.getElementById('premioEst').textContent==='⭐'.repeat(8)&&/figurita/.test(document.getElementById('premioTit').textContent))&&st.desafios===1&&st.rondas===1&&st.peg.length===1&&st.bien===8&&new Set(areas).size>=2&&!juegosJ.some(x=>/memo/.test(x))&&p.errs.length===0,j([areas,juegosJ,st.desafios,st.rondas,p.errs]));
+await p.click('#premioOtra');await p.waitForFunction(()=>document.getElementById('premio').hidden);
+chk('Desafío: 🔁 del premio arranca OTRO desafío (8 preguntas), no una ronda de un solo juego',await visible(p,'#pJuego')&&await p.evaluate(()=>document.querySelectorAll('#jPuntos i').length)===8);
+await p.click('#jAtras');await p.waitForSelector('#pInicio:not([hidden])');
+chk('Desafío: ⬅ vuelve al inicio, sin premio ni figurita nueva',await visible(p,'#pInicio')&&!(await visible(p,'#premio'))&&(await estado(p)).peg.length===1);
+// la Sorpresa: elige un juego de ESE área (el motor decide cuál)
+const sorp=[];
+for(const a of ['lengua','mates','ingles']){
+  await p.click('.area[data-area="'+a+'"]');await p.waitForSelector('#pArea:not([hidden])');
+  await p.click('#tiles .sorpresa');await p.waitForSelector('#pJuego:not([hidden])');
+  sorp.push(await p.evaluate(()=>({area:S5.juegoActual().area,puntos:document.querySelectorAll('#jPuntos i').length})));
+  await p.click('#jAtras');await p.waitForSelector('#pArea:not([hidden])');await p.click('#aAtras');await p.waitForSelector('#pInicio:not([hidden])');
+}
+chk('Sorpresa: en cada área arranca un juego de esa misma área (lo elige el motor según lo que más conviene)',sorp.map(x=>x.area).join()==='lengua,mates,ingles'&&sorp.every(x=>x.puntos>=2),j(sorp));
+await ctx.close();
+// subir de nivel: una ronda perfecta con la habilidad «a punto de pasar» al 2 lo celebra en el premio y la voz lo dice
+({ctx,p}=await abrir({estado:{juegos:{e_animals:{nivel:1,hab:1.9,n:30,racha:3,rondas:4,perfectas:2,mejor:5,bien:20,mal:5,ult:'2026-11-02'}}}}));
+await iniciar(p,'e_animals');await ronda(p,['bien','bien','bien','bien','bien']);
+st=await estado(p);
+const ln=await p.evaluate(()=>({txt:document.getElementById('premioNivel').textContent,dicho:S5.hablados.slice(-6),subiste:S5.C.ES.subiste}));
+chk('subir de nivel: con la habilidad en 1,9 una ronda perfecta pasa al nivel 2; el premio dice «⬆️ ¡Subió al nivel 2!» y la voz dice «¡Subiste de nivel!»',st.juegos.e_animals.hab>=2&&st.juegos.e_animals.nivel===2&&/Subió al nivel 2/.test(ln.txt)&&ln.dicho.includes(ln.subiste),j([st.juegos.e_animals,ln]));
+await ctx.close();
+// la dificultad de los grandes: dónde arranca cada juego nuevo (sin pasarse del tope de cada uno)
+for(const [dif,esperado] of [[0,[1,1]],[1,[2,2]],[2,[3,2]],[3,[4,2]]]){
+  ({ctx,p}=await abrir({estado:{dif}}));
+  const hb=await p.evaluate(()=>['m_contar','e_animals'].map(id=>S5.habDe(S5.juegos.find(x=>x.id===id))));
+  chk('dificultad '+dif+': Contar arranca en el nivel '+esperado[0]+' y English · Animals en '+esperado[1]+' (tiene 2 niveles: no pasa de ahí)',hb[0]===esperado[0]&&hb[1]===esperado[1],j(hb));
+  await ctx.close();
+}
 
 // ---------- 6) equivocarse nunca traba: probá de nuevo → el bueno late → se lo muestra y sigue
 ({ctx,p}=await abrir());
@@ -285,22 +390,22 @@ await ctx.close();
 // ---------- 9) niveles que suben solos, figuritas y álbum lleno
 ({ctx,p}=await abrir());
 await iniciar(p,'m_contar');await ronda(p,['bien','bien','mal1','bien','bien']);
-st=await estado(p);
-chk('4 de 5 sube de nivel (Contar: 1 → 2)',st.juegos.m_contar.nivel===2&&st.juegos.m_contar.perfectas===0&&st.juegos.m_contar.mejor===4,j(st.juegos));
+st=await estado(p);const habRonda1=st.juegos.m_contar.hab;
+chk('con 4 de 5 la habilidad sube (de 1 a más de 1,4: «nivel 1 y a punto de pasar al 2»): el motor la mueve de a poco, no a saltos; cuenta la pregunta y anota el día',habRonda1>1.4&&habRonda1<2.9&&st.juegos.m_contar.n===5&&st.juegos.m_contar.mejor===4&&/^\d{4}-\d{2}-\d{2}$/.test(st.juegos.m_contar.ult),j(st.juegos));
 await p.click('#premioOtra');await p.waitForFunction(()=>document.getElementById('premio').hidden);
 chk('🔁 del premio arranca otra ronda del mismo juego (pregunta 1) y esconde el premio',await punto(p)===0&&await visible(p,'#pJuego'));
-await ronda(p,['bien','mal1','mal1','bien','mal1']);
-st=await estado(p);
-chk('con 2 de 5 NO sube de nivel (sigue en 2) y la ronda suma igual',st.juegos.m_contar.nivel===2&&st.juegos.m_contar.rondas===2&&st.rondas===2&&st.peg.length===2,j(st));
+await ronda(p,['mal3','mal3','mal3','bien','mal3']);
+st=await estado(p);const habRonda2=st.juegos.m_contar.hab;
+chk('con casi todo mal la habilidad BAJA (el juego se pone más fácil), nunca por debajo del nivel 1, y la ronda suma igual',habRonda2<habRonda1&&habRonda2>=1&&st.juegos.m_contar.rondas===2&&st.rondas===2&&st.peg.length===2,j([habRonda1,habRonda2,st.rondas]));
 await p.click('#premioOtra');await ronda(p,['bien','bien','bien','bien','bien']);
-st=await estado(p);
-chk('5 de 5 en el nivel 2 sube al 3 (el tope de Contar) y no pasa de ahí aunque siga acertando',st.juegos.m_contar.nivel===3,j(st.juegos));
 await p.click('#premioOtra');await ronda(p,['bien','bien','bien','bien','bien']);
-st=await estado(p);
-chk('en el nivel más alto sigue en 3 (no se pasa) y las figuritas son todas distintas ('+st.peg.length+')',st.juegos.m_contar.nivel===3&&st.peg.length===4&&new Set(st.peg).size===4,j(st));
+await p.click('#premioOtra');await ronda(p,['bien','bien','bien','bien','bien']);
+st=await estado(p);const habRonda3=st.juegos.m_contar.hab;
+chk('con rondas perfectas la habilidad vuelve a subir (hasta el nivel 4, el tope de Contar) sin pasarse, y la racha cuenta',habRonda3>habRonda2&&habRonda3>=2.5&&habRonda3<=4&&st.juegos.m_contar.racha>=5,j(st.juegos));
+chk('al pasar de nivel el premio lo celebra («⬆️ ¡Subió al nivel N!») y la voz lo dice',await p.evaluate(()=>/Subió al nivel \d/.test(document.getElementById('premioNivel').textContent)||document.getElementById('premioNivel').textContent==='')&&st.peg.length===5&&new Set(st.peg).size===5,j(st.peg));
 await p.click('#premioSalir');await p.waitForSelector('#pArea:not([hidden])');
 await p.click('#aAlbum');await p.waitForSelector('#pAlbum:not([hidden])');
-chk('el álbum muestra las 4 figuritas ganadas y 26 por ganar; ⬅ vuelve al área de donde vino',await p.evaluate(()=>document.querySelectorAll('#pegatinas .peg:not(.no)').length===4&&document.querySelectorAll('#pegatinas .peg.no').length===26&&document.getElementById('gPeg').textContent==='4'));
+chk('el álbum muestra las 5 figuritas ganadas y 25 por ganar; ⬅ vuelve al área de donde vino',await p.evaluate(()=>document.querySelectorAll('#pegatinas .peg:not(.no)').length===5&&document.querySelectorAll('#pegatinas .peg.no').length===25&&document.getElementById('gPeg').textContent==='5'));
 await p.click('#gAtras');await p.waitForSelector('#pArea:not([hidden])');
 await ctx.close();
 ({ctx,p}=await abrir({estado:{peg:Array.from({length:30},(_,i)=>i),juegos:{e_animals:{nivel:2,rondas:3,perfectas:1,mejor:5}}}}));
@@ -386,7 +491,7 @@ for(const [nom,v] of rotos){
   const r=await p.evaluate(()=>{const s=S5.estado();return {nombre:s.nombre,peg:s.peg,niv:s.juegos.e_animals&&s.juegos.e_animals.nivel,tipos:[typeof s.voz,typeof s.dif,typeof s.min,typeof s.rondas]}});
   await p.click('.area[data-area="lengua"]');await p.waitForSelector('#pArea:not([hidden])');await p.click('#aAtras');
   await iniciar(p,'e_colors');await esperarPregunta(p);await contestar(p,'ok');await p.waitForTimeout(150);
-  const bien=r.tipos.join()==='boolean,number,boolean,number'&&typeof r.nombre==='string'&&r.peg.every((i,k,a)=>Number.isInteger(i)&&i>=0&&i<30&&a.indexOf(i)===k)&&(r.niv===undefined||(r.niv>=1&&r.niv<=3));
+  const bien=r.tipos.join()==='boolean,number,boolean,number'&&typeof r.nombre==='string'&&r.peg.every((i,k,a)=>Number.isInteger(i)&&i>=0&&i<30&&a.indexOf(i)===k)&&(r.niv===undefined||(r.niv>=1&&r.niv<=9));
   chk('guardado roto («'+nom+'»): la página abre, el estado queda limpio y se puede jugar',bien&&!/[<>=]/.test(r.nombre)&&p.errs.length===0,j([r,p.errs]));
   await ctx.close();
 }
@@ -607,7 +712,7 @@ const rep1=await p.evaluate(()=>({bien:document.querySelector('.res-num.bien b')
   titulos:[...document.querySelectorAll('#resCuerpo h3')].map(h=>h.textContent),filas:[...document.querySelectorAll('#resCuerpo .fila-res')].map(e=>['.rnom','.rb','.rm','.rp'].map(c=>e.querySelector(c).textContent.replace(/\s+/g,' ').trim()).join('|')),
   fallas:[...document.querySelectorAll('#resCuerpo .res-fallas li')].map(e=>e.textContent.replace(/\s+/g,' ').trim())}));
 chk('el panel de grandes abre «Resultados»: en todo ✔ 8 · ✖ 2 · 80 %, con Hoy, Por área y Por juego',rep1.bien==='8'&&rep1.mal==='2'&&rep1.pct==='80%'&&rep1.titulos.includes('Hoy')&&rep1.titulos.includes('Por área')&&rep1.titulos.includes('Por juego'),j(rep1));
-chk('«Por área» (English 3 bien/2 mal y Matemática 5/0), «Por juego» con su nivel y «Lo que más le cuesta» con los dos que falló',rep1.filas.includes('English|✔ 3|✖ 2|60%')&&rep1.filas.includes('Matemática|✔ 5|✖ 0|100%')&&rep1.filas.some(f=>/^🐶 Animals nivel 1 de 2\|✔ 3\|✖ 2\|60%$/.test(f))&&rep1.fallas.length===2&&rep1.fallas.every(f=>/^Animals: [a-z]+ ✖ 1$/.test(f)),j(rep1));
+chk('«Por área» (English 3 bien/2 mal y Matemática 5/0), «Por juego» con su nivel y «Lo que más le cuesta» con los dos que falló',rep1.filas.includes('English|✔ 3|✖ 2|60%')&&rep1.filas.includes('Matemática|✔ 5|✖ 0|100%')&&rep1.filas.some(f=>/^🐶 Animals nivel \d,\d de 2\|✔ 3\|✖ 2\|60%$/.test(f))&&rep1.fallas.length===2&&rep1.fallas.every(f=>/^Animals: [a-z]+ ✖ 1$/.test(f)),j(rep1));
 await p.click('#resCerrar');await p.waitForTimeout(100);
 chk('«Cerrar» vuelve al panel de grandes (que sigue abierto)',await visible(p,'#padres')&&!(await visible(p,'#resultados')));
 await p.reload();await p.waitForSelector('#bJugar');st=await estado(p);
@@ -629,7 +734,7 @@ chk('sin errores de página con los resultados',p.errs.length===0,j(p.errs));
 await ctx.close();
 
 // ---------- 13) DISEÑO: cinco tamaños de pantalla × todos los juegos × todos los niveles
-const TAMANOS=[[360,640,'celular chico'],[390,844,'celular'],[768,1024,'tablet vertical'],[1024,768,'tablet horizontal'],[844,390,'celular de costado']];
+const TAMANOS=[[360,640,'celular chico'],[390,844,'celular'],[768,1024,'tablet vertical'],[1024,768,'tablet horizontal'],[844,390,'celular de costado'],[320,568,'iPhone SE (el más angosto)'],[667,375,'iPhone 8 de costado (el más bajo)']];
 for(const [w,h,nom] of TAMANOS){
   ({ctx,p}=await abrir({vp:{width:w,height:h},estado:{nombre:'Sofía'}}));
   const rr=await p.evaluate(async()=>{
@@ -648,7 +753,7 @@ for(const [w,h,nom] of TAMANOS){
       document.getElementById('aAtras').click();await espera(20)}
     // todos los juegos, todos los niveles, 3 sorteos
     for(const g of S.juegos){for(let niv=1;niv<=g.niv;niv++){for(let k=0;k<3;k++){
-      S.estado().juegos[g.id]={nivel:niv,rondas:0,perfectas:0,mejor:0};S.jugar(g.id);await espera(25);
+      S.estado().juegos[g.id]={nivel:niv,rondas:0,perfectas:0,mejor:0};S.nivelFijo=niv;S.jugar(g.id);await espera(25);
       const prob=[],doc=document.documentElement;
       if(doc.scrollWidth>W+1)prob.push('scroll horizontal '+doc.scrollWidth+'>'+W);
       if(doc.scrollHeight>H+1)prob.push('scroll vertical '+doc.scrollHeight+'>'+H);
@@ -660,9 +765,10 @@ for(const [w,h,nom] of TAMANOS){
       if(est.children.length&&ops.children.length&&!(re.r<=ro.l+1||re.l>=ro.r-1||re.b<=ro.t+1||re.t>=ro.b-1))prob.push('lo de arriba y las opciones se pisan');
       [...document.querySelectorAll('#jOps .op')].forEach(o=>{const ro=caja(o);[...o.children].forEach(c=>{const rc=caja(c);if(rc.w>0&&(rc.l<ro.l+5||rc.r>ro.r-5||rc.t<ro.t+4||rc.b>ro.b-4))prob.push('lo de adentro de una opción toca el borde: '+c.className)})});
       const cajas=[...est.querySelectorAll('.seq .caja')];if(cajas.length){if(new Set(cajas.map(c=>Math.round(caja(c).t))).size!==1)prob.push('la secuencia no entra en una sola fila');cajas.forEach(c=>{if(c.scrollWidth>c.clientWidth+1||c.scrollHeight>c.clientHeight+1)prob.push('algo no entra en su caja de la secuencia')})}
-      [...document.querySelectorAll('#jEst *,#jOps *')].forEach(e=>{if(e.clientWidth>0&&e.scrollWidth>e.clientWidth+1&&getComputedStyle(e).overflowX==='visible')prob.push('algo se sale de su caja: '+(e.className||e.tagName))});
+      [...document.querySelectorAll('#jEst *,#jOps *')].forEach(e=>{if(!(e instanceof SVGElement)&&e.clientWidth>0&&e.scrollWidth>e.clientWidth+1&&getComputedStyle(e).overflowX==='visible')prob.push('algo se sale de su caja: '+(e.className||e.tagName))});   // (un dibujo SVG se recorta solo con su marco: lo que cuenta es la caja del propio dibujo, que ya se mide arriba)
       const nombres=toc.filter(e=>!(e.getAttribute('aria-label')||e.innerText||'').trim());if(nombres.length)prob.push('botón sin nombre');
       if(prob.length)out.push({nom:g.id+' n'+niv,prob:[...new Set(prob)]})}}}
+    S.nivelFijo=0;
     // el premio y el panel para grandes tienen que entrar en la pantalla (o poder desplazarse)
     S.jugar('e_animals');await espera(20);document.getElementById('premioPeg').textContent='🦄';document.getElementById('premio').hidden=false;
     const cmE=document.querySelector('#premio .caja-modal'),cm=caja(cmE);if(fuera(cm))out.push({nom:'premio',prob:['no entra en la pantalla']});

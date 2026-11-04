@@ -12,7 +12,7 @@ function A(l,tts,clave){
   if(prev&&prev.tts!==tts){let i=2;while(AUD[k+"-"+i]&&AUD[k+"-"+i].tts!==tts)i++;k=k+"-"+i}
   AUD[k]={l,tts};return k;
 }
-S5.A=A;S5.audio=AUD;
+S5.A=A;S5.slug=slug;S5.audio=AUD;
 S5.frases=()=>Object.keys(AUD).sort().map(k=>({k,l:AUD[k].l,tts:AUD[k].tts}));
 
 // ---------------- números (0 a 20)
@@ -36,7 +36,7 @@ const ES={
   lengua:A("es","Lengua"),mates:A("es","Matemática"),ingles:A("en","English","english"),
   retry:A("es","Probá de nuevo"),esEste:A("es","¡Es este!"),
   premio:A("es","¡Terminaste! ¡Ganaste una figurita!"),albumLleno:A("es","¡Completaste el álbum!"),
-  nombre:A("es","Armá tu nombre"),
+  nombre:A("es","Armá tu nombre"),desafio:A("es","¡Desafío!"),subiste:A("es","¡Subiste de nivel!"),
   cuantos:A("es","¿Cuántos hay?"),mas:A("es","más"),menos:A("es","menos"),cuantosSon:A("es","¿Cuántos son?"),cuantosQuedan:A("es","¿Cuántos quedan?"),
   masGrupo:A("es","Tocá donde hay más"),menosGrupo:A("es","Tocá donde hay menos"),queFalta:A("es","¿Qué número falta?"),queSigue:A("es","¿Qué sigue?"),
   grande:A("es","Tocá el más grande"),chico:A("es","Tocá el más chico"),mediano:A("es","Tocá el mediano"),
@@ -60,7 +60,9 @@ const FORMAS={
   estrella:{n:"estrella",art:"la",en:"star",d:c=>`<polygon points="50,6 61,38 95,38 67,58 78,92 50,72 22,92 33,58 5,38 39,38" fill="${c}"/>`},
   corazon:{n:"corazón",art:"el",en:"heart",d:c=>`<path d="M50 90 C18 64 6 46 6 31 C6 17 18 8 31 8 C40 8 47 12 50 20 C53 12 60 8 69 8 C82 8 94 17 94 31 C94 46 82 64 50 90 Z" fill="${c}"/>`},
   rombo:{n:"rombo",art:"el",d:c=>`<polygon points="50,5 93,50 50,95 7,50" fill="${c}"/>`},
-  ovalo:{n:"óvalo",art:"el",d:c=>`<ellipse cx="50" cy="50" rx="44" ry="28" fill="${c}"/>`}
+  ovalo:{n:"óvalo",art:"el",d:c=>`<ellipse cx="50" cy="50" rx="44" ry="28" fill="${c}"/>`},
+  pentagono:{n:"pentágono",art:"el",d:c=>`<polygon points="50,6 94.7,38.5 77.6,91 22.4,91 5.3,38.5" fill="${c}"/>`},
+  hexagono:{n:"hexágono",art:"el",d:c=>`<polygon points="96,50 73,90 27,90 4,50 27,10 73,10" fill="${c}"/>`}
 };
 const svg=(f,c)=>`<svg class="fig" viewBox="0 0 100 100" aria-hidden="true">${FORMAS[f].d(c)}</svg>`;
 Object.keys(FORMAS).forEach(k=>A("es","Tocá "+FORMAS[k].art+" "+FORMAS[k].n,"toca-"+k));

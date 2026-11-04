@@ -11,7 +11,7 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
 .e,.fig,.punto{font-family:var(--emoji)}
 .num,.let{font-family:var(--f)}   /* los números y letras NO van con la fuente de emojis: ahí los dígitos salen grises y chiquitos */
 
-.pantalla{position:fixed;top:0;right:0;bottom:0;left:0;display:flex;flex-direction:column;gap:10px;padding:max(10px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom))}
+.pantalla{position:fixed;top:0;right:0;bottom:0;left:0;display:flex;flex-direction:column;gap:10px;padding:max(10px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
 .pantalla[data-area="lengua"]{--c1:#8e44ad;--c2:#c36ddb;--cs:#5b2a74;--suave:#f1e1f7}
 .pantalla[data-area="mates"]{--c1:#1976d2;--c2:#2f8df0;--cs:#0d4a8f;--suave:#dcecff}
 .pantalla[data-area="ingles"]{--c1:#d9480f;--c2:#ee6a12;--cs:#a23c05;--suave:#ffe9d3}
@@ -61,8 +61,8 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
 .tile.sorpresa .tico{font-size:clamp(2.4rem,10vw,3.4rem)}
 
 /* juego */
-.juego .puntos{flex:1;display:flex;justify-content:center;gap:10px}
-.juego .puntos i{width:clamp(22px,6vw,32px);height:clamp(22px,6vw,32px);border-radius:50%;background:#fff;border:4px solid var(--c1);display:block;transition:background .3s,transform .3s}
+.juego .puntos{flex:1;min-width:0;display:flex;justify-content:center;gap:clamp(3px,1.2vw,10px)}
+.juego .puntos i{flex:1 1 0;min-width:0;width:auto;height:auto;max-width:clamp(22px,6vw,32px);aspect-ratio:1;align-self:center;border-radius:50%;background:#fff;border:4px solid var(--c1);display:block;transition:background .3s,transform .3s}
 .juego .puntos i.ya{background:var(--c1)}
 .juego .puntos i.ahora{transform:scale(1.25);border-color:var(--cs)}
 .cuerpo{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px}
@@ -90,6 +90,8 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
 .est .grande{font-size:clamp(4.5rem,min(30vw,calc(24*var(--vh))),10rem);line-height:1;font-family:var(--emoji)}
 .est .palabra{font-size:clamp(2.2rem,12vw,4.4rem);font-weight:800;letter-spacing:.06em;color:var(--cs);min-height:1.2em}
 .est .palabra b{color:#e91e63}
+.est .palabra b.falta{display:inline-block;width:.72em;height:.95em;margin:0 .06em;vertical-align:-.12em;border:.08em dashed #e91e63;border-radius:.16em;background:rgba(255,255,255,.7)}
+.op .e,.est .grande,.carta .e{filter:drop-shadow(0 0 1px rgba(42,35,80,.55))}   /* los dibujos clarititos (🦷 🥛 ☁️ 🌙 🦴) se perdían sobre el blanco */
 .fig{width:min(22vw,120px);height:min(22vw,120px);max-width:100%;display:block}
 .punto{display:inline-block;width:.85em;height:.85em;border-radius:50%;border:5px solid rgba(0,0,0,.16);vertical-align:middle}
 .mas,.signo{font-size:clamp(2.4rem,11vw,4.4rem);font-weight:800;color:var(--cs);line-height:1}
@@ -115,7 +117,9 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
 .caja.hueco{border-style:dashed;background:rgba(255,255,255,.55);color:#e91e63}
 .caja.lleno{background:#c8f7c5;border-color:#2e9e5b}
 .caja .e,.caja .punto{font-size:.8em}
-.caja .punto{border-width:3px}   /* el borde de la bolita no se achica con la caja: en una fila de 8 cajas no entraba */
+.caja .punto{border-width:3px}
+.seq.denso .caja{border-width:3px;border-radius:12px;font-size:calc((var(--cw) - 6px)/1.25)}
+@media (orientation:portrait){.seq.denso{gap:4px;--cw:clamp(28px,calc((100vw - 24px - (var(--n,5) - 1)*4px)/var(--n,5)),92px)}}   /* el borde de la bolita no se achica con la caja: en una fila de 8 cajas no entraba */
 
 /* canasta («poné 4») */
 .canasta-meta{font-size:clamp(3rem,16vw,6rem);font-weight:800;color:#e91e63;line-height:1}
@@ -145,7 +149,7 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
 
 /* los juegos que se sumaron después (juegos2.js) */
 .est .grande.peq{font-size:clamp(3.4rem,min(22vw,calc(15*var(--vh))),6rem)}   /* un dibujo más chico para dejar lugar a lo de abajo («Armá la palabra», problemas) */
-.ecu{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:clamp(6px,2vw,16px);font-weight:800;color:var(--cs);font-size:clamp(2.2rem,min(11vw,calc(10*var(--vh))),5rem);line-height:1}   /* cuentas escritas: 8 + 7  ·  5 + ? = 9 */
+.ecu{display:flex;flex-wrap:nowrap;align-items:center;justify-content:center;gap:clamp(6px,2vw,16px);font-weight:800;color:var(--cs);font-size:clamp(2.2rem,min(11vw,calc(10*var(--vh))),5rem);line-height:1}   /* cuentas escritas: 8 + 7  ·  5 + ? = 9 */
 .ecu b{min-width:1.3em;text-align:center;padding:.1em .16em;border-radius:.3em;background:#fff;border:5px solid var(--c1);box-shadow:0 5px 0 var(--sombra)}
 .ecu span{color:#e91e63}
 .ecu .hueco-n{border-style:dashed;background:rgba(255,255,255,.55);color:#e91e63}
@@ -153,7 +157,7 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
 .fig-grande .fig{width:min(44vw,calc(26*var(--vh)),200px);height:min(44vw,calc(26*var(--vh)),200px)}   /* ¿cuántos lados tiene? */
 .op .largo{display:block;align-self:flex-start;height:clamp(18px,calc(5*var(--vh)),34px);border-radius:99px;background:var(--c1)}   /* el más largo / el más corto */
 .op.si .largo{background:#2e9e5b}
-.b10{display:flex;align-items:center;justify-content:center;gap:clamp(10px,3vw,24px);--sq:min(calc((100vw - 84px)/13),calc(34*var(--vh)/var(--d,5) - 8px),26px)}   /* decenas y unidades: cada barra son 10 cuadraditos, cada bolita 1 (--d = cuántas barras: con pocas, los cuadraditos son más grandes) */
+.b10{display:flex;align-items:center;justify-content:center;gap:clamp(10px,3vw,24px);--sq:min(calc((100vw - 84px)/13),calc(34*var(--vh)/var(--d,5) - 8px),40px)}   /* decenas y unidades: cada barra son 10 cuadraditos, cada bolita 1 (--d = cuántas barras: con pocas, los cuadraditos son más grandes) */
 .b10 .decs{display:flex;flex-direction:column;gap:calc(var(--sq)*.28)}
 .b10 .dec{display:flex;gap:2px;padding:2px;border-radius:6px;background:#fff;border:2px solid var(--c1)}
 .b10 .dec i{display:block;width:var(--sq);height:var(--sq);background:var(--c1);border-radius:3px}
@@ -161,7 +165,9 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
 .b10 .unis i{display:block;width:var(--sq);height:var(--sq);border-radius:50%;background:#ffb300}
 .reloj{display:block;width:100%;height:auto;font-family:var(--f)}   /* la hora */
 .reloj-grande{width:min(56vw,calc(30*var(--vh)),260px)}
-.reloj.chico{max-width:min(30vw,calc(17*var(--vh)),150px);margin:0 auto}
+.reloj.chico{max-width:min(calc(24*var(--vh) - 26px),150px);margin:0 auto}
+.op-reloj{padding:3px}
+@media (orientation:portrait) and (max-width:600px){.ops.ops-reloj{grid-template-columns:minmax(0,1fr)}}   /* tres relojes apilados */
 .reloj .rc{fill:#fff;stroke:var(--c1);stroke-width:5}
 .reloj .rn{font-size:12px;font-weight:800;fill:var(--cs);font-family:var(--f)}
 .reloj .rh{stroke:var(--cs);stroke-width:5.5;stroke-linecap:round}
@@ -169,12 +175,12 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
 .reloj .rp{fill:var(--cs)}
 .reloj.guia .rm{stroke:#d3cde8;stroke-width:2.4}   /* nivel 1: la manito larga se ve finita y clarita, para mirar la corta */
 .reloj.guia .rh{stroke-width:7}
-.nums .hueco-l,.nums .letra-f{width:clamp(54px,17vw,92px);font-size:clamp(1.5rem,7.5vw,2.6rem)}   /* ordenar números: las fichas con números de dos cifras */
+.nums .hueco-l,.nums .letra-f{width:clamp(60px,20vw,100px);height:clamp(72px,22vw,116px);font-size:clamp(1.9rem,9.5vw,3.2rem)}   /* ordenar números: las fichas con números de dos cifras */
 /* memotest */
-.memo{--card:min(calc((min(100vw,640px) - 24px - (var(--cols) - 1)*10px)/var(--cols)),calc((100*var(--vh) - 175px - (var(--filas) - 1)*10px)/var(--filas)),150px);display:flex;flex-wrap:wrap;justify-content:center;gap:10px;width:100%;max-width:640px}
+.memo{--card:min(calc((min(100vw,640px) - 24px - (var(--cols) - 1)*10px)/var(--cols)),calc((100*var(--vh) - 175px - (var(--filas) - 1)*10px)/var(--filas)),150px);display:flex;flex-wrap:wrap;justify-content:center;gap:10px;width:100%;max-width:calc(var(--cols)*var(--card) + (var(--cols) - 1)*10px)}
 .carta{position:relative;flex:none;width:var(--card);height:var(--card);min-width:44px;min-height:44px;border-radius:18px;font-size:calc(var(--card)*.5)}
 .carta .dorso,.carta .frente{position:absolute;top:0;right:0;bottom:0;left:0;display:flex;align-items:center;justify-content:center;border-radius:18px;border:5px solid var(--c1);box-shadow:0 5px 0 var(--sombra);line-height:1;font-weight:800}
-.carta .dorso{background:var(--c1);color:#fff;font-family:var(--emoji);font-size:.7em}
+.carta .dorso{background:var(--c1);color:#fff;font-family:var(--f);font-size:calc(var(--card)*.55);text-shadow:0 3px 0 rgba(0,0,0,.2)}
 .carta .frente{display:none;background:#fff;color:var(--cs);overflow:hidden}
 .carta.vuelta .frente,.carta.par .frente{display:flex;animation:pop .35s ease}
 .carta.vuelta .dorso,.carta.par .dorso{display:none}
@@ -188,13 +194,15 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
 /* mascota chica y repetir */
 .mascota-chica{position:fixed;left:10px;bottom:max(8px,env(safe-area-inset-bottom));font-size:2.2rem;pointer-events:none;opacity:0;font-family:var(--emoji)}
 .mascota-chica.habla{opacity:1}
+#pJuego:not([hidden])~.mascota-chica{display:none}
+#jRepetir.habla{animation:late .5s ease-in-out infinite}
 
 /* premio y padres */
 .modal{position:fixed;top:0;right:0;bottom:0;left:0;z-index:40;display:flex;align-items:center;justify-content:center;background:rgba(42,35,80,.55);padding:16px}
 .caja-modal{width:min(94vw,440px);max-height:calc(92*var(--vh));overflow:auto;border-radius:30px;background:#fff;padding:22px 18px;box-shadow:0 12px 0 rgba(0,0,0,.2);text-align:center}
 .premio .grande{font-size:clamp(6rem,36vw,11rem);line-height:1;font-family:var(--emoji);animation:giro 1.1s ease both}
 .premio h2{margin:6px 0 2px;font-size:clamp(1.8rem,8vw,2.6rem);color:#e91e63}
-.premio .estrellas{font-size:2rem;margin-bottom:8px;font-family:var(--emoji)}
+.premio .estrellas{font-size:clamp(1.3rem,7.6vw,2rem);white-space:nowrap;margin-bottom:8px;font-family:var(--emoji)}
 .acciones{display:flex;gap:12px;justify-content:center;margin-top:12px}
 .acciones .chip{min-width:92px;min-height:76px;font-size:2.4rem}
 .confeti{position:fixed;top:0;right:0;bottom:0;left:0;pointer-events:none;overflow:hidden;z-index:50}
@@ -251,6 +259,7 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
 @media (orientation:landscape){
   .areas{flex-direction:row}
   .area{flex-direction:column;gap:4px}
+  .area .anom{font-size:clamp(1.3rem,3.6vw,2.6rem)}   /* (de costado cada botón es un tercio del ancho: «Matemática» tocaba los bordes) */
 }
 /* apaisado y bajito (celular de costado): lo de arriba y las opciones lado a lado */
 @media (orientation:landscape) and (max-height:560px){
@@ -266,6 +275,7 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
   .ops{flex:1;align-content:center;grid-template-columns:repeat(3,minmax(0,1fr))}
   .ops[data-c="1"]{grid-template-columns:minmax(0,1fr)}
   .ops[data-c="2"]{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ops[data-c="4"]{grid-template-columns:repeat(2,minmax(0,1fr))}   /* cuatro opciones: 2 y 2 (no 3 y una sola en la segunda fila); los de «sólo opciones» (Los números) siguen en una fila, por la regla de abajo */
   .est:empty+.ops{grid-template-columns:repeat(var(--cols,3),minmax(0,1fr))}
   .op{min-height:clamp(80px,calc(28*var(--vh)),130px);font-size:clamp(2.6rem,calc(15*var(--vh)),5rem)}
   .ops[data-c] .op{font-size:clamp(2.6rem,calc(15*var(--vh)),5rem)}
@@ -291,11 +301,23 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
   .acciones .chip{min-height:64px}
   .huecos,.fichas{gap:6px}
   .est .grande.peq{font-size:clamp(3rem,calc(20*var(--vh)),5rem)}
-  .nums .hueco-l,.nums .letra-f{width:clamp(50px,calc(15*var(--vh)),76px);font-size:clamp(1.4rem,calc(7*var(--vh)),2.4rem)}
-  .ecu{font-size:clamp(2rem,calc(15*var(--vh)),4rem)}
-  .b10{--sq:min(calc((50vw - 78px)/13),calc(48*var(--vh)/var(--d,5) - 8px),26px)}
+  .nums .hueco-l,.nums .letra-f{width:clamp(56px,calc(22*var(--vh)),96px);height:clamp(60px,calc(24*var(--vh)),100px);font-size:clamp(1.7rem,calc(9*var(--vh)),2.8rem)}
+  .est .palabra{font-size:clamp(1.8rem,calc(11*var(--vh)),3.6rem)}
+  .op-reloj{min-height:calc(42*var(--vh))}
+  .reloj.chico{max-width:min(calc(42*var(--vh) - 26px),150px)}
+  .seq.denso{gap:3px;--cw:clamp(28px,min(calc(15*var(--vh)),calc((50vw - 24px - (var(--n,5) - 1)*3px)/var(--n,5))),76px)}
+  .ecu{font-size:min(clamp(2rem,calc(15*var(--vh)),4rem),calc((50vw - 40px)/6.6))}
+  .b10{--sq:min(calc((50vw - 78px)/13),calc((100*var(--vh) - 170px)/var(--d,5) - 8px),40px)}   /* (170 px = lo que ocupan la barra, el título y los márgenes) */
   .fig-grande .fig{width:min(calc(30*var(--vh)),150px);height:min(calc(30*var(--vh)),150px)}
   .hueco-l{width:clamp(44px,calc(12*var(--vh)),68px);height:clamp(52px,calc(15*var(--vh)),80px);font-size:clamp(1.8rem,calc(8*var(--vh)),2.8rem)}
   .letra-f{width:clamp(48px,calc(13*var(--vh)),72px);height:clamp(54px,calc(15*var(--vh)),84px);font-size:clamp(1.8rem,calc(8*var(--vh)),2.8rem)}
+}
+@media (orientation:landscape) and (max-height:380px){
+  .objs{gap:2px}
+  .objs.muchos .obj{flex:0 0 40px;min-height:40px;font-size:clamp(1.5rem,calc(8*var(--vh)),2rem)}   /* hasta 30 cosas para contar */
+  .grupos{gap:6px}
+  .panel{grid-template-columns:repeat(var(--cl,var(--c,3)),minmax(0,1fr))}   /* dos grupos de 10: de a 4 por fila, no de a 3 */
+  .grupos .panel{font-size:min(clamp(1.4rem,calc(6.6*var(--vh)),2.2rem),calc((20.5vw - 34px)/var(--cl,var(--c,3))/1.25))}
+  .ficha{min-width:40px;min-height:40px}
 }
 @media (min-width:760px) and (orientation:portrait){.tiles{grid-template-columns:repeat(3,1fr)}.pantalla{max-width:900px;margin:0 auto;left:0;right:0}}

@@ -65,7 +65,7 @@ J("m_hora","mates","🕒","La hora",3,nivel=>{
   if(nivel===3){   // ¿cuál reloj dice las N?
     const hs=mezclar([h].concat(sacar(otras,2)));
     return {tipo:"eleccion",clave:"rj"+h+hs.join(""),rotulo:"Reloj de las "+h,decir:[C.tocaReloj(h)],est:"",
-      opciones:hs.map(k=>({h:reloj(k,true),ok:k===h,decir:[C.sonLas(k)],aria:"reloj de las "+k})),alAcertar:[]};
+      claseOps:"ops-reloj",opciones:hs.map(k=>({h:reloj(k,true),clase:"op op-reloj",ok:k===h,decir:[C.sonLas(k)],aria:"reloj de las "+k})),alAcertar:[]};
   }
   const cerca=[...new Set([h-1,h+1,h-2,h+2].map(k=>((k+11)%12)+1))],ds=nivel===1?sacar(otras.filter(k=>k!==12),2):sacar(cerca,2).concat(sacar(otras.filter(k=>!cerca.includes(k)),1));
   return {tipo:"eleccion",clave:"hr"+h,rotulo:"La hora: las "+h,decir:nivel===1?[ES.queHora,ES.manitoCorta]:[ES.queHora],est:`<div class="reloj-grande">${reloj(h,false,nivel===1)}</div>`,
@@ -77,7 +77,7 @@ const cositas=(n,e)=>`<span class="q">${Array.from({length:n},()=>`<i>${e}</i>`)
 J("m_memo","mates","🃏","Memotest de números",4,nivel=>{
   let pares=[];
   if(nivel<=2){   // un número y esa cantidad de cositas
-    const e=elegir(C.OBJ),ns=sacar(nivel===1?[1,2,3,4,5]:[1,2,3,4,5,6],nivel===1?3:5);
+    const e=elegir(C.OBJ),ns=sacar(nivel===1?[1,2,3,4,5]:[1,2,3,4,5,6],nivel===1?3:4);
     pares=ns.map(n=>({a:`<span class="num">${n}</span>`,b:cositas(n,e),ka:[C.numES(n)],kb:[C.numES(n)]}));
   }else{   // una cuenta y su resultado (los resultados no se repiten)
     const cant=nivel===3?4:6,max=nivel===3?10:15,usados=[];let k=0;
@@ -114,10 +114,10 @@ J("l_completar","lengua","🧩","¿Qué letra falta?",3,nivel=>{
   const otraVocal=pos===n-1&&(letra==="O"||letra==="A")?(letra==="O"?"A":"O"):"",arma=x=>w.p.slice(0,pos)+x.toLowerCase()+w.p.slice(pos+1);   // (PATO / PATA)
   const buena=x=>x!=="Ñ"&&x!=="H"&&x!==letra&&x!==otraVocal&&!parecen(x,letra)&&!FEAS.has(arma(x)),otras=C.LETRAS.filter(buena),vocal=VOCALES.includes(letra);
   const ds=(vocal?sacar(VOCALES.filter(buena),2).concat(sacar(otras.filter(x=>!VOCALES.includes(x)),1)):sacar(otras.filter(x=>!VOCALES.includes(x)),2).concat(sacar(VOCALES.filter(buena),1))).slice(0,nivel===1?2:3);
-  const mostrar=[...w.p.toUpperCase()].map((x,i)=>i===pos?`<b>_</b>`:x).join("");
+  const mostrar=[...w.p.toUpperCase()].map((x,i)=>i===pos?`<b class="falta"></b>`:x).join("");
   return {tipo:"eleccion",clave:"cf"+w.p+pos,rotulo:"Letra que falta en «"+w.p+"»: "+letra,decir:[C.palClip(w),ES.letraFalta],est:`<div class="grande">${w.e}</div><div class="palabra" aria-hidden="true">${mostrar}</div>`,cols:nivel===1?3:2,ocultar:[0],
     opciones:mezclar([letra].concat(ds)).map(x=>({h:`<span class="let">${x}</span>`,ok:x===letra,decir:[C.letraES(x)],aria:"letra "+x})),alAcertar:[C.palClip(w)],
-    revelar:el=>{const b=el.querySelector(".palabra b");if(b)b.textContent=letra}};
+    revelar:el=>{const b=el.querySelector(".palabra b");if(b){b.textContent=letra;b.classList.remove("falta")}}};
 });
 
 // ---- armá la palabra: las letras en desorden, hay que tocarlas en orden (usa lo mismo que «Mi nombre»)
@@ -160,7 +160,7 @@ J("l_memo","lengua","🃏","Memotest de letras",4,nivel=>{
   let pares=[];
   if(nivel<=2){
     const pool=nivel===1?VOCALES:C.LETRAS.filter(x=>!"IL".includes(x)&&x!=="Ñ");
-    pares=sacar(pool,nivel===1?3:5).map(L=>({a:`<span class="let">${L}</span>`,b:`<span class="let">${L.toLowerCase()}</span>`,ka:[C.letraES(L)],kb:[C.letraES(L)]}));
+    pares=sacar(pool,nivel===1?3:4).map(L=>({a:`<span class="let">${L}</span>`,b:`<span class="let">${L.toLowerCase()}</span>`,ka:[C.letraES(L)],kb:[C.letraES(L)]}));
   }else{   // una letra y un dibujo que empieza con ella (letras que no suenan parecido)
     const cant=nivel===3?4:6,usadas=[],lista=palabrasCon(x=>!SONIDO_RARO(x)&&x.ini!=="Q");let k=0;
     while(pares.length<cant&&++k<400){

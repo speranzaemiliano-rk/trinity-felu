@@ -38,6 +38,12 @@ function guardar(){try{localStorage.setItem(KEY,JSON.stringify(ST))}catch(e){}}
 // ---------------- voz (mp3 grabados) y sonidos
 const HAY=new Set(window.S5_AUDIO||[]);
 S5.hablados=[];   // para las pruebas: cada clave que se pidió
+const urlAudio=k=>"audio/"+k+".mp3"+(window.S5_AUDIO_V?"?a="+window.S5_AUDIO_V:"");   // (?a=… cambia cuando cambia algún audio: así no suena el viejo que quedó guardado)
+const PRE=new Map();   // frases ya pedidas por adelantado (clave → Audio)
+function precargar(k){
+  if(!ST.voz||!k||k===PAUSA||!HAY.has(k)||PRE.has(k))return;
+  try{const a=new Audio();a.preload="auto";a.src=urlAudio(k);PRE.set(k,a);if(PRE.size>16)PRE.delete(PRE.keys().next().value)}catch(e){}
+}
 const PAUSA="|";   // en una lista de frases (decir:[…]) es una pausa entre oraciones: «Tengo tres globos | Se van dos | ¿Cuántos me quedan?»
 const Voz={
   a:new Audio(),seq:0,fin:null,
@@ -52,7 +58,7 @@ const Voz={
       if(!HAY.has(k)){hablarLocal(k,fin);return}   // sin mp3 (no debería pasar): la voz del aparato
       a.onended=fin;
       a.onerror=()=>{if(Voz.fin!==fin||listo)return;local=true;a.onended=a.onerror=null;hablarLocal(k,fin)};   // si el archivo no baja (sin internet), habla el aparato con su voz
-      a.src="audio/"+k+".mp3"+(window.S5_AUDIO_V?"?a="+window.S5_AUDIO_V:"");   // (?a=… cambia cuando cambia algún audio: así no suena el viejo que quedó guardado)
+      a.src=urlAudio(k);
       a.defaultPlaybackRate=ST.vel;a.playbackRate=ST.vel;try{a.preservesPitch=true;a.webkitPreservesPitch=true}catch(e){}   // velocidad de la voz (el tono no cambia)
       try{const p=a.play();if(p&&p.catch)p.catch(()=>{if(!local)fin()})}catch(e){fin()}
     });
@@ -64,13 +70,18 @@ const Voz={
   async decir(claves){
     const id=++Voz.seq,lista=[].concat(claves).filter(Boolean);
     Voz.cortar();habla(true);   // una frase nueva corta la anterior (tocar rápido no las amontona)
-    for(const k of lista){if(id!==Voz.seq)return false;if(k===PAUSA){await pausa(380);continue}await Voz.uno(k);if(id!==Voz.seq)return false;await pausa(40)}
+    for(let i=0;i<lista.length;i++){
+      const k=lista[i];if(id!==Voz.seq)return false;
+      if(k===PAUSA){await pausa(380);continue}
+      precargar(lista[i+1]);precargar(lista[i+2]);   // mientras suena esta, ya se baja lo que sigue
+      await Voz.uno(k);if(id!==Voz.seq)return false;await pausa(40)
+    }
     if(id===Voz.seq)habla(false);
     return id===Voz.seq;
   },
   parar(){Voz.seq++;Voz.cortar();habla(false)}
 };
-function habla(on){document.querySelectorAll(".mascota,.mascota-chica").forEach(e=>e.classList.toggle("habla",!!on))}
+function habla(on){document.querySelectorAll(".mascota,.mascota-chica,#jRepetir").forEach(e=>e.classList.toggle("habla",!!on))}
 function hablarLocal(k,fin){
   try{const x=S5.audio[k];if(!x||!window.speechSynthesis)return fin();const u=new SpeechSynthesisUtterance(x.tts);u.lang=x.l==="es"?"es-AR":"en-GB";u.rate=ST.vel;u.volume=1;u.onend=u.onerror=fin;speechSynthesis.cancel();speechSynthesis.speak(u)}catch(e){fin()}
 }
@@ -135,7 +146,7 @@ J("m_sumar","mates","➕","Sumar",5,nivel=>{
       opciones:numerales(total,2,20,3).map(k=>numOp(k,k===total,C.numES)),alAcertar:[]};
   }
   const max=[5,10,20][nivel-1],total=nivel===3?azar(11,20):azar(2,max),a=azar(Math.max(1,total-10),Math.min(10,total-1)),b=total-a,obj=elegir(C.OBJ);   // (en el nivel 3 cada grupo es de hasta 10 y juntos pasan de 10)
-  const g=n=>`<div class="panel" style="--c:${n<=3?n:3}">${Array.from({length:n},()=>`<span>${obj}</span>`).join("")}</div>`;
+  const g=n=>`<div class="panel" style="--c:${n<=3?n:3};--cl:${n<=3?n:n<=6?3:4}">${Array.from({length:n},()=>`<span>${obj}</span>`).join("")}</div>`;   // (--cl: columnas en un celular de costado muy bajito)
   return {tipo:"eleccion",clave:a+"+"+b,rotulo:"Sumar: "+a+" + "+b,decir:[C.numES(a),C.ES.mas,C.numES(b),C.ES.cuantosSon],est:`<div class="grupos">${g(a)}<span class="signo">+</span>${g(b)}</div>`,
     opciones:numerales(total,1,max,3).map(k=>numOp(k,k===total,C.numES)),alAcertar:[]};
 });
@@ -184,7 +195,7 @@ J("m_patron","mates","🔁","¿Qué sigue?",5,nivel=>{
   const [a,z]=[[0,2],[2,5],[5,8],[8,11],[11,14]][nivel-1],[sec,sig]=elegir(PATRONES.slice(a,z)),fs=sacar(FICHAS,4),mapa={A:fs[0],B:fs[1],C:fs[2],D:fs[3]};
   const mostrar=sec.map(x=>`<span class="caja">${mapa[x]}</span>`).join("")+`<span class="caja hueco">?</span>`;
   const op=["A","B","C","D"].filter(x=>x!==sig).slice(0,nivel>=4?3:2).concat(sig);
-  return {tipo:"eleccion",clave:"p"+sec.join("")+sig+fs[0],rotulo:"Patrones: ¿qué sigue?",decir:[C.ES.queSigue],est:`<div class="seq" style="--n:${sec.length+1}">${mostrar}</div>`,opciones:mezclar(op).map((x,i)=>({h:`<span class="e">${mapa[x]}</span>`,ok:x===sig,aria:"opción "+(i+1)})),
+  return {tipo:"eleccion",clave:"p"+sec.join("")+sig+fs[0],rotulo:"Patrones: ¿qué sigue?",decir:[C.ES.queSigue],est:`<div class="seq${sec.length+1>=7?" denso":""}" style="--n:${sec.length+1}">${mostrar}</div>`,opciones:mezclar(op).map((x,i)=>({h:`<span class="e">${mapa[x]}</span>`,ok:x===sig,aria:"opción "+(i+1)})),
     alAcertar:[],revelar:el=>{el.querySelector(".hueco").outerHTML=`<span class="caja lleno">${mapa[sig]}</span>`}};
 });
 J("m_tamano","mates","🐘","Grande y chico",3,nivel=>{
@@ -261,17 +272,18 @@ J("l_palabra","lengua","🖼️","Palabras",2,nivel=>{
   const w=elegir(C.PAL),ops=mezclar([w].concat(sacar(C.PAL.filter(x=>x!==w&&x.e!==w.e&&!C.ambPal(x,w)),nivel===1?2:3)));
   return {tipo:"eleccion",clave:"w"+w.p,decir:[C.ES.toca,C.palArtClip(w)],cols:nivel===1?3:2,opciones:ops.map(x=>({h:`<span class="e">${x.e}</span>`,ok:x===w,aria:x.p,etiqueta:x===w?x.p.toUpperCase():""})),alAcertar:[]};
 });
+const tamPal=ws=>{const m=Math.max(...ws.map(x=>x.p.length));return m>=8?" muy-larga":m>=6?" larga":""};   // el tamaño de letra de las palabras de una pregunta lo marca la más larga (todas iguales)
 J("l_leer","lengua","📖","Leer",4,nivel=>{
   if(nivel===4){   // palabras que empiezan igual: hay que leer más que la primera letra
     const mismas=x=>C.PAL.filter(y=>y!==x&&y.p[0]===x.p[0]&&y.e!==x.e&&y.n>=4&&!C.ambPal(x,y)),w=elegir(C.PAL.filter(x=>x.n>=4&&mismas(x).length>=3)),ds=sacar(mismas(w),3);
     return {tipo:"eleccion",clave:"e"+w.p,decir:[C.ES.tocaPalabra,C.palClip(w)],ocultar:[1],est:"",cols:2,
-      opciones:mezclar([w].concat(ds)).map(x=>({h:`<span class="pal${x.p.length>=8?" muy-larga":x.p.length>=6?" larga":""}">${x.p.toUpperCase()}</span>`,ok:x===w,aria:x.p})),alAcertar:[],
+      opciones:mezclar([w].concat(ds)).map(x=>({h:`<span class="pal${tamPal([w].concat(ds))}">${x.p.toUpperCase()}</span>`,ok:x===w,aria:x.p})),alAcertar:[],
       revelar:el=>{el.innerHTML=`<div class="grande">${w.e}</div>`}};
   }
   const largo=x=>nivel===1?x.n<=4:nivel===2?x.n>=4&&x.n<=6:x.n>=5,w=elegir(C.PAL.filter(largo));
   const ds=[];mezclar(C.PAL.filter(x=>largo(x)&&x.p[0]!==w.p[0])).forEach(x=>{if(ds.length<(nivel===1?2:3)&&!ds.some(y=>y.p[0]===x.p[0]))ds.push(x)});
   return {tipo:"eleccion",clave:"e"+w.p,decir:[C.ES.tocaPalabra,C.palClip(w)],ocultar:[1],est:"",cols:nivel===1?3:2,
-    opciones:mezclar([w].concat(ds)).map(x=>({h:`<span class="pal${x.p.length>=8?" muy-larga":x.p.length>=6?" larga":""}">${x.p.toUpperCase()}</span>`,ok:x===w,aria:x.p})),alAcertar:[],
+    opciones:mezclar([w].concat(ds)).map(x=>({h:`<span class="pal${tamPal([w].concat(ds))}">${x.p.toUpperCase()}</span>`,ok:x===w,aria:x.p})),alAcertar:[],
     revelar:el=>{el.innerHTML=`<div class="grande">${w.e}</div>`}};
 });
 const letrasNombre=()=>[...C.sinAcento((ST.nombre||"").replace(/[ñÑ]/g,"\u0001")).toUpperCase()].map(x=>x==="\u0001"?"Ñ":x).filter(x=>C.LETRAS.includes(x));
@@ -318,15 +330,23 @@ function nivelDe(j){return Math.max(1,Math.min(j.niv,Math.floor(habDe(j)+1e-9)))
 const nivelDePregunta=j=>S5.nivelFijo?Math.max(1,Math.min(j.niv,S5.nivelFijo)):A.nivelPregunta(habDe(j),j.niv);   // (S5.nivelFijo: lo usan las pruebas para ver cada nivel; en la app nunca se toca)
 const nuevoJuego=j=>({nivel:nivelDe(j),hab:habDe(j),n:0,racha:0,ult:"",rondas:0,perfectas:0,mejor:0,bien:0,mal:0});
 function abrirArea(a){
+  const otra=$("pArea").dataset.area!==a;
   ir("pArea");$("pArea").dataset.area=a;$("aTitulo").textContent=AREAS[a].tit;actualizarPegatinas();
   const lista=JUEGOS.filter(j=>j.area===a&&!(j.ocultar&&j.ocultar()));
   const tiles=$("tiles");tiles.innerHTML=`<button class="tile sorpresa" data-j="*"><span class="tico">🎲</span><span class="tnom">Sorpresa</span></button>`+
     lista.map(j=>{const g=ST.juegos[j.id],n=g?Math.min(g.rondas,5):0;return `<button class="tile" data-j="${j.id}" aria-label="${j.nom}"><span class="tico">${j.ico}</span><span class="tnom">${j.nom}</span><span class="test">${n?"⭐".repeat(n):"　"}</span></button>`}).join("");
+  if(otra)tiles.scrollTop=0;   // (si volvés del juego al mismo área, queda donde estaba)
   tiles.querySelectorAll(".tile").forEach(b=>b.onclick=()=>{const j=b.dataset.j==="*"?A.elegirJuego(lista,ST):JUEGOS.find(x=>x.id===b.dataset.j);jugar(j)});   // «Sorpresa»: el motor elige el que más conviene ahora
 }
 
 // ---- una ronda: 5 preguntas
 function puntos(i,N){$("jPuntos").innerHTML=Array.from({length:N||5},(_,k)=>`<i class="${k<i?"ya":k===i?"ahora":""}"></i>`).join("")}
+function armarPregunta(j,nivel,i,usadas,pref){
+  pref=pref||"";let q=null,k=0;
+  do{try{q=j.gen(nivel,i)}catch(e){q=null}}while((!q||(q.clave&&usadas.has(pref+q.clave)))&&++k<12);
+  if(!q)q=j.gen(Math.max(1,nivel-1),i);   // (si también falla, que se vea el error: no hay forma de seguir)
+  usadas.add(pref+q.clave);return q;
+}
 async function jugar(j){
   const id=++RONDA;limpiarQ();Voz.parar();JACT=j;ir("pJuego");RONDA=id;
   $("pJuego").dataset.area=j.area;
@@ -334,7 +354,7 @@ async function jugar(j){
   const usadas=new Set(),N=j.n||5,hab0=habDe(j);let aciertos=0;
   for(let i=0;i<N;i++){
     puntos(i,N);const nivel=nivelDePregunta(j);   // el nivel de cada pregunta sale de la habilidad de ese momento
-    let q,k=0;do{q=j.gen(nivel,i)}while(q.clave&&usadas.has(q.clave)&&++k<12);usadas.add(q.clave);
+    const q=armarPregunta(j,nivel,i,usadas);
     const r=await preguntar(q,id,nivel);
     if(id!==RONDA)return;
     if(r)aciertos++;
@@ -346,14 +366,14 @@ async function jugar(j){
 const N_DESAFIO=8;let EN_DESAFIO=false;
 async function desafio(){
   const id=++RONDA;limpiarQ();Voz.parar();ir("pJuego");RONDA=id;EN_DESAFIO=true;
-  $("pJuego").dataset.area="album";$("jEst").innerHTML="";$("jOps").innerHTML="";$("jTexto").textContent="¡Desafío!";puntos(0,N_DESAFIO);   // mientras la voz lo anuncia: una pantalla limpia (dorada, como el botón) y los 8 puntos
+  $("pJuego").dataset.area="album";$("jEst").innerHTML=`<div class="grande">🚀</div>`;$("jOps").innerHTML="";$("jTexto").textContent="¡Desafío!";puntos(0,N_DESAFIO);   // mientras la voz lo anuncia: una pantalla limpia (dorada, como el botón) y los 8 puntos
   const lista=JUEGOS.filter(j=>!j.largo&&!(j.ocultar&&j.ocultar())),usadas=new Set(),contar={};let aciertos=0,antes=null,hab0={};
   lista.forEach(j=>{hab0[j.id]=habDe(j)});
   await Voz.decir([C.ES.desafio]);if(id!==RONDA)return;
   for(let i=0;i<N_DESAFIO;i++){
     puntos(i,N_DESAFIO);const j=A.elegirJuego(lista,ST,{evitar:antes,contar});antes=j.id;contar[j.id]=(contar[j.id]||0)+1;
     JACT=j;$("pJuego").dataset.area=j.area;
-    const nivel=nivelDePregunta(j);let q,k=0;do{q=j.gen(nivel,i)}while(q.clave&&usadas.has(j.id+q.clave)&&++k<12);usadas.add(j.id+q.clave);
+    const nivel=nivelDePregunta(j),q=armarPregunta(j,nivel,i,usadas,j.id);
     const r=await preguntar(q,id,nivel);
     if(id!==RONDA)return;
     if(r)aciertos++;
@@ -381,7 +401,7 @@ function registrar(Qc,ok){
 function preguntar(q,id,nivel){
   return new Promise(res=>{
     const Qc={q,nivel,errores:0,resuelta:false,id,fin:res,res:v=>{clearTimeout(Qc.idle);registrar(Qc,v);res(v)}};
-    Q=Qc;
+    Q=Qc;REB={k:"",t:0};
     $("jTexto").textContent=(q.decir||[]).map((k,i)=>q.ocultar&&q.ocultar.includes(i)?"…":(S5.audio[k]?S5.audio[k].tts:"")).filter(Boolean).join(" ");   // (en «Leer» y «¿Con qué letra empieza?» no se imprime la palabra: sería la respuesta)
     if(q.tipo==="canasta")return canasta(q,id);
     if(q.tipo==="nombre")return nombre(q,id);
@@ -389,16 +409,27 @@ function preguntar(q,id,nivel){
     mostrar(q);hablarPregunta();
   });
 }
-function hablarPregunta(){if(Q){Voz.decir(Q.q.decir);esperar()}}
+function hablarPregunta(){
+  const q=Q;if(!q)return;
+  Voz.decir(q.q.decir).then(ok=>{if(ok&&Q===q&&!q.resuelta)esperar()});   // (si la corta un toque, ese toque rearma la espera)
+}
 function esperar(){   // si no toca nada: repite la consigna y después marca la respuesta
   if(!Q)return;clearTimeout(Q.idle);const q=Q;
-  q.idle=setTimeout(()=>{if(Q!==q||q.resuelta)return;Voz.decir(q.q.decir);q.idle=setTimeout(()=>{if(Q===q&&!q.resuelta){q.ayudada=true;pista()}},10000)},13000);
+  q.idle=setTimeout(async()=>{
+    if(Q!==q||q.resuelta)return;
+    const ok=await Voz.decir(q.q.decir);
+    if(!ok||Q!==q||q.resuelta)return;
+    q.idle=setTimeout(()=>{if(Q===q&&!q.resuelta){q.ayudada=true;pista()}},10000);
+  },13000);
 }
+// un doble toque sobre lo MISMO equivocado cuenta una sola vez (a esta edad es lo normal, y ahora lo que se cuenta mueve la habilidad)
+let REB={k:"",t:0};
+const rebote=k=>{const t=Date.now();if(REB.k===k&&t-REB.t<600)return true;REB={k,t};return false};
 function pista(){if(Q&&Q.ayuda){Q.ayuda();return}document.querySelectorAll("#jOps [data-ok],#jEst [data-ok]").forEach(e=>e.classList.add("pista"))}
 const rearmar=()=>{if(Q&&!Q.resuelta)esperar()};
 function mostrar(q){
   $("jEst").innerHTML=q.est||"";
-  const ops=$("jOps");ops.style.setProperty("--cols",q.cols||q.opciones.length);ops.dataset.n=q.opciones.length;ops.dataset.c=q.cols||q.opciones.length;ops.innerHTML="";
+  const ops=$("jOps");ops.className="ops"+(q.claseOps?" "+q.claseOps:"");ops.style.setProperty("--cols",q.cols||q.opciones.length);ops.dataset.n=q.opciones.length;ops.dataset.c=q.cols||q.opciones.length;ops.innerHTML="";
   q.opciones.forEach((o,i)=>{
     const b=document.createElement("button");b.className=o.clase||"op";if(o.estilo)b.setAttribute("style",o.estilo);b.innerHTML=o.h;b.dataset.i=i;if(o.ok)b.dataset.ok="1";b.setAttribute("aria-label",o.aria||"opción");
     b.onclick=()=>elegirOp(i);ops.appendChild(b);
@@ -417,6 +448,7 @@ async function elegirOp(i){
     if(id!==RONDA||Q!==Qc)return;await pausa(250);if(id!==RONDA||Q!==Qc)return;
     Qc.res(Qc.errores===0);
   }else{
+    if(rebote("op"+i))return;
     Qc.errores++;sfx("no");el.classList.remove("pista");el.classList.add("no");
     if(Qc.errores>=3){   // se la mostramos: así nunca se queda trabada
       Qc.resuelta=true;const bueno=document.querySelector("#jOps [data-ok]");if(bueno)bueno.classList.add("pista");
@@ -451,6 +483,7 @@ function canasta(q,id){
     if(cest.children.length===q.n){
       Qc.resuelta=true;sfx("ok");await Voz.decir([C.numES(q.n),cheers("es")]);if(id!==RONDA||Q!==Qc)return;await pausa(250);if(id!==RONDA||Q!==Qc)return;Qc.res(Qc.errores===0);
     }else{
+      if(rebote("listo"))return;
       Qc.errores++;sfx("no");
       if(Qc.errores>=3){   // se lo armamos
         Qc.resuelta=true;while(cest.children.length<q.n&&pila.firstChild)cest.appendChild(pila.firstChild);while(cest.children.length>q.n)pila.appendChild(cest.lastChild);cuadra();
@@ -483,6 +516,7 @@ function nombre(q,id){
       if(Qc.resuelta||b.classList.contains("usada"))return;rearmar();
       if(x===L[pos])poner(b,false);
       else{
+        if(rebote("f"+x+b.offsetLeft))return;
         Qc.errores++;seguidos++;sfx("no");b.classList.remove("no");void b.offsetWidth;b.classList.add("no");
         if(seguidos>=3){const f=siguiente();if(f)poner(f,true)}   // nunca se queda trabada
         else{if(seguidos>=2)marcar();Voz.decir(C.ES.retry)}
@@ -496,11 +530,15 @@ function nombre(q,id){
 // ---- memotest: dar vuelta de a dos cartas y encontrar las parejas. q.pares = [{a,b,ka,kb}]: lo que se ve en cada carta y lo que dice la voz al darla vuelta.
 // Equivocarse no es grave (es un juego de memoria): la pregunta cuenta «bien» si no necesitó más de dos intentos por pareja, y el motor la mide con q.o (no con la cantidad de errores).
 function memo(q,id){
-  const est=$("jEst"),ops=$("jOps"),Qc=Q,cartas=mezclar(q.pares.flatMap((p,i)=>[{par:i,h:p.a,dice:p.ka||[]},{par:i,h:p.b,dice:p.kb||[]}])),n=cartas.length,cols=n===6?3:4,filas=Math.ceil(n/cols);
-  est.innerHTML=`<div class="memo" style="--cols:${cols};--filas:${filas}">`+cartas.map((c,i)=>`<button class="carta" data-par="${c.par}" aria-label="carta ${i+1}"><span class="dorso">❓</span><span class="frente">${c.h}</span></button>`).join("")+`</div>`;
+  const est=$("jEst"),ops=$("jOps"),Qc=Q,cartas=mezclar(q.pares.flatMap((p,i)=>[{par:i,h:p.a,dice:p.ka||[]},{par:i,h:p.b,dice:p.kb||[]}])),n=cartas.length,bajito=window.matchMedia&&matchMedia("(orientation:landscape) and (max-height:560px)").matches,cols=bajito?Math.ceil(n/2):n===6?3:4,filas=Math.ceil(n/cols);   // (de costado, a lo bajo, dos filas)
+  est.innerHTML=`<div class="memo" style="--cols:${cols};--filas:${filas}">`+cartas.map((c,i)=>`<button class="carta" data-par="${c.par}" aria-label="carta ${i+1}"><span class="dorso">?</span><span class="frente">${c.h}</span></button>`).join("")+`</div>`;
   ops.innerHTML="";ops.style.setProperty("--cols",1);
   const bs=[...est.querySelectorAll(".carta")];let abiertas=[],ocupado=false,fallos=0,hechas=0;
-  Qc.ayuda=()=>{const b=bs.find(x=>!x.classList.contains("par")&&!x.classList.contains("vuelta"));if(b)b.classList.add("pista")};   // una carta que todavía no encontró su pareja late
+  Qc.ayuda=()=>{   // late la pareja de la carta que ya está dada vuelta (o, si no hay ninguna, una carta que todavía no encontró la suya)
+    const sin=x=>!x.classList.contains("par"),abierta=bs.find(x=>x.classList.contains("vuelta")),
+      b=(abierta&&bs.find(x=>x!==abierta&&sin(x)&&x.dataset.par===abierta.dataset.par))||bs.find(x=>sin(x)&&!x.classList.contains("vuelta"));
+    if(b)b.classList.add("pista");
+  };
   bs.forEach((b,i)=>b.onclick=async()=>{
     if(Qc.resuelta||ocupado||b.classList.contains("vuelta")||b.classList.contains("par"))return;
     rearmar();bs.forEach(x=>x.classList.remove("pista"));b.classList.add("vuelta");Voz.decir(cartas[i].dice);abiertas.push(i);
@@ -574,13 +612,13 @@ function abrirResultados(){
   const tot=ST.bien+ST.mal,hoy=ST.dias[FECHA()]||[0,0];let h="";
   if(!tot)h=`<p class="res-vacio">Todavía no hay resultados. Cuando juegue, van a aparecer acá cuántas preguntas contestó bien y cuántas mal.</p>`;
   else{
-    h+=`<p class="res-vacio">${ST.rondas} ronda${ST.rondas===1?"":"s"} y ${ST.desafios||0} desafío${ST.desafios===1?"":"s"} jugados.</p>`;
+    h+=`<p class="res-vacio">${ST.rondas} ronda${ST.rondas===1?"":"s"} jugada${ST.rondas===1?"":"s"}${ST.desafios?` (${ST.desafios} ${ST.desafios===1?"fue un desafío":"fueron desafíos"})`:""}.</p>`;
     h+=`<div class="res-grande"><div class="res-num bien"><b>${ST.bien}</b><span>✔ bien</span></div><div class="res-num mal"><b>${ST.mal}</b><span>✖ mal</span></div><div class="res-num"><b>${PCT(ST.bien,ST.mal)}%</b><span>de ${tot} en todo</span></div></div>`;
     h+=`<h3>Hoy</h3>`+(hoy[0]+hoy[1]?filaRes("Preguntas de hoy",hoy[0],hoy[1]):`<p class="res-vacio">Hoy todavía no jugó.</p>`);
     const dias=Object.keys(ST.dias).filter(k=>k!==FECHA()).sort().reverse().slice(0,7);
     if(dias.length)h+=`<h3>Días anteriores</h3>`+dias.map(k=>{const f=k.slice(5).split("-");return filaRes(f[1]+"/"+f[0],ST.dias[k][0],ST.dias[k][1])}).join("");
     h+=`<h3>Por área</h3>`+Object.keys(AREA_NOM).map(a=>{let b=0,m=0;JUEGOS.filter(j=>j.area===a).forEach(j=>{const g=ST.juegos[j.id];if(g){b+=g.bien||0;m+=g.mal||0}});return b+m?filaRes(AREA_NOM[a],b,m):""}).join("");
-    h+=`<h3>Por juego</h3>`+JUEGOS.filter(j=>{const g=ST.juegos[j.id];return g&&(g.bien||0)+(g.mal||0)>0}).map(j=>{const g=ST.juegos[j.id];return filaRes(j.ico+" "+ESC(j.nom),g.bien||0,g.mal||0,"nivel "+String(Math.min(j.niv,g.hab||g.nivel).toFixed(1)).replace(".",",")+" de "+j.niv)}).join("");
+    h+=`<h3>Por juego</h3>`+JUEGOS.filter(j=>{const g=ST.juegos[j.id];return g&&(g.bien||0)+(g.mal||0)>0}).map(j=>{const g=ST.juegos[j.id];return filaRes(j.ico+" "+ESC(j.nom),g.bien||0,g.mal||0,"nivel "+(Math.floor(Math.min(j.niv,g.hab||g.nivel)*10+1e-9)/10).toFixed(1).replace(".",",")+" de "+j.niv)}).join("");
     const f=Object.keys(ST.fallas).sort((a,b)=>ST.fallas[b]-ST.fallas[a]||(a<b?-1:1)).slice(0,10);
     if(f.length)h+=`<h3>Lo que más le cuesta</h3><ul class="res-fallas">`+f.map(k=>`<li>${ESC(k)} <b>✖ ${ST.fallas[k]}</b></li>`).join("")+`</ul>`;
   }
@@ -607,7 +645,7 @@ function iniciarEventos(){
     const b=$("pBorrar");
     if(!b.dataset.seguro){b.dataset.seguro="1";b.dataset.t=String(Date.now());b.textContent="¿Seguro? Tocá otra vez para borrar";setTimeout(()=>{b.dataset.seguro="";b.textContent=TXT_BORRAR},4000);return}
     if(Date.now()-(+b.dataset.t||0)<1200)return;   // un doble toque apurado no alcanza para borrar todo
-    ST.juegos={};ST.peg=[];ST.rondas=0;ST.bien=0;ST.mal=0;ST.dias={};ST.fallas={};guardar();actualizarPegatinas();b.dataset.seguro="";b.textContent="Listo: se borró todo";
+    ST.juegos={};ST.peg=[];ST.rondas=0;ST.desafios=0;ST.bien=0;ST.mal=0;ST.dias={};ST.fallas={};guardar();actualizarPegatinas();b.dataset.seguro="";b.textContent="Listo: se borró todo";
   };
   $("bJugar").onclick=()=>{
     $("splash").hidden=true;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();AC.resume()}catch(e){}
@@ -617,7 +655,7 @@ function iniciarEventos(){
 }
 
 S5.H={J,azar,elegir,mezclar,sacar,numOp,numerales,cercanos,objs,ecu,cheers,palabrasCon,COL_FIG,FICHAS,VOCALES,FACILES,PAUSA};   // lo que usa juegos2.js (los juegos nuevos)
-S5.actual=()=>Q&&Q.q||null;S5.juegoActual=()=>JACT;   // (para las pruebas: la pregunta y el juego que están en pantalla)
+S5.actual=()=>Q&&Q.q||null;S5.juegoActual=()=>JACT;S5.errores=()=>Q?Q.errores:0;   // (para las pruebas: la pregunta y el juego que están en pantalla)
 S5.voz=Voz;S5.juegos=JUEGOS;S5.desafio=desafio;S5.habDe=habDe;S5.gen=(id,n)=>JUEGOS.find(j=>j.id===id).gen(n||1);S5.estado=()=>ST;S5.nivelDe=nivelDe;S5.jugar=id=>{jugar(JUEGOS.find(j=>j.id===id))};   // (sin devolver la promesa de toda la ronda: las pruebas no tienen que esperarla)
 const ajustarVh=()=>document.documentElement.style.setProperty("--vh",(window.innerHeight/100)+"px");   // «vh» de verdad: el alto que se ve (en Safari con la barra de direcciones, 100vh es más alto que la pantalla visible)
 ajustarVh();window.addEventListener("resize",ajustarVh);window.addEventListener("orientationchange",ajustarVh);

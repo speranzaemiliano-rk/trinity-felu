@@ -5,7 +5,7 @@
 // que equivocarse nunca trabe (probá de nuevo → el bueno late → se lo muestra y sigue); que si no toca nada repita la consigna y marque la respuesta;
 // niveles que suben solos, figuritas y álbum lleno; el panel para grandes (se abre apretando 1,4 s, nombre, sonido, dificultad, borrar en dos toques);
 // que lo guardado roto no rompa nada; que no pida nada a otros sitios (sólo las fuentes de Google) y ande sin ellas; la voz del aparato si un audio no baja;
-// y el DISEÑO: ningún botón se sale de la pantalla ni se pisa, en 7 tamaños (celular chico, celular, tablet vertical y horizontal, celular de costado, el iPhone SE más angosto y el iPhone 8 de costado, el más bajo), con cada juego en cada uno de sus niveles.
+// y el DISEÑO: ningún botón se sale de la pantalla ni se pisa, en 10 tamaños (celular chico, celular, tablet vertical y horizontal, celular de costado, el iPhone SE más angosto, el iPhone 8 y los Android de costado de 360 px o menos de alto), con cada juego en cada uno de sus niveles.
 // Se puede probar el sitio publicado:  URL=https://speranzaemiliano-rk.github.io/trinity-felu/sala5/ node tests/sala5.js
 const {chromium,devices}=require('playwright');const fs=require('fs');const path=require('path');
 const RAIZ=path.resolve(__dirname,'..');
@@ -100,10 +100,12 @@ const contestar=(p,que,nombre)=>p.evaluate(([que,nombre])=>{
     const L=S5.actual().letras;
     const hechas=document.querySelectorAll('#jEst .hueco-l.puesto').length;
     if(que==='ok'){const f=fichas.find(x=>x.dataset.l===L[hechas]);if(f)f.click()}
-    else{const f=fichas.find(x=>x.dataset.l!==L[hechas]);if(f)f.click()}
+    else{const malas=fichas.filter(x=>x.dataset.l!==L[hechas]),f=malas.find(x=>x!==window.__ultimoMal)||malas[0];window.__ultimoMal=f;if(f)f.click()}
     return 'nombre';
   }
-  const o=que==='ok'?document.querySelector('#jOps [data-ok]'):document.querySelector('#jOps .op:not([data-ok]),#jOps .panel:not([data-ok])');
+  let o;
+  if(que==='ok')o=document.querySelector('#jOps [data-ok]');
+  else{const malas=[...document.querySelectorAll('#jOps .op:not([data-ok]),#jOps .panel:not([data-ok])')];o=malas.find(x=>!x.classList.contains('no'))||malas.find(x=>x!==window.__ultimoMal)||malas[0];window.__ultimoMal=o}   // (un doble toque sobre la MISMA equivocada cuenta una sola vez: se alternan)
   if(o)o.click();return 'eleccion';
 },[que,nombre||'']);
 // una ronda entera: plan = 5 entradas: 'bien' (de una), 'mal1' (una equivocación y después bien), 'mal3' (tres equivocaciones: se la muestran y sigue sola)
@@ -322,6 +324,57 @@ for(const [dif,esperado] of [[0,[1,1]],[1,[2,2]],[2,[3,2]],[3,[4,2]]]){
   await ctx.close();
 }
 
+// ---------- 5d) lo que halló la revisión de código: doble toque, espera con consigna larga, menú de un área y «Borrar» con los desafíos
+// un doble toque sobre la MISMA opción equivocada cuenta una sola equivocación (ahora lo que se cuenta mueve la habilidad del juego)
+({ctx,p}=await abrir());
+await p.evaluate(()=>{S5.nivelFijo=2});await iniciar(p,'e_animals');await esperarPregunta(p);
+const dt=await p.evaluate(async()=>{
+  const malas=[...document.querySelectorAll('#jOps .op')].filter(o=>!o.dataset.ok),r=[],esp=ms=>new Promise(x=>setTimeout(x,ms));
+  malas[0].click();malas[0].click();await esp(50);malas[0].click();r.push(S5.errores());   // doble y triple toque seguidos: 1 sola equivocación
+  malas[1].click();r.push(S5.errores());   // otra opción equivocada: la 2.ª
+  await esp(700);malas[0].click();r.push(S5.errores());   // la misma de antes, pasado el instante del doble toque: la 3.ª
+  return r});
+chk('un doble (o triple) toque seguido sobre la MISMA opción equivocada cuenta una sola equivocación; otra opción equivocada, o la misma pasado un instante, sí cuentan',dt.join()==='1,2,3',j(dt));
+await ctx.close();
+({ctx,p}=await abrir({nombre:'Sofi',estado:{nombre:'Sofi'}}));
+await p.evaluate(()=>{S5.nivelFijo=1});await iniciar(p,'l_nombre');await esperarPregunta(p);
+const dn=await p.evaluate(async()=>{
+  const q=S5.actual(),L=q.letras,esp=ms=>new Promise(x=>setTimeout(x,ms)),mala=[...document.querySelectorAll('#jEst .letra-f')].find(f=>f.dataset.l!==L[0]);
+  mala.click();mala.click();mala.click();await esp(50);return S5.errores()});
+chk('«Mi nombre»: tocar tres veces seguidas la MISMA letra equivocada cuenta una sola equivocación (y no hace latir la que sigue todavía)',dn===1&&await p.evaluate(()=>document.querySelectorAll('#jEst .letra-f.pista').length)===0,String(dn));
+await ctx.close();
+// «no toca nada» con una consigna LARGA: la espera empieza cuando TERMINA de hablar (antes empezaba al arrancar y no quedaba tiempo para pensar)
+({ctx,p}=await abrir({rapido:10,audioLento:250}));   // cada frase tarda 250 ms y las esperas de 13 s y 10 s pasan 10 veces más rápido (1,3 s y 1 s)
+await p.evaluate(()=>{S5.nivelFijo=4});await iniciar(p,'m_problemas');await esperarPregunta(p);
+await p.waitForTimeout(2500);
+const l1=await p.evaluate(()=>({veces:S5.hablados.filter(k=>k===S5.actual().decir[0]).length,pista:document.querySelectorAll('#jOps .pista').length,largo:S5.actual().decir.length}));
+await p.waitForTimeout(4500);
+const l2=await p.evaluate(()=>({veces:S5.hablados.filter(k=>k===S5.actual().decir[0]).length,pista:document.querySelectorAll('#jOps .pista').length}));
+await p.waitForTimeout(4500);
+const l3=await p.evaluate(()=>({pista:!!document.querySelector('#jOps [data-ok].pista')}));
+chk('consigna larga (problema de dos pasos): NO la repite mientras todavía está hablando, la repite cuando terminó de hablar y la respuesta late recién 10 s después de que termina de repetir (no se la marca antes de poder pensar)',l1.largo>=10&&l1.veces===1&&l1.pista===0&&l2.veces===2&&l2.pista===0&&l3.pista,j([l1,l2,l3]));
+await ctx.close();
+// el menú de un área se abre desde arriba (con «Sorpresa» a la vista) aunque se haya bajado en otra
+({ctx,p}=await abrir());
+await p.click('.area[data-area="lengua"]');await p.waitForSelector('#pArea:not([hidden])');
+await p.evaluate(()=>{document.getElementById('tiles').scrollTop=9999});
+const sc1=await p.evaluate(()=>document.getElementById('tiles').scrollTop);
+await p.click('#aAtras');await p.waitForSelector('#pInicio:not([hidden])');
+await p.click('.area[data-area="mates"]');await p.waitForSelector('#pArea:not([hidden])');
+const sc2=await p.evaluate(()=>document.getElementById('tiles').scrollTop);
+chk('el menú de un área se abre desde arriba (con «Sorpresa» a la vista) aunque se haya bajado en la otra',sc1>0&&sc2===0,j([sc1,sc2]));
+await ctx.close();
+// resultados: un desafío ya no se cuenta también como ronda, y «Borrar» reinicia los desafíos
+({ctx,p}=await abrir({estado:{rondas:7,desafios:5,bien:40,mal:10,peg:[1,2,3]}}));
+const abrirPadres3=async()=>{const r=await p.locator('#bPadres').boundingBox();await p.mouse.move(r.x+r.width/2,r.y+r.height/2);await p.mouse.down();await p.waitForTimeout(1700);await p.mouse.up();await p.waitForSelector('#padres:not([hidden])')};
+await abrirPadres3();await p.click('#pResultados');await p.waitForSelector('#resultados:not([hidden])');
+const txtR=await p.evaluate(()=>document.getElementById('resCuerpo').textContent);
+chk('resultados: dice «7 rondas jugadas (5 fueron desafíos)» (un desafío ya no se cuenta dos veces)',/7 rondas jugadas \(5 fueron desafíos\)/.test(txtR),txtR.slice(0,160));
+await p.click('#resCerrar');await p.waitForTimeout(400);await p.click('#pBorrar');await p.waitForTimeout(1300);await p.click('#pBorrar');
+st=await estado(p);
+chk('«Borrar» también reinicia los desafíos (y las rondas, las figuritas y los resultados)',st.desafios===0&&st.rondas===0&&st.peg.length===0&&st.bien===0,j([st.desafios,st.rondas,st.peg,st.bien]));
+await ctx.close();
+
 // ---------- 6) equivocarse nunca traba: probá de nuevo → el bueno late → se lo muestra y sigue
 ({ctx,p}=await abrir());
 await iniciar(p,'e_animals');await esperarPregunta(p);
@@ -332,7 +385,7 @@ chk('1ª equivocación: la opción se apaga y se sacude, la voz dice «Probá de
 await p.locator('#jOps .op:not([data-ok]):not(.no)').first().click({force:true});await p.waitForTimeout(150);
 e1=await p.evaluate(()=>({no:document.querySelectorAll('#jOps .op.no').length,pistaOk:!!document.querySelector('#jOps .op.pista[data-ok]'),punto:[...document.querySelectorAll('#jPuntos i')].findIndex(i=>i.classList.contains('ahora'))}));
 chk('2ª equivocación: ahora la opción correcta late (pista) y sigue en la misma pregunta',e1.no===2&&e1.pistaOk&&e1.punto===0,j(e1));
-await p.locator('#jOps .op.no').first().click({force:true});
+await p.waitForTimeout(700);await p.locator('#jOps .op.no').first().click({force:true});
 await esperarPunto(p,1);
 e1=await p.evaluate(()=>({punto:[...document.querySelectorAll('#jPuntos i')].findIndex(i=>i.classList.contains('ahora')),dicho:S5.hablados.slice(-12).includes(S5.C.ES.esEste)}));
 chk('3ª equivocación: la app se lo muestra («¡Es este!») y pasa sola a la pregunta siguiente: nunca queda trabada',e1.punto===1&&e1.dicho,j(e1));
@@ -347,7 +400,7 @@ await iniciar(p,'m_dame',1);await esperarPregunta(p);
 await contestar(p,'mal');await p.waitForTimeout(300);
 e1=await p.evaluate(()=>({punto:[...document.querySelectorAll('#jPuntos i')].findIndex(i=>i.classList.contains('ahora')),dicho:S5.hablados.includes(S5.C.ES.retry)}));
 chk('canasta: tocar ✔ con la cantidad equivocada dice «Probá de nuevo» y deja seguir',e1.punto===0&&e1.dicho,j(e1));
-await contestar(p,'mal');await contestar(p,'mal');await esperarPunto(p,1);
+await p.waitForTimeout(700);await contestar(p,'mal');await p.waitForTimeout(700);await contestar(p,'mal');await esperarPunto(p,1);
 chk('canasta: a la 3ª equivocación se la arma y pasa a la siguiente',await p.evaluate(()=>[...document.querySelectorAll('#jPuntos i')].findIndex(i=>i.classList.contains('ahora')))===1);
 // armar el nombre: una letra equivocada se sacude y no traba
 await p.click('#jAtras');await p.waitForSelector('#pArea:not([hidden])');
@@ -736,7 +789,7 @@ chk('sin errores de página con los resultados',p.errs.length===0,j(p.errs));
 await ctx.close();
 
 // ---------- 13) DISEÑO: cinco tamaños de pantalla × todos los juegos × todos los niveles
-const TAMANOS=[[360,640,'celular chico'],[390,844,'celular'],[768,1024,'tablet vertical'],[1024,768,'tablet horizontal'],[844,390,'celular de costado'],[320,568,'iPhone SE (el más angosto)'],[667,375,'iPhone 8 de costado (el más bajo)']];
+const TAMANOS=[[360,640,'celular chico'],[390,844,'celular'],[768,1024,'tablet vertical'],[1024,768,'tablet horizontal'],[844,390,'celular de costado'],[320,568,'iPhone SE (el más angosto)'],[667,375,'iPhone 8 de costado'],[740,360,'Android de costado'],[640,360,'Android chico de costado'],[720,336,'celular de costado con la barra del navegador (el más bajo)']];
 for(const [w,h,nom] of TAMANOS){
   ({ctx,p}=await abrir({vp:{width:w,height:h},estado:{nombre:'Sofía'}}));
   const rr=await p.evaluate(async()=>{
@@ -754,8 +807,11 @@ for(const [w,h,nom] of TAMANOS){
       document.querySelectorAll('#tiles .tile').forEach(t=>{const r=caja(t);if(r.w<80||r.h<80)out.push({nom:'tile '+a,prob:['tile chico '+Math.round(r.w)+'x'+Math.round(r.h)]})});
       document.getElementById('aAtras').click();await espera(20)}
     // todos los juegos, todos los niveles, 3 sorteos
-    for(const g of S.juegos){for(let niv=1;niv<=g.niv;niv++){for(let k=0;k<3;k++){
+    // además de 3 sorteos por nivel, el PEOR CASO de los juegos cuyo tamaño depende del sorteo (30 cosas para contar, dos grupos de 10, una palabra de 6 letras, 12 en la canasta, 9 decenas)
+    const PEOR={m_contar:{niv:4,re:/^c30$/},m_sumar:{niv:3,re:/^10\+10$/},l_completar:{niv:3,re:/^cf[a-z]{6}\d$/},m_dame:{niv:3,re:/^d12$/},m_decenas:{niv:3,re:/^dec9\d$/}};
+    for(const g of S.juegos){for(let niv=1;niv<=g.niv;niv++){for(let k=0;k<4;k++){
       S.estado().juegos[g.id]={nivel:niv,rondas:0,perfectas:0,mejor:0};S.nivelFijo=niv;S.jugar(g.id);await espera(25);
+      if(k===3){const pe=PEOR[g.id];if(!pe||pe.niv!==niv)continue;for(let tt=0;tt<120&&!(S.actual()&&pe.re.test(S.actual().clave||''));tt++){S.jugar(g.id);await espera(10)}await espera(25)}
       const prob=[],doc=document.documentElement;
       if(doc.scrollWidth>W+1)prob.push('scroll horizontal '+doc.scrollWidth+'>'+W);
       if(doc.scrollHeight>H+1)prob.push('scroll vertical '+doc.scrollHeight+'>'+H);
@@ -769,11 +825,26 @@ for(const [w,h,nom] of TAMANOS){
       const cajas=[...est.querySelectorAll('.seq .caja')];if(cajas.length){if(new Set(cajas.map(c=>Math.round(caja(c).t))).size!==1)prob.push('la secuencia no entra en una sola fila');cajas.forEach(c=>{if(c.scrollWidth>c.clientWidth+1||c.scrollHeight>c.clientHeight+1)prob.push('algo no entra en su caja de la secuencia')})}
       [...document.querySelectorAll('#jEst *,#jOps *')].forEach(e=>{if(!(e instanceof SVGElement)&&e.clientWidth>0&&e.scrollWidth>e.clientWidth+1&&getComputedStyle(e).overflowX==='visible')prob.push('algo se sale de su caja: '+(e.className||e.tagName))});   // (un dibujo SVG se recorta solo con su marco: lo que cuenta es la caja del propio dibujo, que ya se mide arriba)
       const nombres=toc.filter(e=>!(e.getAttribute('aria-label')||e.innerText||'').trim());if(nombres.length)prob.push('botón sin nombre');
+      const cartas=[...est.querySelectorAll('.carta')];   // memotest: una cuadrícula pareja (3+3, 4+4, 4+4+4, o dos filas de costado), con las cartas de 44 px o más
+      if(cartas.length){const filas={};cartas.forEach(c=>{const tt=Math.round(caja(c).t);filas[tt]=(filas[tt]||0)+1});const cs=Object.values(filas),cols=+getComputedStyle(est.querySelector('.memo')).getPropertyValue('--cols');
+        if(new Set(cs).size!==1)prob.push('el memotest no forma una cuadrícula pareja: '+cs.join('+'));
+        if(cs.some(x=>x>cols))prob.push('el memotest tiene más cartas por fila ('+cs.join('+')+') que columnas ('+cols+')');
+        cartas.forEach(c=>{const r=caja(c);if(r.w<44||r.h<44)prob.push('carta chica '+Math.round(r.w)+'x'+Math.round(r.h))})}
       if(prob.length)out.push({nom:g.id+' n'+niv,prob:[...new Set(prob)]})}}}
     S.nivelFijo=0;
+    // el Desafío: sus 8 puntos y el 🔊 tienen que entrar en la barra de arriba
+    S.desafio();await espera(120);
+    {const prob=[],rb=caja(document.getElementById('jRepetir')),pts=[...document.querySelectorAll('#jPuntos i')],ps=document.getElementById('jPuntos');
+      if(rb.r>W+1||rb.l<-1)prob.push('el 🔊 se sale de la pantalla ('+Math.round(rb.r)+' > '+W+')');
+      if(pts.length!==8)prob.push(pts.length+' puntos en vez de 8');
+      pts.forEach(i=>{const r=caja(i);if(r.r>W+1||r.l<-1||r.w<10)prob.push('un punto se sale o es muy chico')});
+      if(ps.scrollWidth>ps.clientWidth+1)prob.push('los puntos desbordan');
+      if(prob.length)out.push({nom:'desafío (barra de arriba)',prob})}
+    document.getElementById('jAtras').click();await espera(60);
     // el premio y el panel para grandes tienen que entrar en la pantalla (o poder desplazarse)
-    S.jugar('e_animals');await espera(20);document.getElementById('premioPeg').textContent='🦄';document.getElementById('premio').hidden=false;
+    S.jugar('e_animals');await espera(20);document.getElementById('premioPeg').textContent='🦄';document.getElementById('premioEst').textContent='⭐'.repeat(8);document.getElementById('premio').hidden=false;   // (las 8 estrellas del Desafío)
     const cmE=document.querySelector('#premio .caja-modal'),cm=caja(cmE);if(fuera(cm))out.push({nom:'premio',prob:['no entra en la pantalla']});
+    {const rg=document.createRange();rg.selectNodeContents(document.getElementById('premioEst'));const re8=rg.getBoundingClientRect();if(re8.right>cm.r-4||re8.left<cm.l+4)out.push({nom:'premio',prob:['las 8 estrellas no entran en la tarjeta']})}
     if(cmE.scrollHeight>cmE.clientHeight+1)out.push({nom:'premio',prob:['hay que desplazar para llegar a los botones '+cmE.scrollHeight+'>'+cmE.clientHeight]});
     document.getElementById('premio').hidden=true;
     document.getElementById('padres').hidden=false;const pm=document.querySelector('#padres .caja-modal');

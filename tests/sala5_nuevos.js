@@ -119,7 +119,7 @@ const r=await p.evaluate(()=>{
   F('m_tamano',3,150,q=>{const ws=q.opciones.map(o=>+/width:(\d+)%/.exec(o.h)[1]),mas=q.decir[0].includes('largo');const gana=mas?Math.max(...ws):Math.min(...ws);
     if(ws[q.opciones.findIndex(o=>o.ok)]!==gana)return 'la correcta no es la más '+(mas?'larga':'corta');if(new Set(ws).size!==3)return 'barras iguales';if(Math.max(...ws)-Math.min(...ws)<30)return 'barras muy parecidas'});
   const memoN=(id,niv,veces,fn)=>F(id,niv,veces,q=>{
-    if(q.tipo!=='memo')return 'no es memotest';const cant=[[3,5,4,6],[3,5,4,6]][id==='m_memo'?0:1][niv-1];if(q.pares.length!==cant)return q.pares.length+' pares y tocan '+cant;
+    if(q.tipo!=='memo')return 'no es memotest';const cant=[3,4,4,6][niv-1];if(q.pares.length!==cant)return q.pares.length+' pares y tocan '+cant;
     const caras=q.pares.flatMap(p=>[p.a,p.b]);if(new Set(caras).size!==caras.length)return 'cartas repetidas';
     if(!q.pares.every(p=>(p.ka||[]).concat(p.kb||[]).every(k=>HAY.has(k))))return 'una carta sin audio';return fn(q)});
   for(let n=1;n<=4;n++)memoN('m_memo',n,60,q=>{
@@ -159,7 +159,7 @@ const r=await p.evaluate(()=>{
     for(const o of q.opciones){if(o.ok)continue;const y=C.PALBY[o.aria];if(y.ini===w.ini||(C.SUENAN_IGUAL[w.ini]||'').includes(y.ini))return '«'+y.p+'» empieza igual (o suena) que «'+w.p+'»';if(C.altInicial(y.p)===w.ini)return '«'+y.p+'» también se llama «'+C.ALT_NOMBRE[y.p]+'» y empieza igual que «'+w.p+'»'}
     if(q.opciones.length!==(n===3?4:3))return q.opciones.length+' opciones';if(n===1&&!'AEIOUMPSLT'.includes(w.ini))return 'el nivel 1 son letras fáciles'});
   for(let n=1;n<=3;n++)F('l_completar',n,250,q=>{
-    const w=tts(q.decir[0]),letra=ok(q).aria.replace('letra ',''),txt=doc(q.est).querySelector('.palabra').textContent,pos=txt.indexOf('_');
+    const w=tts(q.decir[0]),letra=ok(q).aria.replace('letra ',''),txt=doc(doc(q.est).querySelector('.palabra').innerHTML.replace('<b class="falta"></b>','_')).textContent,pos=txt.indexOf('_');
     if(txt.replace('_',letra)!==w.toUpperCase())return 'con «'+letra+'» queda «'+txt.replace('_',letra)+'» y la palabra es «'+w+'»';
     if(/h|ll|rr|ch|qu|gu/.test(w)||!/^[a-z]+$/.test(w))return 'palabra con letras difíciles';
     if(n===1&&pos!==0)return 'el nivel 1 es la primera letra';if(n===2&&pos!==w.length-1)return 'el nivel 2 es la última';if(n===3&&!(pos>0&&pos<w.length-1))return 'el nivel 3 es una del medio';

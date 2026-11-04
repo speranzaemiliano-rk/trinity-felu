@@ -2,7 +2,7 @@
 // Cada juego tiene varios niveles; el motor adaptativo (adaptar.js) elige cuál toca en cada pregunta. Los audios de todo lo que se dice salen de contenido.js y contenido2.js.
 (function(){
 "use strict";
-const S5=window.S5,C=S5.C,H=S5.H,ES=C.ES,{J,azar,elegir,mezclar,sacar,numOp,numerales,cercanos,palabrasCon,VOCALES,PAUSA}=H;
+const S5=window.S5,C=S5.C,H=S5.H,ES=C.ES,{J,azar,elegir,mezclar,sacar,numOp,numerales,cercanos,objs,palabrasCon,VOCALES,PAUSA}=H;
 const limpia=x=>/^[a-z]+$/.test(x.p);   // palabras de letras simples (sin tilde, ñ ni ü): para armarlas y completarlas letra por letra
 const SONIDO_RARO=w=>w.h||w.ll||w.p==="girasol";   // la H no suena, la LL es una sola letra en el habla y «girasol» empieza con sonido de J: no sirven para «empieza igual»
 const parecen=(a,b)=>(C.SUENAN_IGUAL[a]||"").includes(b)||(C.SUENAN_IGUAL[b]||"").includes(a);   // letras que suenan igual al empezar una palabra
@@ -52,7 +52,8 @@ J("m_problemas","mates","📖","Problemas",4,nivel=>{
     decir=[ES.tengo,C.numES(a),o.k,PAUSA,ES.meRegalan,C.numES(b),ES.mas,PAUSA,ES.seVan,C.numES(c),PAUSA,quedan];res=a+b-c;txt=a+" + "+b+" − "+c;
   }
   return {tipo:"eleccion",clave:"pr"+txt+o.e,rotulo:"Problema: "+txt+" "+o.pl,decir,est:`<div class="grande peq">${o.e}</div>`,
-    opciones:numerales(res,1,nivel<=2?10:20,nivel===1?3:4).map(k=>numOp(k,k===res,C.numES)),alAcertar:[]};
+    opciones:numerales(res,1,nivel<=2?10:20,nivel===1?3:4).map(k=>numOp(k,k===res,C.numES)),alAcertar:[],
+    revelar:el=>{el.innerHTML=objs(o.e,res,5)}};   // al contestar se ve la respuesta: tantas cosas como el resultado (el dibujo de antes es una sola cosa, nada más para saber de qué habla el problema)
 });
 
 // ---- la hora (en punto): leer el reloj, o encontrar el reloj de las N

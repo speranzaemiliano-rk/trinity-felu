@@ -1,5 +1,5 @@
 // Service worker: guarda la app para abrirla sin conexión (la voz y el dictado igual necesitan internet)
-const CACHE="trinity-felu-v19";
+const CACHE="trinity-felu-v20";
 // Sirve al inicio («./», con el menú) y a los tres módulos (Felu en «./felu/», Raphina en «./raphina/» y «Sala de 5» en «./sala5/»). Felu y Raphina comparten motor, estilos y audios; «Sala de 5» trae los suyos.
 // («./felu/» va aparte de «./felu/index.html»: la app instalada abre la carpeta, y para el caché es otra dirección)
 const ARCHIVOS=["./","./index.html","./manifest.json","./icon.svg","./icon-192.png","./icon-512.png","./estilos.css","./comun.js","./escucha.js","./contenido-g3.js","./contenido-g4.js","./motor.js","./firebase-config.js","./audio/manifest.js","./felu/","./felu/index.html","./felu/manifest.json","./felu/icon.svg","./felu/icon-192.png","./felu/icon-512.png","./raphina/","./raphina/index.html","./raphina/manifest.json","./raphina/icon.svg","./raphina/icon-192.png","./raphina/icon-512.png","./sala5/","./sala5/index.html","./sala5/manifest.json","./sala5/icon.svg","./sala5/icon-192.png","./sala5/icon-512.png","./sala5/sala5.css","./sala5/contenido.js","./sala5/contenido2.js","./sala5/adaptar.js","./sala5/juego.js","./sala5/juegos2.js","./sala5/audio/manifest.js"];

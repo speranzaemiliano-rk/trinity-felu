@@ -73,6 +73,7 @@ const r=await p.evaluate(()=>{
     const pl=C.PROB.find(x=>d.includes(x.k));if(!pl)return 'la voz no dice qué se cuenta';
     const fem=d.some(k=>/cuantas/.test(k)),masc=d.some(k=>/cuantos/.test(k));if(pl.f?(!fem||masc):(!masc||fem))return 'el género no concuerda con «'+pl.pl+'»';
     if(!doc(q.est).textContent.includes(pl.e))return 'el dibujo no es de lo que se cuenta';
+    {const d=document.createElement('div');q.revelar(d);if(d.querySelectorAll('.obj').length!==res||!d.textContent.includes(pl.e))return 'al contestar se tienen que ver '+res+' cosas y se ven '+d.querySelectorAll('.obj').length}
     if(n===1&&(resta||res>6||nums.some(x=>x>3)))return 'el nivel 1 son sumas de 2 o 3 más 2 o 3';if(n===2&&Math.max(...nums,res)>10)return 'el nivel 2 pasa de 10';if(n===3&&Math.max(...nums,res)>20)return 'el nivel 3 pasa de 20';
     if(n===4&&!(suma&&resta))return 'el nivel 4 son dos pasos';if(n===3&&suma&&resta)return 'el nivel 3 no es de dos pasos';
     if(q.opciones.length!==(n===1?3:4))return q.opciones.length+' opciones';

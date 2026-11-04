@@ -38,6 +38,7 @@ function guardar(){try{localStorage.setItem(KEY,JSON.stringify(ST))}catch(e){}}
 // ---------------- voz (mp3 grabados) y sonidos
 const HAY=new Set(window.S5_AUDIO||[]);
 S5.hablados=[];   // para las pruebas: cada clave que se pidió
+const PAUSA="|";   // en una lista de frases (decir:[…]) es una pausa entre oraciones: «Tengo tres globos | Se van dos | ¿Cuántos me quedan?»
 const Voz={
   a:new Audio(),seq:0,fin:null,
   uno(k){
@@ -63,7 +64,7 @@ const Voz={
   async decir(claves){
     const id=++Voz.seq,lista=[].concat(claves).filter(Boolean);
     Voz.cortar();habla(true);   // una frase nueva corta la anterior (tocar rápido no las amontona)
-    for(const k of lista){if(id!==Voz.seq)return false;await Voz.uno(k);if(id!==Voz.seq)return false;await pausa(40)}
+    for(const k of lista){if(id!==Voz.seq)return false;if(k===PAUSA){await pausa(380);continue}await Voz.uno(k);if(id!==Voz.seq)return false;await pausa(40)}
     if(id===Voz.seq)habla(false);
     return id===Voz.seq;
   },
@@ -125,7 +126,7 @@ J("m_mas","mates","⚖️","Más y menos",3,nivel=>{
 J("m_sumar","mates","➕","Sumar",5,nivel=>{
   if(nivel===5){   // «5 + ? = 9»: hay que encontrar el sumando que falta
     const total=azar(5,20),a=azar(1,total-1),b=total-a;
-    return {tipo:"eleccion",clave:"sf"+a+"+"+b,rotulo:"Sumar: "+a+" + ? = "+total,decir:[C.numES(a),C.ES.masQueNumeroDa,C.numES(total)],est:ecu(a,"+","?","=",total),
+    return {tipo:"eleccion",clave:"sf"+a+"+"+b,rotulo:"Sumar: "+a+" + ? = "+total,decir:[C.numES(a),C.ES.mas,C.ES.cuantoQ,C.ES.esIgualA,C.numES(total)],est:ecu(a,"+","?","=",total),
       opciones:numerales(b,1,19,3).map(k=>numOp(k,k===b,C.numES)),alAcertar:[],revelar:el=>{const h=el.querySelector(".hueco-n");if(h){h.textContent=b;h.classList.add("lleno")}}};
   }
   if(nivel===4){   // la cuenta sola (sin dibujos), que pasa del 10: 8 + 7
@@ -155,18 +156,14 @@ J("m_falta","mates","❓","¿Qué falta?",5,nivel=>{
   else if(Math.random()<.4){const ini=azar(6,20);sec=[0,1,2,3,4].map(i=>ini-i)}   // cuenta regresiva
   else{const ini=azar(21,95);sec=[0,1,2,3,4].map(i=>ini+i)}   // números grandes
   const h=azar(nivel===1?1:0,3),falta=sec[h],cajas=sec.map((n,i)=>i===h?`<span class="caja hueco">?</span>`:`<span class="caja">${n}</span>`).join("");
-  let ops;
-  if(nivel<=3){const ini=sec[0],lim=nivel===3?20:nivel===2?10:5;ops=numerales(falta,Math.max(1,ini-1),Math.min(20,Math.max(lim,ini+5)),3)}
-  else{   // sin los que ya se ven en la fila: los que se parecen (uno más, uno menos…)
-    const cand=[1,-1,2,-2,3,-3,5,-5,10,-10].map(d=>falta+d).filter(k=>k>=1&&k<=100&&!sec.includes(k));
-    ops=mezclar([falta].concat(sacar(cand.slice(0,6),3)));
-  }
+  const cand=[1,-1,2,-2,3,-3,4,-4,5,-5,10,-10].map(d=>falta+d).filter(k=>k>=1&&k<=99&&!sec.includes(k));   // los que se parecen (uno más, uno menos…) SIN los que ya se ven en la fila: si no, se acierta por descarte
+  const ops=mezclar([falta].concat(sacar(cand.slice(0,6),nivel<=3?2:3)));
   return {tipo:"eleccion",clave:"f"+sec[0]+"-"+paso+"-"+sec[1]+"-"+h,rotulo:"Qué número falta: "+falta,decir:[C.ES.queFalta],est:`<div class="seq" style="--n:5">${cajas}</div>`,opciones:ops.map(k=>numOp(k,k===falta,C.numES)),
     alAcertar:sec.map(C.numES),revelar:el=>{el.querySelector(".hueco").outerHTML=`<span class="caja lleno">${falta}</span>`}};
 });
 J("m_numeros","mates","7️⃣","Los números",5,nivel=>{
   const [min,max]=[[1,5],[1,10],[10,20],[21,50],[51,99]][nivel-1],t=azar(min,max);
-  return {tipo:"eleccion",clave:"n"+t,decir:t<=20?[C.tocaNum(t)]:[C.ES.toca,C.numES(t)],opciones:(nivel>=4?cercanos(t,1,99,3):numerales(t,min,max,nivel===1?3:4)).map(k=>numOp(k,k===t,C.numES)),alAcertar:[]};
+  return {tipo:"eleccion",clave:"n"+t,decir:[C.tocaNum(t)],opciones:(nivel>=4?cercanos(t,1,99,3):numerales(t,min,max,nivel===1?3:4)).map(k=>numOp(k,k===t,C.numES)),alAcertar:[]};
 });
 const COL_FIG=["#e53935","#1e88e5","#43a047","#fb8c00","#8e24aa","#f9a825"];
 const LADOS={triangulo:3,cuadrado:4,rectangulo:4,rombo:4,pentagono:5,hexagono:6};
@@ -203,7 +200,7 @@ J("m_tamano","mates","🐘","Grande y chico",3,nivel=>{
 // ===== LENGUA
 const VOCALES=["A","E","I","O","U"],FACILES=["M","P","S","L","T"];
 const SE_PARECEN=[["b","d","p","q"],["m","n","ñ","h"],["a","o","e","c"],["i","l","j","t"],["u","v","n"],["w","v","y"],["s","z","x"],["f","t","r"],["g","q","y"]];   // minúsculas que se confunden
-J("l_letra","lengua","🔤","Las letras",4,nivel=>{
+J("l_letra","lengua","🅰️","Las letras",4,nivel=>{
   if(nivel===4){   // sólo minúsculas, con las que se parecen de distractores
     const t=elegir(C.LETRAS).toLowerCase(),cand=[...new Set([].concat(...SE_PARECEN.filter(g=>g.includes(t))))].filter(x=>x!==t),ds=sacar(cand,3);
     while(ds.length<3){const x=elegir(C.LETRAS).toLowerCase();if(x!==t&&!ds.includes(x))ds.push(x)}
@@ -215,7 +212,7 @@ J("l_letra","lengua","🔤","Las letras",4,nivel=>{
 });
 const palabrasCon=f=>C.PAL.filter(f);
 const FINALES_VOC=["A","E","I","O","U"],FINALES_CON=["L","N","R","S","D","M","P","T"];
-J("l_inicial","lengua","🔠","¿Con qué letra empieza?",4,nivel=>{
+J("l_inicial","lengua","🏁","¿Con qué letra empieza?",4,nivel=>{
   if(nivel===4){   // ¿con qué letra termina? (las otras vocales de distractores: hay que oír el final)
     const fin=x=>C.sinAcento(x.p).slice(-1).toUpperCase(),w=elegir(palabrasCon(x=>!x.ll&&/[AEIOULNRZS]/.test(fin(x)))),f=fin(w),vocal=FINALES_VOC.includes(f);
     const malos=x=>x===f||(C.SUENAN_IGUAL[f]||"").includes(x),ds=sacar(FINALES_VOC.filter(x=>!malos(x)),vocal?2:1).concat(sacar(FINALES_CON.filter(x=>!malos(x)),vocal?1:2));
@@ -385,7 +382,7 @@ function preguntar(q,id,nivel){
   return new Promise(res=>{
     const Qc={q,nivel,errores:0,resuelta:false,id,fin:res,res:v=>{clearTimeout(Qc.idle);registrar(Qc,v);res(v)}};
     Q=Qc;
-    $("jTexto").textContent=(q.decir||[]).map((k,i)=>q.ocultar&&q.ocultar.includes(i)?"…":(S5.audio[k]?S5.audio[k].tts:"")).join(" ");   // (en «Leer» y «¿Con qué letra empieza?» no se imprime la palabra: sería la respuesta)
+    $("jTexto").textContent=(q.decir||[]).map((k,i)=>q.ocultar&&q.ocultar.includes(i)?"…":(S5.audio[k]?S5.audio[k].tts:"")).filter(Boolean).join(" ");   // (en «Leer» y «¿Con qué letra empieza?» no se imprime la palabra: sería la respuesta)
     if(q.tipo==="canasta")return canasta(q,id);
     if(q.tipo==="nombre")return nombre(q,id);
     if(q.tipo==="memo")return memo(q,id);
@@ -499,7 +496,7 @@ function nombre(q,id){
 // ---- memotest: dar vuelta de a dos cartas y encontrar las parejas. q.pares = [{a,b,ka,kb}]: lo que se ve en cada carta y lo que dice la voz al darla vuelta.
 // Equivocarse no es grave (es un juego de memoria): la pregunta cuenta «bien» si no necesitó más de dos intentos por pareja, y el motor la mide con q.o (no con la cantidad de errores).
 function memo(q,id){
-  const est=$("jEst"),ops=$("jOps"),Qc=Q,cartas=mezclar(q.pares.flatMap((p,i)=>[{par:i,h:p.a,dice:p.ka||[]},{par:i,h:p.b,dice:p.kb||[]}])),n=cartas.length,cols=n===6?3:n===10?5:4,filas=Math.ceil(n/cols);
+  const est=$("jEst"),ops=$("jOps"),Qc=Q,cartas=mezclar(q.pares.flatMap((p,i)=>[{par:i,h:p.a,dice:p.ka||[]},{par:i,h:p.b,dice:p.kb||[]}])),n=cartas.length,cols=n===6?3:4,filas=Math.ceil(n/cols);
   est.innerHTML=`<div class="memo" style="--cols:${cols};--filas:${filas}">`+cartas.map((c,i)=>`<button class="carta" data-par="${c.par}" aria-label="carta ${i+1}"><span class="dorso">❓</span><span class="frente">${c.h}</span></button>`).join("")+`</div>`;
   ops.innerHTML="";ops.style.setProperty("--cols",1);
   const bs=[...est.querySelectorAll(".carta")];let abiertas=[],ocupado=false,fallos=0,hechas=0;
@@ -619,7 +616,7 @@ function iniciarEventos(){
   document.addEventListener("visibilitychange",()=>{if(document.hidden){Voz.parar();if(Q)clearTimeout(Q.idle)}else rearmar()});
 }
 
-S5.H={J,azar,elegir,mezclar,sacar,numOp,numerales,cercanos,objs,ecu,cheers,palabrasCon,COL_FIG,FICHAS,VOCALES,FACILES};   // lo que usa juegos2.js (los juegos nuevos)
+S5.H={J,azar,elegir,mezclar,sacar,numOp,numerales,cercanos,objs,ecu,cheers,palabrasCon,COL_FIG,FICHAS,VOCALES,FACILES,PAUSA};   // lo que usa juegos2.js (los juegos nuevos)
 S5.actual=()=>Q&&Q.q||null;S5.juegoActual=()=>JACT;   // (para las pruebas: la pregunta y el juego que están en pantalla)
 S5.voz=Voz;S5.juegos=JUEGOS;S5.desafio=desafio;S5.habDe=habDe;S5.gen=(id,n)=>JUEGOS.find(j=>j.id===id).gen(n||1);S5.estado=()=>ST;S5.nivelDe=nivelDe;S5.jugar=id=>{jugar(JUEGOS.find(j=>j.id===id))};   // (sin devolver la promesa de toda la ronda: las pruebas no tienen que esperarla)
 const ajustarVh=()=>document.documentElement.style.setProperty("--vh",(window.innerHeight/100)+"px");   // «vh» de verdad: el alto que se ve (en Safari con la barra de direcciones, 100vh es más alto que la pantalla visible)

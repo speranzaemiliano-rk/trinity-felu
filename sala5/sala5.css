@@ -167,6 +167,8 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
 .reloj .rh{stroke:var(--cs);stroke-width:5.5;stroke-linecap:round}
 .reloj .rm{stroke:#e91e63;stroke-width:3.2;stroke-linecap:round}
 .reloj .rp{fill:var(--cs)}
+.reloj.guia .rm{stroke:#d3cde8;stroke-width:2.4}   /* nivel 1: la manito larga se ve finita y clarita, para mirar la corta */
+.reloj.guia .rh{stroke-width:7}
 .nums .hueco-l,.nums .letra-f{width:clamp(54px,17vw,92px);font-size:clamp(1.5rem,7.5vw,2.6rem)}   /* ordenar números: las fichas con números de dos cifras */
 /* memotest */
 .memo{--card:min(calc((min(100vw,640px) - 24px - (var(--cols) - 1)*10px)/var(--cols)),calc((100*var(--vh) - 175px - (var(--filas) - 1)*10px)/var(--filas)),150px);display:flex;flex-wrap:wrap;justify-content:center;gap:10px;width:100%;max-width:640px}
@@ -180,7 +182,7 @@ button:focus-visible{outline:5px solid #ffb300;outline-offset:3px}
 .carta.pista{animation:late .7s ease-in-out infinite;outline:5px solid #ffb300;outline-offset:2px}
 .carta .eq{font-size:.62em;white-space:nowrap}
 .carta .e{font-size:.9em;font-family:var(--emoji)}
-.carta .q{display:flex;flex-wrap:wrap;justify-content:center;align-content:center;width:100%;padding:0 6%;font-size:.38em;line-height:1.1}
+.carta .q{display:flex;flex-wrap:wrap;justify-content:center;align-content:center;width:100%;padding:0 4%;font-size:.46em;line-height:1.1}   /* las cositas de cada carta (hasta 6): lo bastante grandes para contarlas */
 .carta .q i{font-style:normal;font-family:var(--emoji)}
 
 /* mascota chica y repetir */

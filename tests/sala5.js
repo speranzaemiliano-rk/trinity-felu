@@ -145,7 +145,7 @@ const gen=await p.evaluate(()=>{
   S5.juegos.forEach(j=>{for(let n=1;n<=j.niv;n++)for(let i=0;i<120;i++){
     let q;try{q=j.gen(n)}catch(e){mal.push(j.id+' n'+n+': '+e.message);break}
     preguntas++;
-    const sin=clavesDe(q).filter(k=>!HAY.has(k));if(sin.length)mal.push(j.id+' n'+n+': sin audio '+sin.slice(0,3));
+    const sin=clavesDe(q).filter(k=>k!=='|'&&!HAY.has(k));if(sin.length)mal.push(j.id+' n'+n+': sin audio '+sin.slice(0,3));
     if(!(q.decir&&q.decir.length))mal.push(j.id+': no dice nada');
     if(q.tipo==='eleccion'){
       const oks=q.opciones.filter(o=>o.ok).length;if(oks!==1)mal.push(j.id+' n'+n+': '+oks+' correctas');
@@ -543,6 +543,8 @@ const rafaga=await p.evaluate(async()=>{
   return {fin:Array.isArray(fin)?fin.map(x=>x):fin,ultimo:window.__plays[window.__plays.length-1].src.replace('.mp3',''),esperado:K[K.length-1]};
 });
 chk('8 toques seguidos (contar rápido) no dejan nada colgado: la última frase pedida es la que termina sonando',Array.isArray(rafaga.fin)&&rafaga.fin.filter(x=>x===true).length===1&&rafaga.ultimo===rafaga.esperado,j(rafaga));
+const pz=await p.evaluate(async()=>{S5.hablados.length=0;const t0=performance.now();const fin=await S5.voz.decir([S5.C.numES(1),'|',S5.C.numES(2)]);return {ms:Math.round(performance.now()-t0),fin,dicho:S5.hablados.slice(),n1:S5.C.numES(1),n2:S5.C.numES(2)}});
+chk('una pausa entre oraciones («|» dentro de una lista de frases) espera casi medio segundo y no se pide como audio (para los problemas hablados: «Tengo tres globos | Se van dos | ¿Cuántos me quedan?»)',pz.fin===true&&pz.ms>=380&&pz.dicho.join()===[pz.n1,pz.n2].join(),j(pz));
 chk('sin errores de página con la voz',p.errs.length===0,j(p.errs));
 await ctx.close();
 // si el mp3 no baja, habla el aparato y se ESPERA a que termine cada frase (antes la promesa rechazada del audio la daba por terminada enseguida)

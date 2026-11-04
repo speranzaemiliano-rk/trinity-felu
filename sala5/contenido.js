@@ -23,7 +23,7 @@ for(let n=0;n<=20;n++){numES(n);numEN(n)}
 
 // ---------------- letras (el nombre de cada una, escrito como suena para que la voz no lo lea como palabra)
 const LETRAS="ABCDEFGHIJKLMNÑOPQRSTUVWXYZ".split("");
-const NOM_ES={A:"a",B:"be",C:"ce",D:"de",E:"e",F:"efe",G:"ge",H:"hache",I:"i",J:"jota",K:"ka",L:"ele",M:"eme",N:"ene","Ñ":"eñe",O:"o",P:"pe",Q:"cu",R:"erre",S:"ese",T:"te",U:"u",V:"uve",W:"doble ve",X:"equis",Y:"i griega",Z:"zeta"};
+const NOM_ES={A:"a",B:"be larga",C:"ce",D:"de",E:"e",F:"efe",G:"ge",H:"hache",I:"i",J:"jota",K:"ka",L:"ele",M:"eme",N:"ene","Ñ":"eñe",O:"o",P:"pe",Q:"cu",R:"erre",S:"ese",T:"te",U:"u",V:"ve corta",W:"doble ve",X:"equis",Y:"i griega",Z:"zeta"};
 const NOM_EN={A:"ay",B:"bee",C:"see",D:"dee",E:"ee",F:"eff",G:"jee",H:"aitch",I:"eye",J:"jay",K:"kay",L:"ell",M:"em",N:"en",O:"oh",P:"pee",Q:"queue",R:"ar",S:"ess",T:"tee",U:"you",V:"vee",W:"double you",X:"ex",Y:"why",Z:"zed"};
 const cl=L=>L==="Ñ"?"nn":L.toLowerCase();
 const letraES=L=>A("es",NOM_ES[L],"letra-"+cl(L)),tocaLetraES=L=>A("es","Tocá la letra "+NOM_ES[L],"toca-letra-"+cl(L));
@@ -139,9 +139,12 @@ const AMB_PAL=[["flor","rosa"],["flor","girasol"],["boca","beso"],["uno","dedo"]
 const ambPal=(a,b)=>AMB_PAL.some(([x,y])=>(x===a.p&&y===b.p)||(x===b.p&&y===a.p));
 const AMB_EN=[["bird","duck"],["foot","leg"]];
 const ambEn=(a,b)=>AMB_EN.some(([x,y])=>(x===a.w&&y===b.w)||(x===b.w&&y===a.w));
+// segundo nombre muy común de un dibujo (con otra inicial): si ese dibujo aparece entre las opciones de «¿cuál empieza igual?» o en un memotest de letras, podría tomarse por una respuesta válida
+const ALT_NOMBRE={gallina:"pollo",isla:"playa",ola:"mar",nube:"cielo",iguana:"lagarto",gota:"agua",rana:"sapo",naranja:"mandarina",leche:"vaso",fuego:"llama",pelota:"fútbol"};
+const altInicial=p=>ALT_NOMBRE[p]?sinAcento(ALT_NOMBRE[p])[0].toUpperCase():"";
 // letras que en el habla de acá suenan igual al empezar una palabra (barco/vaca, sol/zapato, casa/queso, girasol/jirafa…) y la H muda (helado, hueso…: suenan a vocal)
 const SUENAN_IGUAL={B:"V",V:"B",S:"ZC",Z:"SC",C:"QKSZ",Q:"CK",K:"CQ",G:"J",J:"G",H:"AEIOU"};
 
 S5.C={NUM_ES,NUM_EN,numES,numEN,LETRAS,NOM_ES,NOM_EN,letraES,tocaLetraES,letraEN,tocaLetraEN,ES,EN,CHEERS_ES,CHEERS_EN,poneCanasta,tocaNum,touchNum,FORMAS,svg,tocaForma,
-  COLORES,punto,OBJ,PAL,PALBY,palClip,palArtClip,RIMAS,rimaClip,PACKS,PACKBY,packFrase,packPalabra,sinAcento,ambPal,ambEn,SUENAN_IGUAL};
+  COLORES,punto,OBJ,PAL,PALBY,palClip,palArtClip,RIMAS,rimaClip,PACKS,PACKBY,packFrase,packPalabra,sinAcento,ambPal,ambEn,SUENAN_IGUAL,ALT_NOMBRE,altInicial};
 })();

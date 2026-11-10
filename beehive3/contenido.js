@@ -150,7 +150,28 @@ LISTAS.forEach(l=>l.items=l.items.map(([who,task,id,es])=>({who,task,id,es,oraci
 // frases útiles para hablar (p. 85, «I have to…»)
 VOCAB[0].util=[["How do you help at home?","¿Cómo ayudás en tu casa?"],["I have to water the plants.","Tengo que regar las plantas."],["I have to load the dishwasher.","Tengo que cargar el lavavajillas."]].map(([en,es])=>({en,es,k:A(en)}));
 
-B3.VOCAB=VOCAB;B3.REG=REG;B3.IRR=IRR;B3.BE=BE;B3.HADTO=HADTO;B3.LISTAS=LISTAS;
+// ---------------- preguntas en pasado (p. 101): «Did + sujeto + verbo en forma base …?» y las respuestas cortas «Yes, they did. / No, they didn't.»
+// dq(id, sujeto, pronombre de la respuesta corta, verbo, su pasado, lo que sigue, la pregunta en castellano, la oración afirmativa en pasado)
+const dq=(id,sujeto,pron,base,past,resto,es,decl)=>{
+  const q="Did "+sujeto+" "+base+" "+resto+"?",si="Yes, "+pron+" did.",no="No, "+pron+" didn't.";
+  return {id,sujeto,pron,base,past,resto,q,es,si,no,decl,kQ:A(q),kSi:A(si),kNo:A(no),kDecl:A(decl)};
+};
+const DID=[
+ dq("dq_have","the Romans","they","have","had","a theatre","¿Los romanos tenían un teatro?","The Romans had a theatre."),
+ dq("dq_build","the Romans","they","build","built","walls","¿Los romanos construyeron murallas?","The Romans built walls."),
+ dq("dq_wear","the soldiers","they","wear","wore","helmets","¿Los soldados usaban cascos?","The soldiers wore helmets."),
+ dq("dq_make","the Romans","they","make","made","coins","¿Los romanos hacían monedas?","The Romans made coins."),
+ dq("dq_play","the children","they","play","played","in the garden","¿Los chicos jugaron en el jardín?","The children played in the garden."),
+ dq("dq_buy","Dad","he","buy","bought","some flowers","¿Papá compró flores?","Dad bought some flowers."),
+ dq("dq_fly","the boy","he","fly","flew","a kite","¿El nene voló un barrilete?","The boy flew a kite."),
+ dq("dq_clean","Tom","he","clean","cleaned","his room","¿Tom limpió su cuarto?","Tom cleaned his room."),
+ dq("dq_eat","Anna","she","eat","ate","pasta for lunch","¿Anna comió pasta en el almuerzo?","Anna ate pasta for lunch."),
+ dq("dq_write","Mia","she","write","wrote","a letter","¿Mia escribió una carta?","Mia wrote a letter."),
+ dq("dq_go","you","I","go","went","to the park on Sunday","¿Fuiste al parque el domingo?","You went to the park on Sunday."),
+ dq("dq_see","you","I","see","saw","the castle","¿Viste el castillo?","You saw the castle.")
+];
+
+B3.VOCAB=VOCAB;B3.REG=REG;B3.IRR=IRR;B3.BE=BE;B3.HADTO=HADTO;B3.LISTAS=LISTAS;B3.DID=DID;
 // los temas en el orden de las units
 B3.TEMAS=[
  VOCAB[0],
@@ -159,7 +180,8 @@ B3.TEMAS=[
  {id:"hadto",unit:7,pag:"89",ico:"📋",nombre:"Had to",es:"«Tuve que…»: had to / didn't have to",tipo:"hadto",items:HADTO},
  VOCAB[2],
  {id:"irregular",unit:8,pag:"98, 99 y 101",ico:"⚡",nombre:"Past simple: irregular verbs",es:"Verbos irregulares en pasado",tipo:"irregular",items:IRR.concat([{id:"vb_be",be:1,base:"be",past:"was / were",es:"ser, estar"}])},
- VOCAB[3]
+ VOCAB[3],
+ {id:"preguntas",unit:8,pag:"101",ico:"❓",nombre:"Past simple: questions",es:"Preguntas en pasado: Did …? Yes, they did. / No, they didn't.",tipo:"preguntas",items:DID}
 ];
 B3.tema=id=>B3.TEMAS.find(t=>t.id===id);
 
@@ -173,6 +195,7 @@ B3.REGLAS={
   irr:"Es un verbo irregular: no lleva -ed y hay que aprenderlo de memoria (go → went).",
   irrNeg:"En negativo también se usa didn't + la forma base: I didn't go (no «didn't went»).",
   hadto:"had to + verbo = «tuve (o tuvo) que…» (es el pasado de have to). En negativo: didn't have to + verbo: «no tuve que…».",
+  did:"En las preguntas en pasado se usa Did + sujeto + el verbo en forma base (sin -ed ni pasado): Did he wear a helmet? Se contesta Yes, he did. / No, he didn't (sin repetir el verbo).",
   was:"was va con I, he, she, it; were va con we, you, they y con plurales. Negativo: wasn't / weren't."
 };
 })();

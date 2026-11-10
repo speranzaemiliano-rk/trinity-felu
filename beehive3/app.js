@@ -164,6 +164,20 @@ function genHad(t,h,tipo){
   }
   throw new Error("hadto: tipo raro "+tipo);
 }
+// --- preguntas en pasado (p. 101): Did + sujeto + verbo base …?  y respuestas cortas
+function genDid(t,d,tipo){
+  const base={tema:t.id,ids:[d.id]},regla=B3.REGLAS.did,sino=Math.random()<.5,resp=sino?d.si:d.no,kResp=sino?d.kSi:d.kNo,marca=sino?"✔":"✘";
+  const aux=(d.pron==="he"||d.pron==="she")?"Does":"Do",preg=`<div class="frase">${esc(d.q)} <small>${marca}</small></div>${trad(d.es)}`;
+  switch(tipo){
+    case "qDid":return {...base,tipo:"mc",tag:tipo,consigna:"Complete the question (past simple).",ayuda:"Completá la pregunta en pasado.",cuerpo:`<div class="frase"><span class="hueco">____</span> ${esc(d.sujeto)} ${d.base} ${esc(d.resto)}?</div>${trad(d.es)}`,opciones:opcionesMC("Did",["Do","Does","Were"]),mostrar:"Did",explic:regla,hablar:d.kQ};
+    case "qSpot":return {...base,tipo:"mc",tag:tipo,consigna:"Choose the question that matches.",ayuda:"Elegí la pregunta en inglés que dice lo MISMO que la de castellano (en pasado).",cuerpo:`<div class="trad grande">${esc(d.es)}</div>`,opciones:opcionesMC(d.q,[`Did ${d.sujeto} ${d.past} ${d.resto}?`,`${aux} ${d.sujeto} ${d.base} ${d.resto}?`],3),mostrar:d.q,explic:regla,hablar:d.kQ};
+    case "qResp":return {...base,tipo:"mc",tag:tipo,consigna:"Answer the question.",ayuda:"✔ = sí, ✘ = no: elegí la respuesta corta.",cuerpo:preg,opciones:opcionesMC(resp,[d.si,d.no,`Yes, ${d.pron} didn't.`,`No, ${d.pron} did.`].filter(x=>x!==resp)),mostrar:resp,explic:regla,hablar:kResp};
+    case "qOrdenar":{const f=fichasDe(d.q.replace("?"," ?"));return {...base,tipo:"ordenar",tag:tipo,consigna:"Order the words to make a question.",ayuda:"Ordená las palabras para armar la pregunta (empieza con mayúscula y termina con «?»).",cuerpo:trad(d.es),fichas:f.fichas,sol:f.sol,mostrar:d.q,explic:regla,hablar:d.kQ}}
+    case "qTipear":return {...base,tipo:"tipear",tag:tipo,consigna:"Write the short answer.",ayuda:"✔ = sí, ✘ = no: escribí la respuesta corta (Yes, … did. / No, … didn't.).",pista:"Yes, … did. / No, … didn't.",cuerpo:preg,aceptar:[resp],mostrar:resp,explic:regla,hablar:kResp};
+    case "qEscribirQ":return {...base,tipo:"tipear",tag:tipo,consigna:"Make a question.",ayuda:"Escribí la pregunta en pasado con Did: el verbo vuelve a la forma base.",pista:"Did … ?",largo:1,cuerpo:`<div class="frase">${esc(d.decl)}</div>${trad(d.es)}`,aceptar:[d.q],mostrar:d.q,explic:regla,hablar:d.kQ};
+  }
+  throw new Error("did: tipo raro "+tipo);
+}
 // --- verbos irregulares
 function genIrr(t,v,tipo){
   if(v.be)return genBe(t);
@@ -204,7 +218,8 @@ const POOLS={
   vocab:[["emoji2en","audio2en","en2es","cloze"],["es2en","cloze","audio2en","write"],["spell","es2en","cloze","write"]],
   regular:[["choosePast","forma","spot","listen","chooseNeg"],["ordenarAff","ordenarNeg","tabla","choosePast","spot"],["typePast","typeForma","typeNeg","ordenarNeg","tabla"]],
   hadto:[["spot","es2en","choose"],["ordenarAff","ordenarNeg","choose","spot","lista"],["ordenarNeg","typeFill","es2en","lista"]],
-  irregular:[["choosePast","baseToPast","pastToBase","listen"],["chooseNeg","ordenarAff","ordenarNeg","spot","unir"],["typePast","typeForma","typeNeg","escribir","ordenarNeg"]]
+  irregular:[["choosePast","baseToPast","pastToBase","listen"],["chooseNeg","ordenarAff","ordenarNeg","spot","unir"],["typePast","typeForma","typeNeg","escribir","ordenarNeg"]],
+  preguntas:[["qDid","qSpot","qResp"],["qOrdenar","qResp","qSpot","qDid"],["qTipear","qEscribirQ","qOrdenar"]]
 };
 function tipoPara(t,it,c){
   let pool=POOLS[t.tipo][c<1?0:c<3?1:2].slice();
@@ -219,6 +234,7 @@ function generar(t,it,tipo){
   if(t.tipo==="vocab")return genVocab(t,it,tipo);
   if(t.tipo==="regular")return tipo==="tabla"?genTabla(t,it):genReg(t,it,tipo);
   if(t.tipo==="hadto")return genHad(t,it,tipo);
+  if(t.tipo==="preguntas")return genDid(t,it,tipo);
   return genIrr(t,it,tipo);
 }
 // qué ítem preguntar: los que no sabe o no vio pesan más
@@ -287,6 +303,8 @@ function pintarTema(t){
   }else if(t.tipo==="hadto"){
     estudio=`<div class="regla"><b>had to / didn't have to</b><p>Afirmativo: <b>had to + verbo</b> → <i>I had to tidy up.</i> (tuve que…)</p><p>Negativo: <b>didn't have to + verbo</b> → <i>I didn't have to tidy up.</i> (no tuve que…)</p><p><i>had to</i> es el pasado de <i>have to</i>: <i>I have to clean my room</i> (hoy) → <i>I had to clean my room</i> (ayer).</p></div>`+
       `<h3>Lista de cosas por hacer (to-do list)</h3><div class="todo"><b>${esc(B3.LISTAS[0].titulo)}…</b><ul>${B3.LISTAS[0].items.map(x=>`<li><span class="cb" aria-hidden="true">☐</span> ${esc(x.task)} – <b>${esc(x.who)}</b></li>`).join("")}</ul></div><div class="verbos">${B3.LISTAS[0].items.map(x=>`<div class="verbo"><div class="ve" data-k="${x.k}">${esc(x.oracion)} <span>🔊</span></div>${ST.es?`<div class="vt">${esc(x.es)}</div>`:""}</div>`).join("")}</div><h3>Más oraciones</h3><div class="verbos">`+lista.map(h=>`<div class="verbo"><div class="ve" data-k="${h.kAff}">${esc(h.aff)} <span>🔊</span></div><div class="ve neg" data-k="${h.kNeg}">${esc(h.neg)} <span>🔊</span></div>${ST.es?`<div class="vt">${esc(h.affEs)}</div>`:""}</div>`).join("")+`</div>`;
+  }else if(t.tipo==="preguntas"){
+    estudio=`<div class="regla"><b>Preguntas en pasado (Did …?)</b><p>Para preguntar en pasado: <b>Did + sujeto + verbo en forma base</b> → <i>Did they have streets?</i> (¿Tenían calles?)</p><p>Se contesta con una respuesta corta, sin repetir el verbo: <b>Yes, they did.</b> / <b>No, they didn't.</b></p><p>Ojo: después de <i>Did</i> el verbo <b>no</b> va en pasado: <i>Did he wear…</i> (no «Did he wore»). Con <i>do / does</i> se pregunta en presente: en pasado <i>do</i> cambia a <i>did</i>.</p></div><div class="verbos">`+lista.map(d=>`<div class="verbo"><div class="ve" data-k="${d.kQ}">${esc(d.q)} <span>🔊</span></div><div class="ve" data-k="${d.kSi}">✔ ${esc(d.si)} <span>🔊</span></div><div class="ve neg" data-k="${d.kNo}">✘ ${esc(d.no)} <span>🔊</span></div>${ST.es?`<div class="vt">${esc(d.es)}</div>`:""}</div>`).join("")+`</div>`;
   }else{
     estudio=`<div class="regla"><b>Past simple (irregular)</b><p>No llevan -ed: hay que aprenderlos. Negativo: <b>didn't + verbo base</b> → <i>I didn't go.</i></p></div><div class="verbos">`+lista.map(v=>v.be?`<div class="verbo"><div class="vv"><b>be</b> → <b class="pas">was / were</b> <button class="oir" data-k="${B3.kBe.was}" aria-label="Escuchar was">🔊 was</button> <button class="oir" data-k="${B3.kBe.were}" aria-label="Escuchar were">🔊 were</button></div><div class="ve">I <b>was</b> · he / she / it <b>was</b> · we / you / they <b>were</b></div><div class="ve neg">✘ wasn't <button class="oir" data-k="${B3.kBe.wasnt}" aria-label="Escuchar wasn't">🔊</button> · weren't <button class="oir" data-k="${B3.kBe.werent}" aria-label="Escuchar weren't">🔊</button></div></div>`:`<div class="verbo"><div class="vv"><button class="oir" data-k="${v.kBase}" aria-label="Escuchar ${v.base}">🔊</button> <b>${v.base}</b> → <b class="pas">${v.past}</b> <button class="oir" data-k="${v.kPast}" aria-label="Escuchar ${v.past}">🔊</button>${v.extra?` <em class="extra">por si acaso</em>`:""}</div><div class="ve" data-k="${v.kAff}">${esc(v.aff)} <span>🔊</span></div><div class="ve neg" data-k="${v.kNeg}">${esc(v.neg)} <span>🔊</span></div>${ST.es?`<div class="vt">${esc(v.es)}</div>`:""}</div>`).join("")+`</div>`;
   }
@@ -403,18 +421,22 @@ function porParte(){
 // ---- simulacro: las mismas actividades que se piden en las hojas de las units, sin ver si estuvo bien hasta el final
 const N_SIM=30;
 function armarSimulacro(){
-  const qs=[],hay=t=>itemsDe(t);
+  const qs=[],hay=t=>itemsDe(t),T=id=>B3.tema(id);
   const dib=[];TEMAS.filter(t=>t.tipo==="vocab").forEach(t=>hay(t).filter(it=>it.emoji).forEach(it=>dib.push({t,it})));
   sacar(dib,6).forEach(p=>qs.push({...genVocab(p.t,p.it,"write"),parte:"A · Look and write"}));
-  const reg=hay(B3.tema("regular")).filter(v=>!v.extra);
-  sacar(reg,5).forEach(v=>qs.push({...genReg(B3.tema("regular"),v,"typePast"),parte:"B · Complete with the past simple"}));
-  qs.push({...genTabla(B3.tema("regular")),parte:"B · Complete with the past simple"});
-  const had=hay(B3.tema("hadto"));
-  sacar(had,4).forEach((h,i)=>qs.push({...genHad(B3.tema("hadto"),h,i%2?"ordenarNeg":"ordenarAff"),parte:"C · Order the words"}));
-  const irr=hay(B3.tema("irregular")).filter(v=>!v.be&&!v.extra);
-  sacar(irr,5).forEach(v=>qs.push({...genIrr(B3.tema("irregular"),v,"escribir"),parte:"D · Write sentences"}));
-  for(let i=0;i<3;i++)qs.push({...genBe(B3.tema("irregular")),parte:"E · Read and circle"});
-  sacar(hay(B3.tema("hadto")),2).forEach(h=>qs.push({...genHad(B3.tema("hadto"),h,"choose"),parte:"E · Read and circle"}));
+  const reg=hay(T("regular")).filter(v=>!v.extra);
+  sacar(reg,4).forEach(v=>qs.push({...genReg(T("regular"),v,"typePast"),parte:"B · Complete with the past simple"}));
+  qs.push({...genTabla(T("regular")),parte:"B · Complete with the past simple"});
+  const dd=mezclar(hay(T("preguntas")));
+  sacar(hay(T("hadto")),3).forEach((h,i)=>qs.push({...genHad(T("hadto"),h,i%2?"ordenarNeg":"ordenarAff"),parte:"C · Order the words"}));
+  dd.slice(0,3).forEach(d=>qs.push({...genDid(T("preguntas"),d,"qOrdenar"),parte:"C · Order the words"}));
+  const irr=hay(T("irregular")).filter(v=>!v.be&&!v.extra);
+  sacar(irr,2).forEach(v=>qs.push({...genIrr(T("irregular"),v,"escribir"),parte:"D · Write sentences and answers"}));
+  dd.slice(3,5).forEach(d=>qs.push({...genDid(T("preguntas"),d,"qTipear"),parte:"D · Write sentences and answers"}));
+  for(let i=0;i<2;i++)qs.push({...genBe(T("irregular")),parte:"E · Read and circle"});
+  sacar(hay(T("hadto")),1).forEach(h=>qs.push({...genHad(T("hadto"),h,"choose"),parte:"E · Read and circle"}));
+  qs.push({...genDid(T("preguntas"),dd[5],"qDid"),parte:"E · Read and circle"});
+  qs.push({...genDid(T("preguntas"),dd[6],"qResp"),parte:"E · Read and circle"});
   const cl=[];TEMAS.filter(t=>t.tipo==="vocab").forEach(t=>hay(t).forEach(it=>cl.push({t,it})));
   sacar(cl,4).forEach(p=>qs.push({...genVocab(p.t,p.it,"cloze"),parte:"F · Read and complete"}));
   return qs;

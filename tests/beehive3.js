@@ -79,7 +79,7 @@ chk('la lista de cosas por hacer de «had to»: cada renglón apunta a un ítem 
 chk('was / were: cada oración tiene la respuesta correcta según el sujeto y es negativa sólo si lleva «n\'t» ('+B3.BE.length+')',B3.BE.length===Object.keys(BE_ORO).length&&B3.BE.every(b=>BE_ORO[b.id]===b.ok&&(b.neg===1)===/n't$/.test(b.ok)&&(b.s.match(/____/g)||[]).length===1),j(B3.BE.filter(b=>BE_ORO[b.id]!==b.ok).map(b=>b.id)));
 const vocab=B3.VOCAB.flatMap(t=>t.items.map(it=>({t,it})));
 chk('el vocabulario es el de las hojas: Housework (8), Party preparations (6), Everyday things (8) y A Roman town (6)',B3.VOCAB.map(t=>t.items.length).join()==='8,6,8,6'&&B3.VOCAB.map(t=>t.pag).join()==='84,88,96,100'&&['water the plants','wash the dishes','clear the table','hoover the floor','wash the car','clean my room','tidy up','dress up','set the table','prepare food','decorate','invite guests','bowl','phone','cup','coins','helmet','fan','lamp','comb','town hall','walls','gate','market square','theatre','street'].every(w=>vocab.some(x=>x.it.en===w)));
-chk('los 7 temas, en el orden de las units, con su unit y su página (84, 86, 88, 89, 96, 99 y 101, 100)',B3.TEMAS.map(t=>t.id+':'+t.unit+':'+t.pag).join()==='housework:7:84,regular:7:86,party:7:88,hadto:7:89,everyday:8:96,irregular:8:99 y 101,roman:8:100');
+chk('los 7 temas, en el orden de las units, con su unit y sus páginas del libro (84, 86 y 87, 88, 89, 96, 98 a 101, 100)',B3.TEMAS.map(t=>t.id+':'+t.unit+':'+t.pag).join('|')==='housework:7:84|regular:7:86 y 87|party:7:88|hadto:7:89|everyday:8:96|irregular:8:98, 99 y 101|roman:8:100');
 const ids=vocab.map(x=>x.it.id).concat(B3.REG.map(v=>v.id),B3.IRR.map(v=>v.id),B3.HADTO.map(h=>h.id));
 chk('todos los ítems tienen un id propio',new Set(ids).size===ids.length&&ids.every(Boolean));
 chk('cada oración con hueco tiene un solo «____», no dice la respuesta y no menciona a ninguna de las otras palabras del mismo tema (así encaja una sola)',
@@ -183,6 +183,7 @@ const probar=async es=>p.evaluate(es=>{
       if(o.filter(x=>x.ok).length!==1)pr(ctx,'hay '+o.filter(x=>x.ok).length+' correctas');
       if(new Set(o.map(x=>N(x.t))).size!==o.length)pr(ctx,'opciones repetidas '+JSON.stringify(o.map(x=>x.t)));
       if(o.some(x=>!x.t||x.t.length>70))pr(ctx,'opción vacía o enorme');
+      if(o.some(x=>!x.ok&&/^(doesn't|don't|does not|do not)\b/i.test(x.t)))pr(ctx,'una opción mala es inglés correcto en presente: '+o.map(x=>x.t).join(' / '));
       const bien=o.find(x=>x.ok);
       if(q.tag!=='tabla'&&bien&&bien.t!==q.mostrar)pr(ctx,'«mostrar» ('+q.mostrar+') no es la correcta ('+bien.t+')');
     }
@@ -196,6 +197,7 @@ const probar=async es=>p.evaluate(es=>{
       if(q.fichas.join(' ')===q.sol.join(' '))pr(ctx,'las fichas ya vienen en orden');
       if(q.sol.join(' ')!==q.mostrar)pr(ctx,'«mostrar» no es la solución');
       if(q.sol.length<4||q.sol.length>10)pr(ctx,q.sol.length+' fichas');
+      (q.alt||[]).forEach(a=>{if(N(a).split(' ').sort().join(' ')!==N(q.sol.join(' ')).split(' ').sort().join(' ')||N(a)===N(q.sol.join(' ')))pr(ctx,'variante de orden rara: '+a)});
     }
     if(q.tipo==='unir'){
       const idsI=q.izq.map(x=>x.id),idsD=q.der.map(x=>x.id);
@@ -246,7 +248,9 @@ const probar=async es=>p.evaluate(es=>{
           if(tipo==='spot'){const neg=bien.t===v.neg;if(!neg&&bien.t!==v.aff)pr(ctx,'spot: la correcta no es ninguna de las dos');if(!txt.includes(neg?v.negEs:v.affEs))pr(ctx,'spot: la traducción no es la de la oración correcta');
             q.opciones.filter(o=>!o.ok).forEach(o=>{if(o.t===(neg?v.neg:v.aff))pr(ctx,'spot: una mala es igual a la buena')})}
           if(tipo==='listen'){if(q.audio!==v.kPast||bien.t!==v.past)pr(ctx,'listen mal')}
-          if(tipo==='escribir'){const neg=q.aceptar[0]==="I didn't "+v.cue+'.';if(!neg&&q.aceptar[0]!=='I '+v.past+' '+v.cueRest+'.')pr(ctx,'escribir mal: '+q.aceptar[0]);if(!txt.includes('('+v.cue+')'))pr(ctx,'escribir: no muestra la pista')}
+          if(tipo==='escribir'){const neg=q.aceptar[0]==="I didn't "+v.cue+'.';if(!neg&&q.aceptar[0]!=='I '+v.past+' '+v.cueRest+'.')pr(ctx,'escribir mal: '+q.aceptar[0]);if(!txt.includes('('+v.cue+')'))pr(ctx,'escribir: no muestra la pista');
+            const sin=q.aceptar[0].slice(0,-1);if(q.aceptar.length!==3||q.aceptar[1]!==sin+' yesterday.'||q.aceptar[2]!=='Yesterday '+sin+'.')pr(ctx,'escribir: faltan las variantes con yesterday');
+            if(B.audio[q.hablar]!==q.mostrar)pr(ctx,'escribir: el audio de la corrección dice «'+B.audio[q.hablar]+'» y la respuesta es «'+q.mostrar+'»')}
         });
       }
     });
@@ -264,6 +268,7 @@ const probar=async es=>p.evaluate(es=>{
     if(bien!==(hizo?v.past:"didn't "+v.base))pr('tabla','respuesta equivocada: celda '+(hizo?'✔':'✘')+' → «'+bien+'»');
     if(!d.querySelector('.frase').textContent.includes(nombre+' ____ '+v.obj))pr('tabla','la frase no es la de la celda');
     if(q.mostrar!==nombre+' '+bien+' '+v.obj+'.')pr('tabla','«mostrar» raro: '+q.mostrar);
+    if(B.audio[q.hablar]!==bien)pr('tabla','el audio de la corrección dice «'+B.audio[q.hablar]+'» y la respuesta es «'+bien+'»');
   }
   // ---- «had to»
   B.HADTO.forEach(h=>TIPOS.hadto.forEach(tipo=>{for(let k=0;k<14;k++){
@@ -301,7 +306,7 @@ await cerrar(p);
 {
 const p=await abrir();
 const tarjetas=await p.evaluate(()=>[...document.querySelectorAll('#pInicio .tema')].map(e=>({t:e.dataset.tema,txt:e.innerText.replace(/\s+/g,' ')})));
-chk('el inicio muestra los 7 temas, cada uno con su unit y su página, la cuenta regresiva («Faltan 2 días») y el simulacro',tarjetas.length===7&&/Housework.*Unit 7 · p\. 84/.test(tarjetas[0].txt)&&/Past simple: irregular verbs.*Unit 8 · p\. 99 y 101/.test(tarjetas[5].txt)&&/Faltan 2 días/.test(await p.innerText('.cuenta'))&&/30 preguntas/.test(await p.innerText('#bSim')),j(tarjetas));
+chk('el inicio muestra los 7 temas, cada uno con su unit y su página, la cuenta regresiva («Faltan 2 días») y el simulacro',tarjetas.length===7&&/Housework.*Unit 7 · p\. 84/.test(tarjetas[0].txt)&&/Past simple: irregular verbs.*Unit 8 · p\. 98, 99 y 101/.test(tarjetas[5].txt)&&/Faltan 2 días/.test(await p.innerText('.cuenta'))&&/30 preguntas/.test(await p.innerText('#bSim')),j(tarjetas));
 chk('al empezar no hay nada para repasar (el botón está apagado) y el inicio sugiere seguir con el primer tema',await p.evaluate(()=>document.getElementById('bErrores').disabled)&&/Seguí con: Housework/.test(await p.innerText('.seguir')));
 // el tema: estudio con voz
 for(const t of ['housework','regular','party','hadto','everyday','irregular','roman']){
@@ -400,12 +405,24 @@ r=await tipear('regular','vb_wash','typeNeg',"didn't washed");chk('«didn\'t was
 r=await tipear('regular','vb_tidy','typePast',"tidyed");chk('«tidyed» está mal (es «tidied») y la corrección explica la regla de la y',!r.ok&&/tidied/.test(r.fb)&&/consonante \+ y|ied/.test(r.fb),r.fb);
 r=await tipear('irregular','vb_go','typePast',"went");chk('pasado irregular escrito bien («went»)',r.ok,r.fb);
 r=await tipear('irregular','vb_go','typePast',"goed");chk('«goed» está mal y dice que es irregular',!r.ok&&/went/.test(r.fb)&&/irregular/.test(r.fb),r.fb);
+r=await tipear('irregular','vb_go','escribir',"Yesterday I went to school.");const esp0=await p.evaluate(()=>B3.ronda().qs[0].mostrar);chk('«escribí una oración»: «Yesterday I went to school.» y «I went to school yesterday.» valen igual que «I went to school.» (si le tocó la negativa se prueba con ella)',/went to school|didn't go to school/.test(esp0),esp0);
+for(const [t,id] of [['irregular','vb_go']]){for(const [a,b] of [['I went to school yesterday.','I didn\'t go to school yesterday.'],['Yesterday I went to school.','Yesterday I didn\'t go to school.']]){await p.evaluate(([t,i])=>{B3.rondaCon([B3.gen(t,i,'escribir')],false)},[t,id]);await p.waitForSelector('#resp');const neg=await p.evaluate(()=>/didn't/.test(B3.actual().mostrar));await p.fill('#resp',neg?b:a);await p.press('#resp','Enter');await p.waitForSelector('#feedback:not([hidden])');chk('«'+(neg?b:a)+'» se acepta',await p.evaluate(()=>B3.ronda().ok===1),await p.innerText('#feedback'))}}
 r=await tipear('irregular','vb_fly','escribir',"i didn't fly a kite");
 const esperada=await p.evaluate(()=>B3.ronda().qs[0].mostrar);
 chk('«escribí una oración»: se acepta sin mayúscula ni punto final (esperada: «'+esperada+'»)',/^I (didn't fly a kite|flew a kite)\.$/.test(esperada)&&(r.ok===/didn't/.test(esperada)));
-r=await tipear('housework','hw_dishes','write',"wash the dishes");chk('«Look and write»: «wash the dishes» vale',r.ok,r.fb);
-r=await tipear('party','pp_set','write',"set the table");chk('«Look and write» con el dibujo 🍽️: «set the table» vale',r.ok,r.fb);
-r=await tipear('housework','hw_dishes','write',"set the table");chk('y como el dibujo 🍽️ también es «poner la mesa», esa respuesta también se acepta (dos palabras comparten el mismo dibujo)',r.ok,r.fb);
+// ordenar: el «cuándo / dónde» del final también puede ir al principio (es inglés válido)
+for(const [tema,id,tipo] of [['regular','vb_wash','ordenarAff'],['regular','vb_clean','ordenarNeg'],['hadto','ht_dishes','ordenarAff'],['irregular','vb_go','ordenarNeg']]){
+  await p.evaluate(([t,i,ti])=>{B3.rondaCon([B3.gen(t,i,ti)],false)},[tema,id,tipo]);await p.waitForSelector('#fichas .ficha');
+  const info=await p.evaluate(()=>{const q=B3.actual();return {fichas:q.fichas,alt:q.alt,sol:q.sol}});
+  const nf=w=>w.toLowerCase().replace(/[.,!?]/g,''),usadas=new Set();
+  for(const w of (info.alt[0]||'').split(' ')){const i=info.fichas.findIndex((f,k)=>!usadas.has(k)&&nf(f)===nf(w));usadas.add(i);await p.click('#fichas .ficha[data-f="'+i+'"]')}
+  await p.click('#bCheck');await p.waitForSelector('#feedback:not([hidden])');
+  chk('ordenar «'+info.sol.join(' ')+'»: con el «cuándo / dónde» al principio («'+info.alt[0]+'») también vale',info.alt.length===1&&await p.evaluate(()=>B3.ronda().ok===1),await p.innerText('#feedback'));
+}
+r=await tipear('housework','hw_dishes','write',"wash the dishes");chk('«Look and write»: «wash the dishes» vale (dibujo 🧽)',r.ok,r.fb);
+r=await tipear('party','pp_set','write',"set the table");chk('«Look and write» con el dibujo 🍴: «set the table» vale',r.ok,r.fb);
+r=await tipear('housework','hw_table','write',"clear the table");chk('«Look and write» con el dibujo 🍽️: «clear the table» vale',r.ok,r.fb);
+r=await tipear('housework','hw_dishes','write',"set the table");chk('«set the table» para el dibujo de lavar los platos (🧽) está mal: ya no comparten dibujo',!r.ok&&/wash the dishes/.test(r.fb),r.fb);
 r=await tipear('housework','hw_dishes','write',"wash the car");chk('«wash the car» para el dibujo de los platos está mal',!r.ok&&/wash the dishes/.test(r.fb),r.fb);
 await p.evaluate(()=>{B3.rondaCon([B3.gen('housework','hw_car','write')],false)});await p.waitForSelector('#resp');
 const antesBlanco=await p.evaluate(()=>JSON.stringify(B3.estado().dias));

@@ -20,36 +20,36 @@ const v=(id,en,es,emoji,ctx,extra)=>Object.assign({id,en,es,emoji:emoji||"",ctx,
 const VOCAB=[
  {id:"housework",unit:7,pag:"84",ico:"🧹",nombre:"Housework",es:"Tareas de la casa",tipo:"vocab",items:[
   v("hw_water","water the plants","regar las plantas","🌱","The plants are dry. Please ____."),
-  v("hw_dishes","wash the dishes","lavar los platos","🍽️","The plates are dirty. I ____ in the sink."),
-  v("hw_table","clear the table","levantar la mesa","🍴","The plates and glasses are still on the table. Please ____."),
-  v("hw_hoover","hoover the floor","pasar la aspiradora","🧹","There is dust on the carpet. Dad will ____."),
+  v("hw_dishes","wash the dishes","lavar los platos","🧽","The plates are dirty. I will ____ in the sink."),
+  v("hw_table","clear the table","levantar la mesa","🍽️","Lunch is over. Please ____ and take the plates to the kitchen."),
+  v("hw_hoover","hoover the floor","pasar la aspiradora","🧹","The carpet is full of dust. Dad will use the vacuum cleaner to ____."),
   v("hw_car","wash the car","lavar el auto","🚗","The car is very dirty. Let's ____."),
   v("hw_room","clean my room","limpiar mi cuarto","🛏️","My room is a mess! I must ____."),
-  v("hw_load","load the dishwasher","cargar el lavavajillas","","We put the dirty plates in the machine. We ____."),
+  v("hw_load","load the dishwasher","cargar el lavavajillas","","The dishwasher is empty. Please ____ with the dirty plates."),
   v("hw_cook","cook the dinner","cocinar la cena","🍳","We're hungry! Dad will ____.")]},
  {id:"party",unit:7,pag:"88",ico:"🎉",nombre:"Party preparations",es:"Preparar una fiesta",tipo:"vocab",items:[
-  v("pp_tidy","tidy up","ordenar","🧸","There are toys on the floor. We must ____."),
+  v("pp_tidy","tidy up","ordenar","","There are toys on the floor. We must ____."),
   v("pp_dress","dress up","vestirse elegante (o disfrazarse)","👔","It's a special party, so I will ____ in my best clothes."),
-  v("pp_set","set the table","poner la mesa","🍽️","Put the plates, forks and glasses on the table. Let's ____."),
-  v("pp_food","prepare food","preparar la comida","🥗","The guests are hungry. Mum will ____."),
+  v("pp_set","set the table","poner la mesa","🍴","The guests are coming and we need plates and forks on the table. Let's ____."),
+  v("pp_food","prepare food","preparar la comida","🥗","There is no food for the guests yet. Mum will ____."),
   v("pp_decorate","decorate","decorar","🎈","We have balloons and flags for the walls. Let's ____!"),
-  v("pp_invite","invite guests","invitar a la gente (a los invitados)","💌","I'm writing cards for my birthday party. I want to ____.")]},
+  v("pp_invite","invite guests","invitar gente a la fiesta","✉️","I'm writing cards for my birthday party. I want to ____.")]},
  {id:"everyday",unit:8,pag:"96",ico:"🏺",nombre:"Everyday things",es:"Cosas de todos los días (de antes y de ahora)",tipo:"vocab",items:[
   v("ev_bowl","bowl","cuenco, bol","🥣","Mum put the soup in a big, round ____."),
   v("ev_phone","phone","teléfono","☎️","I call my grandma on the ____."),
-  v("ev_cup","cup","taza","☕","I drink hot tea from a ____."),
+  v("ev_cup","cup","taza","☕","I drink hot tea from a ____ with a handle."),
   v("ev_coins","coins","monedas","💰","People paid with gold ____ in the past."),
-  v("ev_helmet","helmet","casco","⛑️","A knight wore a ____ to protect his head."),
-  v("ev_fan","fan","abanico (o ventilador)","","It's very hot. I need a ____."),
-  v("ev_lamp","lamp","lámpara","💡","It's dark in my room. Turn on the ____."),
+  v("ev_helmet","helmet","casco","⛑️","A soldier wore a ____ to keep his head safe."),
+  v("ev_fan","fan","abanico (o ventilador)","","It's very hot. I need a ____ to cool the air."),
+  v("ev_lamp","lamp","lámpara","💡","It's dark in my room. Turn on the ____ to get some light."),
   v("ev_comb","comb","peine","","I use a ____ to do my hair.")]},
  {id:"roman",unit:8,pag:"100",ico:"🏛️",nombre:"A Roman town",es:"Una ciudad romana",tipo:"vocab",items:[
-  v("rt_hall","town hall","ayuntamiento (municipalidad)","🏛️","The mayor works in the ____."),
+  v("rt_hall","town hall","municipalidad (ayuntamiento)","🏛️","The leaders of the town worked in the ____."),
   v("rt_walls","walls","murallas","🧱","The tall ____ were all around the town."),
-  v("rt_gate","gate","puerta de la ciudad (portón)","🚪","Soldiers guarded the ____ and opened it for visitors."),
-  v("rt_market","market square","plaza del mercado","⛲","People bought and sold fruit in the busy ____ in the centre of the town."),
-  v("rt_theatre","theatre","teatro","🎭","We watched a play in the ____."),
-  v("rt_street","street","calle","🛣️","Carts and people walked along the ____.")]}
+  v("rt_gate","gate","puerta de la ciudad (portón)","🚪","Soldiers stood at the ____ to let people in and out of the town."),
+  v("rt_market","market square","plaza del mercado","⛲","Farmers sold fruit at stalls in the big, open ____ of the town."),
+  v("rt_theatre","theatre","teatro","🎭","People sat and watched the actors on the stage in the ____."),
+  v("rt_street","street","calle","🛣️","People walked along the ____ with shops on both sides.")]}
 ];
 
 // ---------------- verbos: los regulares (+ed) y los irregulares. «aff» y «neg» son oraciones de ejemplo propias; «regla» dice cómo se arma el pasado
@@ -90,7 +90,7 @@ const IRR=[
  verbo("go","went","ir","We went to the park on Sunday.","Fuimos al parque el domingo.","We didn't go to school on Sunday.","No fuimos a la escuela el domingo.",{mal:["goed","gone"],cue:"go to school",cueRest:"to school"}),
  verbo("have","had","tener, comer (una comida)","We had dinner at a restaurant.","Cenamos en un restaurante.","We didn't have dinner at home.","No cenamos en casa.",{mal:["haved","has"],cue:"have dinner at a restaurant",cueRest:"dinner at a restaurant"}),
  verbo("make","made","hacer","Mum made cupcakes last night.","Mamá hizo cupcakes anoche.","Mum didn't make a cake last night.","Mamá no hizo una torta anoche.",{mal:["maked","makes"],cue:"make cupcakes",cueRest:"cupcakes"}),
- verbo("eat","ate","comer","I ate pasta for lunch yesterday.","Ayer comí pasta en el almuerzo.","I didn't eat fish yesterday.","Ayer no comí pescado.",{mal:["eated","eaten"],cue:"eat fruit",cueRest:"fruit"}),
+ verbo("eat","ate","comer","I ate pasta for lunch yesterday.","Ayer comí pasta para el almuerzo.","I didn't eat fish yesterday.","Ayer no comí pescado.",{mal:["eated","eaten"],cue:"eat fruit",cueRest:"fruit"}),
  verbo("drink","drank","beber","He drank a glass of milk.","Tomó un vaso de leche.","He didn't drink any juice.","No tomó nada de jugo.",{mal:["drinked","drunk"],cue:"drink milk",cueRest:"milk"}),
  verbo("see","saw","ver","I saw a big castle on the trip.","Vi un castillo grande en el paseo.","I didn't see the castle on the trip.","No vi el castillo en el paseo.",{mal:["seed","seen"],cue:"see a film",cueRest:"a film"}),
  verbo("write","wrote","escribir","She wrote a letter to her friend.","Escribió una carta a su amiga.","She didn't write a letter to her friend.","No escribió una carta a su amiga.",{mal:["writed","written"],cue:"write a letter",cueRest:"a letter"}),
@@ -109,6 +109,9 @@ const IRR=[
  verbo("find","found","encontrar","I found a coin in the garden.","Encontré una moneda en el jardín.","I didn't find my keys.","No encontré mis llaves.",{mal:["finded","fownd"],cue:"find a coin",cueRest:"a coin",extra:1}),
  verbo("sing","sang","cantar","They sang a song at the party.","Cantaron una canción en la fiesta.","They didn't sing at the party.","No cantaron en la fiesta.",{mal:["singed","sung"],cue:"sing a song",cueRest:"a song",extra:1})
 ];
+// la corrección de la tabla «¿qué hicieron ayer?» (✘ = didn't + verbo) y de «escribí una oración» dice la respuesta que se muestra
+REG.filter(v=>v.casa).forEach(v=>{v.kDidnt=A("didn't "+v.base)});
+IRR.forEach(v=>{v.kEsc=A("I "+v.past+" "+v.cueRest+".");v.kEscNeg=A("I didn't "+v.cue+".")});
 // «be» (was / were) va aparte: cambia según quién sea. «ok» es la forma correcta; «neg» dice si la oración es negativa
 const BE=[
  {id:"be1",s:"The brothers ____ friends again.",ok:"were",neg:0,es:"Los hermanos volvieron a ser amigos."},
@@ -139,7 +142,7 @@ const HADTO=[
 
 // la «lista de cosas por hacer» (to-do list) de la p. 89: cada renglón es [quién, qué, el ítem de «had to» que practica, traducción]. Las oraciones salen de acá («Leo had to set the table.») y tienen su audio
 const LISTAS=[
- {titulo:"To do before the party",items:[["Ana","invite guests","ht_invite","Ana tuvo que invitar a los invitados."],["Leo","set the table","ht_set","Leo tuvo que poner la mesa."],["Mum","prepare food","ht_food","Mamá tuvo que preparar la comida."],["Dad","decorate the hall","ht_decorate","Papá tuvo que decorar el salón."]]},
+ {titulo:"To do before the party",items:[["Ana","invite guests","ht_invite","Ana tuvo que invitar gente a la fiesta."],["Leo","set the table","ht_set","Leo tuvo que poner la mesa."],["Mum","prepare food","ht_food","Mamá tuvo que preparar la comida."],["Dad","decorate the hall","ht_decorate","Papá tuvo que decorar el salón."]]},
  {titulo:"To do before the party",items:[["Sofi","tidy up","ht_tidy","Sofi tuvo que ordenar."],["Tom","hoover the floor","ht_hoover","Tom tuvo que pasar la aspiradora."],["Grandma","wash the dishes","ht_dishes","La abuela tuvo que lavar los platos."],["Max","water the plants","ht_water","Max tuvo que regar las plantas."]]},
  {titulo:"To do before the party",items:[["Lucy","dress up","ht_dress","Lucy tuvo que vestirse elegante."],["Ben","clean his room","ht_room","Ben tuvo que limpiar su cuarto."]]}
 ];
@@ -151,11 +154,11 @@ B3.VOCAB=VOCAB;B3.REG=REG;B3.IRR=IRR;B3.BE=BE;B3.HADTO=HADTO;B3.LISTAS=LISTAS;
 // los temas en el orden de las units
 B3.TEMAS=[
  VOCAB[0],
- {id:"regular",unit:7,pag:"86",ico:"⏮️",nombre:"Past simple: regular verbs",es:"Verbos regulares en pasado (+ed): afirmativo y negativo",tipo:"regular",items:REG},
+ {id:"regular",unit:7,pag:"86 y 87",ico:"⏮️",nombre:"Past simple: regular verbs",es:"Verbos regulares en pasado (+ed): afirmativo y negativo",tipo:"regular",items:REG},
  VOCAB[1],
  {id:"hadto",unit:7,pag:"89",ico:"📋",nombre:"Had to",es:"«Tuve que…»: had to / didn't have to",tipo:"hadto",items:HADTO},
  VOCAB[2],
- {id:"irregular",unit:8,pag:"99 y 101",ico:"⚡",nombre:"Past simple: irregular verbs",es:"Verbos irregulares en pasado",tipo:"irregular",items:IRR.concat([{id:"vb_be",be:1,base:"be",past:"was / were",es:"ser, estar"}])},
+ {id:"irregular",unit:8,pag:"98, 99 y 101",ico:"⚡",nombre:"Past simple: irregular verbs",es:"Verbos irregulares en pasado",tipo:"irregular",items:IRR.concat([{id:"vb_be",be:1,base:"be",past:"was / were",es:"ser, estar"}])},
  VOCAB[3]
 ];
 B3.tema=id=>B3.TEMAS.find(t=>t.id===id);
@@ -165,7 +168,7 @@ B3.REGLAS={
   ed:"Los verbos regulares forman el pasado con -ed: wash → washed.",
   d:"Si el verbo ya termina en -e, sólo se agrega -d: decorate → decorated.",
   ied:"Si termina en consonante + y, la y se cambia por -ied: tidy → tidied.",
-  doble:"Si termina en consonante + vocal + consonante (y es corto), se repite la última letra: stop → stopped.",
+  doble:"Si el verbo tiene UNA sola sílaba y termina en consonante + vocal + consonante, se repite la última letra: stop → stopped, plan → planned.",
   didnt:"En negativo se usa didn't + el verbo en su forma base (sin -ed): She didn't wash the dishes.",
   irr:"Es un verbo irregular: no lleva -ed y hay que aprenderlo de memoria (go → went).",
   irrNeg:"En negativo también se usa didn't + la forma base: I didn't go (no «didn't went»).",

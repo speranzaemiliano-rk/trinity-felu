@@ -1424,7 +1424,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-10 · Beehive 3: prueba de inglés de 4.º grado (módulo nuevo)";
+const BUILD="2026-11-10 · Beehive 3: revisión del inglés y de las preguntas";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};

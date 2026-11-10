@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Beehive 3 · Prueba de inglés</title>
+<meta name="theme-color" content="#0e8f7e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Beehive 3">
+<script>try{localStorage.setItem("trinity_ultimo","6")}catch(e){}</script>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="estilos.css?b=2026-11-10-beehive-3-prueba-de-ingles-de-4-grado-modulo-nuevo">
+</head>
+<body>
+<main class="app">
+  <!-- Inicio: cuenta regresiva, los 7 temas de las Units 7 y 8, el simulacro y el repaso de lo que salió mal -->
+  <section id="pInicio" class="pantalla" hidden></section>
+  <!-- Un tema: lo que hay que saber (con voz) y el botón para practicarlo -->
+  <section id="pTema" class="pantalla" hidden></section>
+  <!-- Una pregunta (de práctica o de simulacro) -->
+  <section id="pPreg" class="pantalla" hidden></section>
+  <!-- Resultado de una ronda o del simulacro -->
+  <section id="pFin" class="pantalla" hidden></section>
+  <!-- Ajustes: sonido, traducciones, verbos «por si acaso», borrar el progreso -->
+  <section id="pAjustes" class="pantalla" hidden></section>
+  <noscript><p class="sin-js">Esta página necesita JavaScript para funcionar.</p></noscript>
+</main>
+<!-- Cartel para confirmar (salir de una ronda, borrar el progreso) -->
+<div class="modal" id="modal" hidden></div>
+
+<script src="audio/manifest.js?b=2026-11-10-beehive-3-prueba-de-ingles-de-4-grado-modulo-nuevo"></script>
+<script src="contenido.js?b=2026-11-10-beehive-3-prueba-de-ingles-de-4-grado-modulo-nuevo"></script>
+<script src="app.js?b=2026-11-10-beehive-3-prueba-de-ingles-de-4-grado-modulo-nuevo"></script>
+<script>
+if("serviceWorker"in navigator&&location.protocol==="https:")navigator.serviceWorker.register("../sw.js").catch(function(){});
+</script>
+</body>
+</html>

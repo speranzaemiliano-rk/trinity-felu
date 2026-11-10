@@ -3,3 +3,5 @@ node_modules/
 tools/audio/sala5_texts.json
 tools/audio/crudos/
 __pycache__/
+tools/audio/beehive3_texts.json
+tools/audio/crudos_beehive3/

@@ -1,0 +1,30 @@
+{
+  "name": "Beehive 3 · Prueba de inglés (Felipe)",
+  "short_name": "Beehive 3",
+  "description": "Estudiar, practicar y hacer un simulacro de la prueba de inglés de 4.º grado: Units 7 y 8 de Beehive 3.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "../",
+  "display": "standalone",
+  "background_color": "#fff8e6",
+  "theme_color": "#0e8f7e",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "id": "/trinity-felu/beehive3/"
+}

@@ -1,14 +1,15 @@
 # Trinity GESE · Grade 3 (Felu) y Grade 4 (Raphina)
 
-Sitio de estudio y práctica para el examen oral Trinity GESE, con **un módulo por grado** que comparten el mismo motor, y aparte **«Sala de 5»**: juegos de inglés, lengua y matemática para una nena de 5 años (módulo independiente, sin el motor de Trinity). Sin build: se edita y se sube.
-Se publica en GitHub Pages. **La dirección de siempre es el INICIO: un menú para entrar al Trinity 3, al Trinity 4 o a Sala de 5**; cada módulo de Trinity tiene arriba una barra («🏠 Inicio · Trinity 3 · Trinity 4») para volver o pasar al otro en un toque.
+Sitio de estudio y práctica para el examen oral Trinity GESE, con **un módulo por grado** que comparten el mismo motor, y aparte **«Sala de 5»** (juegos de inglés, lengua y matemática para una nena de 5 años) y **«Beehive 3»** (estudiar y practicar la prueba de inglés de 4.º grado de Felu): dos módulos independientes, sin el motor de Trinity. Sin build: se edita y se sube.
+Se publica en GitHub Pages. **La dirección de siempre es el INICIO: un menú para entrar al Trinity 3, al Trinity 4, a Sala de 5 o a Beehive 3**; cada módulo de Trinity tiene arriba una barra («🏠 Inicio · Trinity 3 · Trinity 4») para volver o pasar al otro en un toque.
 
 | Pantalla | Para | Qué es | Dirección |
 |---|---|---|---|
-| **Inicio** | todos | el menú con las tres opciones (marca «Última vez» el que se abrió último en ese aparato) | https://speranzaemiliano-rk.github.io/trinity-felu/ |
+| **Inicio** | todos | el menú con las cuatro opciones (marca «Última vez» el que se abrió último en ese aparato) | https://speranzaemiliano-rk.github.io/trinity-felu/ |
 | **Trinity 3** (Grade 3) | Felu | charla de 7 minutos con el examinador | https://speranzaemiliano-rk.github.io/trinity-felu/felu/ |
 | **Trinity 4** (Grade 4) | Raphina | 10 minutos: tema preparado + conversación | https://speranzaemiliano-rk.github.io/trinity-felu/raphina/ |
 | **Sala de 5** | una nena de 5 años | juegos con dibujos y voz (no hace falta leer): inglés, lengua y matemática | https://speranzaemiliano-rk.github.io/trinity-felu/sala5/ |
+| **Beehive 3** | Felu (4.º grado) | estudiar con voz, practicar y hacer un simulacro de la evaluación de inglés del jueves 12 de noviembre (Units 7 y 8 de *Beehive 3*) | https://speranzaemiliano-rk.github.io/trinity-felu/beehive3/ |
 
 Instalar como app: lo más cómodo es instalar el **Inicio** (queda un solo ícono «Trinity» que abre el menú); los módulos también se pueden instalar solos (cada uno con su ícono y su `id`). Los manifiestos de los módulos tienen alcance sobre todo el sitio, así «Inicio» y el otro módulo abren dentro de la misma app. Hasta la versión «módulos 2» el Grade 3 vivía en la raíz (`/`): quien lo tenga instalado ahora abre el menú y entra con un toque.
 
@@ -26,7 +27,8 @@ Nada se compila: son archivos que el navegador carga en este orden. **El motor n
 | `index.html` | **el inicio**: el menú para entrar al Trinity 3 o al 4. Es una página sola (sin el motor), con su `manifest.json` y sus íconos en la raíz |
 | `felu/index.html` · `raphina/index.html` | la página de cada módulo (misma estructura; otra paleta y otros textos), con la barra «Inicio · Trinity 3 · Trinity 4» arriba. Cada carpeta tiene su `manifest.json` y sus íconos |
 | `sala5/` | **«Sala de 5»**, aparte de todo lo de arriba (no usa el motor, ni `comun.js`, ni Firebase): su propia página, estilos, contenido, juegos, audios, manifiesto e íconos. Ver «Sala de 5» más abajo |
-| `sw.js` | el service worker, **uno solo para todo el sitio**: guarda el inicio y los tres módulos para abrirlos sin internet y cada uno cae en el suyo (los mp3 no los guarda: Safari los pide por partes) |
+| `beehive3/` | **«Beehive 3 · Prueba de inglés»**, también aparte (sin motor ni Firebase): su página, estilos, contenido, lógica, audios, manifiesto e íconos. Ver «Beehive 3» más abajo |
+| `sw.js` | el service worker, **uno solo para todo el sitio**: guarda el inicio y los cuatro módulos para abrirlos sin internet y cada uno cae en el suyo (los mp3 no los guarda: Safari los pide por partes) |
 
 **Lo que define un contenido** (`contenido-gN.js`): `MOD`, `VISTAS_KEY`, `armarPasos(vista)` (la lista de pasos de la charla), `planIA(esExamen)` (el plan al azar que se le pasa a la IA), `SISTEMA_IA`, `SISTEMA_EVAL`, `PROMPT_TRANSCRIBIR`, `EVAL_CRIT`, `PIC_LISTA`, `VOCAB`, `DIB*`, `bank` y `rkTextosGuion()` (todas las frases que puede decir el examinador, para generar los audios). Opcionales: `evalExtra(reg)` (datos que cuenta la página para corregir) y `pideDePregunta()` (si en ese momento se exige que le pregunte algo al examinador). Un **paso** de la charla es `{g, q, a, need, hints, react, follow, …}`; el Grade 4 sumó `rotulo` (la etiqueta de la burbuja), `contexto` (una línea fija sobre la pregunta, p. ej. el punto del tema), `solo` (el examinador habla y no espera respuesta: «Let's talk about food») y `corta` (acepta una respuesta corta).
 
@@ -42,7 +44,7 @@ node tools/version.js "2026-11-03 · lo que cambió"
 1. Copiá `contenido-g4.js` como `contenido-gN.js`; cambiá `MOD` y **todas las claves de almacenamiento** (con un prefijo propio) y reescribí el contenido.
 2. Copiá la carpeta `raphina/` con otro nombre; en su `index.html` cambiá textos, paleta y el `<script src="../contenido-gN.js?b=…">` (y el `trinity_ultimo` del `<head>`); en `manifest.json` cambiá `name`, `short_name`, `id` y colores (un `id` distinto es lo que hace que se instale como otra app; el `scope` queda en `../`).
 3. Copiá en la página el `<script src="../escucha.js?b=…">` (va después de `comun.js`) y definí en el contenido `ESC_SEG` y `ESC_YA` y marcá con `escucha:true` las preguntas de contenido (ver «El examinador que escucha»).
-4. **Sumalo al menú:** una tarjeta más en el `index.html` de la raíz y un enlace más en la barra `.modbar` de **todas** las páginas de módulos de Trinity (si no, desde los otros módulos no se llega). «Sala de 5» es la excepción a propósito: tiene su tarjeta en el menú pero no la barra `.modbar`, porque el que juega ahí no tiene que poder pasar solo al Trinity.
+4. **Sumalo al menú:** una tarjeta más en el `index.html` de la raíz y un enlace más en la barra `.modbar` de **todas** las páginas de módulos de Trinity (si no, desde los otros módulos no se llega). «Sala de 5» y «Beehive 3» son la excepción a propósito: tienen su tarjeta en el menú pero no la barra `.modbar`, porque quien juega ahí no tiene que poder pasar solo al Trinity.
 5. Sumá los archivos nuevos a `ARCHIVOS` de `sw.js` (si uno falta, el service worker no se instala; ahí también va la carpeta con la barra final, `./carpeta/`) y la página a `PAGINAS` de `tools/audio/lista.js`.
 6. Generá los audios (ver «Audios grabados»), escribí `tests/gN_*.js`, sumá el módulo a `tests/sitio.js` y corré `node tools/version.js "…"`.
 
@@ -115,6 +117,42 @@ Los nombres de las letras son los de la escuela argentina («be larga», «ve co
 ⚠️ **Qué no se pudo comprobar desde acá:** que las voces suenen bien al oído (el español latinoamericano y el inglés de Google Translate se generaron sin escucharlos; conviene oírlos una vez, sobre todo los nombres de las letras en inglés, que están escritos «a lo fonético»: *ay, bee, see, dee…*, y las frases largas de los problemas, que se arman pegando frases cortas), el funcionamiento en iPhone/iPad de verdad y que a la nena le resulten del nivel justo (el motor ajusta la dificultad solo, pero los números con los que parte —cuánto sube y baja con cada respuesta— se calibraron con chicos virtuales, no con ella). Las pruebas (`tests/sala5.js`, `tests/sala5_nuevos.js` y `tests/adaptar.js`) confirman la lógica, el recorrido, los errores, el motor, que cada pregunta sea cierta (la cuenta da, el reloj marca lo que se pide, el animal es un animal), el guardado y el diseño, pero no reemplazan probarlo con ella.
 
 **Por qué no hay un «modelo de lenguaje» (IA generativa) en el medio.** Se podría hacer que una IA invente las preguntas, pero acá no conviene: (1) una nena que todavía no lee necesita **voz** para cada consigna y hoy son audios grabados; con preguntas inventadas habría que sintetizar la voz en el momento (y revisar cómo suena); (2) lo que le llega a una nena de 5 años tiene que estar **revisado** antes, y una IA puede equivocarse en una cuenta o en una palabra; (3) hay que mandar algo afuera (el nombre, cómo le va) y acá no sale nada del aparato; (4) desde este entorno no se puede probar con certeza lo que genere. El motor actual logra lo que se pidió (que el desafío cambie de a poco según cómo le va) con contenido revisado y probado.
+
+## Beehive 3 · Prueba de inglés (`/beehive3/`)
+
+Un módulo **aparte** para preparar la evaluación de inglés de 4.º grado del **jueves 12 de noviembre de 2026** (Units 7 y 8 del libro *Beehive 3*, de Oxford). La seño avisó qué entra: vocabulario de **Housework** (p. 84), **Party preparations** (p. 88), **Everyday things** (p. 96) y **A Roman town** (p. 100); gramática de **past simple regular** afirmativo y negativo (p. 86), **had to** (p. 89) y **past simple irregular** (pp. 99 y 101). No usa el motor de Trinity, ni Firebase, ni IA: todo corre en el aparato y **no se comunica con ningún sitio** (sólo baja las fuentes de Google y sus propios archivos). Dirección: https://speranzaemiliano-rk.github.io/trinity-felu/beehive3/ (tiene su tarjeta en el inicio).
+
+**Qué tiene.**
+- **7 temas**, en el orden de las units: Housework, Past simple regular, Party preparations, Had to, Everyday things, Past simple irregular y A Roman town. Cada uno tiene su pantalla de **estudio** (todo se toca para escuchar: 🔊 y 🐢 despacio; la regla, en castellano; las oraciones de ejemplo con su traducción) y un botón **▶ Practicar**.
+- **Práctica: rondas de 10 preguntas.** Cada palabra o verbo tiene una **caja** (0 a 4, como las cajitas de repaso): acertar la sube, errar la vuelve a 0 y aparece más seguido (pesos 8-5-3-2-1; lo que nunca vio pesa 6). El tipo de pregunta **sube con la caja**: en la 0, elegir (con dibujo, con audio, qué significa, oraciones con hueco, cuál está bien escrita); en la 1 y la 2, ordenar las palabras, completar, la tabla ✔/✘ de «¿qué hicieron ayer?» y la lista de cosas por hacer de *had to*; de la 3 en adelante, **escribir** (el pasado, el negativo, una oración, «Look and write»). «Aprendida» = caja 3 o más. Lo que se erró **vuelve al final de la ronda una vez** (esa vuelta no cuenta en el puntaje). Al corregir, la app dice la respuesta, la regla (p. ej. «tidy → tidied: consonante + y») y la **dice en voz alta**.
+- **📝 Simulacro: 30 preguntas en 6 partes**, como las hojas de la unit (A · Look and write 6, B · Complete with the past simple 6, C · Order the words 4, D · Write sentences 5, E · Read and circle 5, F · Read and complete 4). **No se ve si estuvo bien o mal hasta el final**; el resultado dice cuántas salieron bien **en cada parte** y qué fallar (con el enunciado y la respuesta buena). Guarda los últimos 20 y muestra el mejor.
+- **🔁 Repasar lo que me salió mal:** sólo lo que se equivocó alguna vez y todavía no lleva 2 aciertos seguidos. En la pantalla de resultado, «Repasar lo que falló» hace lo mismo con la ronda recién jugada.
+- **Cuenta regresiva** al 12 de noviembre (`B3.PRUEBA` en `contenido.js`), «Seguí con:» (el tema con menos aprendido), «Hoy: n bien · n mal».
+- **Ajustes** (⚙️): sonido, traducciones al castellano, los verbos **«por si acaso»** (los que **no** están en las páginas del libro: study, carry, stop, plan y 9 irregulares comunes; apagados por defecto) y borrar el progreso (con un cartel propio: la app no usa `confirm()` ni `alert()`).
+- **Lo que se escribe vale** con mayúsculas o minúsculas, con o sin punto, con «did not» por «didn't» y con el apóstrofo curvo del iPhone; sin apóstrofo («didnt») también vale pero avisa cómo se escribe.
+- **Todo queda en ese aparato** (`localStorage`, clave `beehive3_estado`, revisada campo por campo al leerla: lo roto o tocado a mano no rompe nada; también anda con el almacenamiento bloqueado).
+
+**De dónde sale el contenido (y qué no).** Las palabras y los verbos se contrastaron con **las páginas 85 a 100 del Student's Book** y con las hojas «Unit record» (*assessment for learning worksheets*): los 8 de Housework, los 6 de Party, los 8 de Everyday things, los 6 de Roman town; los regulares clean, wash, cook, watch, play, listen, load, water, clear, hoover, paint, design, tidy, decorate, prepare, invite, help, dance, bake y want (más visit, live y use de las hojas); y los irregulares **go, have, make, eat, drink, see, write, fly, build, buy y wear**. ⚠️ **Las oraciones y los ejercicios son propios** (no se copian las hojas ni el libro: el repositorio es público); sólo se respetan el vocabulario, las estructuras y el formato de las actividades (tabla ✔/✘, to-do list, «Order the words», «Write the verb in the past»…). **Faltó ver las páginas 84 y 101** (la 1.ª de Housework —sus 8 palabras se confirmaron en la 85— y la de los irregulares con la Roman town): si en esas hay algún verbo o palabra que acá no está, se agrega en `contenido.js` y se regeneran los audios. Los dibujos son **emojis** que se parecen a lo que muestra el libro (no sus fotos): donde dos palabras comparten dibujo (🍽️ = *wash the dishes* y *set the table*) se aceptan las dos.
+
+**Archivos** (todo en `beehive3/`, sin build; `node tools/version.js` también actualiza el `?b=` de esta página):
+
+| Archivo | Qué tiene |
+|---|---|
+| `index.html` · `estilos.css` | las pantallas (inicio, tema, pregunta, resultado, ajustes, cartel) y los estilos: una columna, botones grandes, claro y oscuro, de pie y de costado |
+| `contenido.js` | **todo el contenido**: `B3.VOCAB` (4 temas con dibujo y una oración con hueco que sólo encaja con esa palabra), `B3.REG` y `B3.IRR` (cada verbo con su pasado, su oración afirmativa y negativa, con traducción; los «por si acaso» llevan `extra:1`), `B3.BE` (was/were), `B3.HADTO` y `B3.LISTAS` (la to-do list), `B3.TEMAS`, `B3.REGLAS` y `B3.audio` (registro frase → clave de audio con `A()`) |
+| `app.js` | la lógica: estado y cajas, los **generadores de preguntas** (`genVocab`, `genReg`, `genIrr`, `genHad`, `genTabla`, `genBe`; una pregunta es `{tipo:"mc"|"tipear"|"ordenar"|"unir", …}` y **tiene que tener UNA sola respuesta correcta**), rondas, simulacro, pantallas y la voz (mp3 grabado, o la del aparato en `en-GB` si no baja) |
+| `audio/*.mp3` · `audio/manifest.js` | un mp3 por frase en inglés (288, unos 5 MB, procesados como los de Sala de 5) y la lista de las que existen con su versión (`B3_AUDIO_V`, que va en la dirección de cada mp3 como `?a=`) |
+| `manifest.json` · `icon*.{svg,png}` | para instalarla como app (`id` propio, alcance `../`) |
+
+**Audios.** Se generan con las mismas herramientas de Sala de 5 (voz de Google Translate en inglés británico, procesada con ffmpeg), pero con su propia carpeta. **Al agregar o cambiar una frase hay que volver a generarlos:**
+```
+cd tools/audio
+node beehive3.js            # arma beehive3_texts.json y beehive3/audio/manifest.js; dice cuántas faltan o sobran
+python3 bajar_beehive3.py   # baja los que faltan y los procesa
+node beehive3.js --borrar   # (si sobran mp3 de frases que ya no existen) los borra
+node beehive3.js            # debe decir «faltan: 0»
+```
+⚠️ **Qué no se pudo comprobar desde acá:** que las voces suenen bien al oído (se generaron sin escucharlas), el funcionamiento en un iPhone de verdad y que el nivel de las preguntas le resulte justo a Felu. `tests/beehive3.js` (~130 chequeos, tarda unos 4 minutos) comprueba el resto: cada mp3, los verbos contra una tabla aparte, que **todas las preguntas** (cada ítem × cada tipo, muchas veces) tengan una sola respuesta correcta y coincidan con el contenido, los recorridos tocando botones, lo guardado roto, la voz, la cuenta regresiva y el **diseño en 12 tamaños** de pantalla (más el contraste en claro y oscuro).
 
 ## Examinador con IA (Firebase AI Logic) — los dos módulos
 

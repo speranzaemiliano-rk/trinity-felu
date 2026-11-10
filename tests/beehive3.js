@@ -80,11 +80,16 @@ const PAS_ORO=Object.assign({},REG_ORO,IRR_ORO);
 chk('preguntas en pasado (p. 101): cada una es «Did + sujeto + verbo en forma base …?», el pasado de su oración afirmativa es el correcto, la respuesta corta usa el pronombre que corresponde y todo tiene audio ('+B3.DID.length+')',
   B3.DID.length===12&&B3.DID.every(d=>d.q==='Did '+d.sujeto+' '+d.base+' '+d.resto+'?'&&PAS_ORO[d.base]===d.past&&palabra(d.decl,d.past)&&d.decl.toLowerCase().startsWith(d.sujeto.toLowerCase())&&d.decl.endsWith(d.resto+'.')&&d.si==='Yes, '+d.pron+' did.'&&d.no==='No, '+d.pron+" didn't."&&/^(he|she|they|I)$/.test(d.pron)&&(['you','I'].includes(d.sujeto)?d.pron==='I':true)&&/^¿.*\?$/.test(d.es)&&[d.kQ,d.kSi,d.kNo,d.kDecl].every(k=>B3.audio[k])&&B3.audio[d.kQ]===d.q&&B3.audio[d.kSi]===d.si&&B3.audio[d.kNo]===d.no),j(B3.DID.filter(d=>!(d.q==='Did '+d.sujeto+' '+d.base+' '+d.resto+'?'&&PAS_ORO[d.base]===d.past&&palabra(d.decl,d.past))).map(d=>d.id)));
 chk('las preguntas en pasado cubren verbos del libro (have, wear, make, buy, play) y de las dos clases (regulares e irregulares), con respuestas cortas de he, she, they e I',['have','wear','make','buy','play'].every(b=>B3.DID.some(d=>d.base===b))&&B3.DID.some(d=>REG_ORO[d.base])&&B3.DID.some(d=>IRR_ORO[d.base])&&['he','she','they','I'].every(x=>B3.DID.some(d=>d.pron===x)));
+const HECHOS=B3.HIST7.concat(B3.CULT7);
+chk('historia y lectura de la Unit 7 ('+B3.HIST7.length+' y '+B3.CULT7.length+' hechos): cada pregunta tiene 1 respuesta y 3 falsas distintas, la oración verdadera y la falsa son distintas, el final para unir está al final de la oración verdadera y todo tiene audio y traducción',
+  B3.HIST7.length===8&&B3.CULT7.length===9&&HECHOS.every(f=>f.mal.length===3&&new Set(f.mal.concat([f.ok])).size===4&&f.ver!==f.falso&&f.ver.endsWith(f.der)&&f.izq.split(' ').some(w=>f.ver.includes(w))&&B3.audio[f.kVer]===f.ver&&/^¿.*\?$/.test(f.es)&&/^[A-ZÁÉÍÓÚ].*\.$/.test(f.verEs)&&/\?$/.test(f.q)),j(HECHOS.filter(f=>!(f.mal.length===3&&f.ver.endsWith(f.der)&&B3.audio[f.kVer]===f.ver)).map(f=>f.id)));
+chk('los hechos de cada tema tienen finales distintos (para unir) y los que se ordenan tienen un orden propio (1, 2, 3…)',[B3.HIST7,B3.CULT7].every(l=>new Set(l.map(f=>f.der)).size===l.length&&new Set(l.map(f=>f.izq)).size===l.length)&&B3.HIST7.filter(f=>f.orden).map(f=>f.orden).join()==='1,2,3,4,5,6,7'&&B3.CULT7.every(f=>!f.orden));
+chk('«have to / has to / had to»: cada ítem de «had to» trae su sujeto y lo que tenía que hacer, y hay audio de las tres formas',B3.HADTO.every(h=>h.sub&&h.vp&&h.aff.toLowerCase().includes(h.vp.split(' ').slice(0,2).join(' ').toLowerCase()))&&['had','has','have'].every(k=>B3.audio[B3.kHT[k]]===k+' to'),j(B3.HADTO.filter(h=>!(h.sub&&h.vp)).map(h=>h.id)));
 chk('was / were: cada oración tiene la respuesta correcta según el sujeto y es negativa sólo si lleva «n\'t» ('+B3.BE.length+')',B3.BE.length===Object.keys(BE_ORO).length&&B3.BE.every(b=>BE_ORO[b.id]===b.ok&&(b.neg===1)===/n't$/.test(b.ok)&&(b.s.match(/____/g)||[]).length===1),j(B3.BE.filter(b=>BE_ORO[b.id]!==b.ok).map(b=>b.id)));
 const vocab=B3.VOCAB.flatMap(t=>t.items.map(it=>({t,it})));
 chk('el vocabulario es el del libro, en su orden (pp. 84, 88, 96 y 100): Housework (8), Party preparations (6), Everyday things (8) y A Roman town (6)',B3.VOCAB.map(t=>t.items.map(i=>i.en).join('|')).join('/')==='hoover the floor|wash the dishes|load the dishwasher|water the plants|clean my room|clear the table|cook the dinner|wash the car/invite guests|prepare food|tidy up|decorate|dress up|set the table/helmet|cup|bowl|fan|lamp|phone|comb|coins/walls|gate|street|market square|theatre|town hall');
 chk('el vocabulario cuenta con todas las palabras (8, 6, 8 y 6)',B3.VOCAB.map(t=>t.items.length).join()==='8,6,8,6'&&B3.VOCAB.map(t=>t.pag).join()==='84,88,96,100'&&['water the plants','wash the dishes','clear the table','hoover the floor','wash the car','clean my room','tidy up','dress up','set the table','prepare food','decorate','invite guests','bowl','phone','cup','coins','helmet','fan','lamp','comb','town hall','walls','gate','market square','theatre','street'].every(w=>vocab.some(x=>x.it.en===w)));
-chk('los 8 temas, en el orden de las units, con su unit y sus páginas del libro (84, 86 y 87, 88, 89, 96, 98 a 101, 100, 101)',B3.TEMAS.map(t=>t.id+':'+t.unit+':'+t.pag).join('|')==='housework:7:84|regular:7:86 y 87|party:7:88|hadto:7:89|everyday:8:96|irregular:8:98, 99 y 101|roman:8:100|preguntas:8:101');
+chk('los 10 temas, en el orden de las units, con su unit y sus páginas del libro',B3.TEMAS.map(t=>t.id+':'+t.unit+':'+t.pag).join('|')==='housework:7:84|regular:7:86 y 87|party:7:88|hadto:7:89|historia1:7:90 y 91|cultura1:7:92 y 93|everyday:8:96|irregular:8:98, 99 y 101|roman:8:100|preguntas:8:101');
 const ids=vocab.map(x=>x.it.id).concat(B3.REG.map(v=>v.id),B3.IRR.map(v=>v.id),B3.HADTO.map(h=>h.id));
 chk('todos los ítems tienen un id propio',new Set(ids).size===ids.length&&ids.every(Boolean));
 chk('cada oración con hueco tiene un solo «____», no dice la respuesta y no menciona a ninguna de las otras palabras del mismo tema (así encaja una sola)',
@@ -169,7 +174,7 @@ const probar=async es=>p.evaluate(es=>{
   const ITEMS={};B.TEMAS.forEach(t=>t.items.forEach(i=>{ITEMS[i.id]={t,i}}));
   const strip=h=>String(h||'').replace(/<\/?(span|b|i)(\s[^>]*)?>/g,'').replace(/<[^>]*>/g,' ').replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/\s+/g,' ').trim();
   const N=B.NORM,audio=new Set(window.B3_AUDIO);
-  const TIPOS={vocab:['emoji2en','audio2en','en2es','es2en','cloze','spell','write','unir'],regular:['choosePast','forma','typePast','typeForma','chooseNeg','typeNeg','ordenarAff','ordenarNeg','spot','listen','tabla'],hadto:['choose','typeFill','ordenarAff','ordenarNeg','es2en','spot','lista'],irregular:['choosePast','baseToPast','pastToBase','typePast','typeForma','chooseNeg','typeNeg','ordenarAff','ordenarNeg','spot','listen','escribir','unir'],preguntas:['qDid','qSpot','qResp','qOrdenar','qTipear','qEscribirQ']};
+  const TIPOS={vocab:['emoji2en','audio2en','en2es','es2en','cloze','spell','write','unir'],regular:['choosePast','forma','typePast','typeForma','chooseNeg','typeNeg','ordenarAff','ordenarNeg','spot','listen','tabla'],hadto:['choose','typeFill','ordenarAff','ordenarNeg','es2en','spot','lista','contraste'],historia:['hElegir','hVF','hUnir','hOrden'],lectura:['hElegir','hVF','hUnir'],irregular:['choosePast','baseToPast','pastToBase','typePast','typeForma','chooseNeg','typeNeg','ordenarAff','ordenarNeg','spot','listen','escribir','unir'],preguntas:['qDid','qSpot','qResp','qOrdenar','qTipear','qEscribirQ']};
   const pr=(ctx,m)=>{if(out.length<40)out.push(ctx+': '+m)};
   B.TEMAS.forEach(t=>{const usados=B.tipos(t.id).flat(),permitidos=TIPOS[t.tipo];usados.forEach(x=>{if(!permitidos.includes(x))pr(t.id,'tipo no previsto en la prueba: '+x)})});
   const val=(q,ctx,v)=>{
@@ -200,8 +205,8 @@ const probar=async es=>p.evaluate(es=>{
     if(q.tipo==='ordenar'){
       if(q.fichas.length!==q.sol.length||q.fichas.slice().sort().join('|')!==q.sol.slice().sort().join('|'))pr(ctx,'fichas distintas de la solución');
       if(q.fichas.join(' ')===q.sol.join(' '))pr(ctx,'las fichas ya vienen en orden');
-      if(q.sol.join(' ').replace(' ?','?')!==q.mostrar)pr(ctx,'«mostrar» no es la solución');
-      if(q.sol.length<4||q.sol.length>10)pr(ctx,q.sol.length+' fichas');
+      if(q.tag!=='hOrden'&&q.sol.join(' ').replace(' ?','?')!==q.mostrar)pr(ctx,'«mostrar» no es la solución');
+      if(q.tag!=='hOrden'&&(q.sol.length<4||q.sol.length>10))pr(ctx,q.sol.length+' fichas');
       (q.alt||[]).forEach(a=>{if(N(a).split(' ').sort().join(' ')!==N(q.sol.join(' ')).split(' ').sort().join(' ')||N(a)===N(q.sol.join(' ')))pr(ctx,'variante de orden rara: '+a)});
     }
     if(q.tipo==='unir'){
@@ -210,8 +215,8 @@ const probar=async es=>p.evaluate(es=>{
       if(new Set(idsI).size!==idsI.length||idsI.slice().sort().join()!==idsD.slice().sort().join())pr(ctx,'los pares no se corresponden');
       if(new Set(q.der.map(x=>x.t)).size!==q.der.length)pr(ctx,'respuestas repetidas en el lado derecho');
       if(idsI.join()===idsD.join())pr(ctx,'el lado derecho ya viene en el mismo orden');
-      q.izq.forEach(x=>{const it=ITEMS[x.id].i;if(!(x.t===it.en||x.t===it.base))pr(ctx,'izq no es el ítem: '+x.t)});
-      q.der.forEach(x=>{const it=ITEMS[x.id].i;if(!(x.t===it.es||x.t===it.emoji||x.t===it.past))pr(ctx,'der no es el ítem: '+x.t)});
+      q.izq.forEach(x=>{const it=ITEMS[x.id].i;if(!(x.t===it.en||x.t===it.base||x.t===it.izq))pr(ctx,'izq no es el ítem: '+x.t)});
+      q.der.forEach(x=>{const it=ITEMS[x.id].i;if(!(x.t===it.es||x.t===it.emoji||x.t===it.past||x.t===it.der))pr(ctx,'der no es el ítem: '+x.t)});
     }
     if(v)v(q,strip(q.cuerpo||''),q.opciones&&q.opciones.find(o=>o.ok));
   };
@@ -285,12 +290,24 @@ const probar=async es=>p.evaluate(es=>{
         if(!txt.startsWith(neg?h.neg.replace("didn't have to",'____'):h.aff.replace('had to','____')))pr(ctx,'el hueco no es el de la oración: «'+txt+'»');
         if(!txt.includes(neg?'✘':'✔'))pr(ctx,'falta la marca ✔/✘')}
       if(tipo==='lista'){const e=B.LISTAS.flatMap(l=>l.items).find(x=>x.id===h.id);if(!e||!txt.includes(e.task+' – '+e.who)||!txt.includes('Before the party, '+e.who+' ____')||q.aceptar[0]!=='had to '+e.task||q.aceptar[1]!==e.who+' had to '+e.task||q.hablar!==e.k||(es&&!txt.includes(e.es)))pr(ctx,'lista mal: «'+txt+'»')}
+      if(tipo==='contraste'){const pas=/^(Yesterday|Last night|Last week),/.test(txt),pres=/^(Every day|Every Saturday|Every week),/.test(txt);if(pas===pres)pr(ctx,'contraste: marca de tiempo rara «'+txt+'»');const tercera=/^(Emma|Mum|Dad|Anna|Tom)$/.test(h.sub),esp=pas?'had to':tercera?'has to':'have to';if(bien.t!==esp||!txt.includes(', '+h.sub+' ____ '+h.vp+'.')||q.opciones.map(o=>o.t).sort().join('|')!==['had','had to','has to','have to'].sort().join('|')||B.audio[q.hablar]!==esp)pr(ctx,'contraste mal: «'+txt+'» → '+bien.t)}
       if(tipo==='ordenarAff'&&q.sol.join(' ')!==h.aff)pr(ctx,'ordenarAff mal');
       if(tipo==='ordenarNeg'&&q.sol.join(' ')!==h.neg)pr(ctx,'ordenarNeg mal');
       if(tipo==='es2en'||tipo==='spot'){const neg=bien.t===h.neg;if(!neg&&bien.t!==h.aff)pr(ctx,'la correcta no es ninguna');if(!txt.includes(neg?h.negEs:h.affEs))pr(ctx,'traducción que no corresponde');
         q.opciones.filter(o=>!o.ok).forEach(o=>{if(o.t===(neg?h.neg:h.aff))pr(ctx,'una mala es igual a la buena')})}
     });
   }}));
+  // ---- historia y lectura de la Unit 7
+  [['historia1',B.HIST7],['cultura1',B.CULT7]].forEach(([tid,lista])=>lista.forEach(f=>TIPOS[B.tema(tid).tipo].forEach(tipo=>{for(let k=0;k<12;k++){
+    let q;try{q=B.gen(tid,f.id,tipo)}catch(e){pr(tid+'/'+f.id+'/'+tipo,'se rompió: '+e.message);continue}
+    const ctx=tid+'/'+f.id+'/'+tipo;
+    val(q,ctx,(q,txt,bien)=>{
+      if(tipo==='hElegir'){if(bien.t!==f.ok||!txt.startsWith(f.q)||q.hablar!==f.kVer||q.opciones.length!==4||q.opciones.map(o=>o.t).sort().join('|')!==f.mal.concat([f.ok]).sort().join('|'))pr(ctx,'hElegir mal')}
+      if(tipo==='hVF'){const v=txt.startsWith(f.ver),fa=txt.startsWith(f.falso);if(v===fa||bien.t!==(v?'True':'False')||q.opciones.length!==2||q.hablar!==f.kVer)pr(ctx,'hVF mal: «'+txt+'» → '+bien.t)}
+      if(tipo==='hUnir'){if(q.izq.length!==4||q.izq.some(x=>{const h=lista.find(y=>y.id===x.id);return !h||x.t!==h.izq||q.der.find(y=>y.id===x.id).t!==h.der}))pr(ctx,'hUnir mal')}
+      if(tipo==='hOrden'){const ord=q.ids.map(id=>lista.find(y=>y.id===id));if(q.ids.length!==4||new Set(q.ids).size!==4||ord.some(h=>!h.orden)||ord.some((h,i)=>i&&h.orden<=ord[i-1].orden)||q.sol.join('|')!==ord.map(h=>h.ev).join('|'))pr(ctx,'hOrden: no están en el orden de la historia')}
+    });
+  }})));
   // ---- preguntas en pasado (p. 101)
   B.DID.forEach(d=>TIPOS.preguntas.forEach(tipo=>{for(let k=0;k<14;k++){
     let q;try{q=B.gen('preguntas',d.id,tipo)}catch(e){pr('preguntas/'+d.id+'/'+tipo,'se rompió: '+e.message);continue}
@@ -314,7 +331,7 @@ const probar=async es=>p.evaluate(es=>{
   return out;
 },es);
 let pr1=await probar(true);
-chk('TODAS las preguntas de los 8 temas (cada ítem × cada tipo, muchas veces) salen bien armadas: UNA sola correcta, opciones distintas, las oraciones coinciden con el contenido, hay audio para todo lo que se dice',pr1.length===0,pr1.slice(0,8).join(' | '));
+chk('TODAS las preguntas de los 10 temas (cada ítem × cada tipo, muchas veces) salen bien armadas: UNA sola correcta, opciones distintas, las oraciones coinciden con el contenido, hay audio para todo lo que se dice',pr1.length===0,pr1.slice(0,8).join(' | '));
 let pr2=await probar(false);
 chk('lo mismo sin traducciones (se pueden apagar en Ajustes): las preguntas siguen entendiéndose y bien armadas',pr2.length===0,pr2.slice(0,6).join(' | '));
 chk('armar preguntas no rompió la página',p.errs.length===0,j(p.errs));
@@ -325,10 +342,10 @@ await cerrar(p);
 {
 const p=await abrir();
 const tarjetas=await p.evaluate(()=>[...document.querySelectorAll('#pInicio .tema')].map(e=>({t:e.dataset.tema,txt:e.innerText.replace(/\s+/g,' ')})));
-chk('el inicio muestra los 8 temas, cada uno con su unit y su página, la cuenta regresiva («Faltan 2 días») y el simulacro',tarjetas.length===8&&/Past simple: questions.*Unit 8 · p\. 101/.test(tarjetas[7].txt)&&/Housework.*Unit 7 · p\. 84/.test(tarjetas[0].txt)&&/Past simple: irregular verbs.*Unit 8 · p\. 98, 99 y 101/.test(tarjetas[5].txt)&&/Faltan 2 días/.test(await p.innerText('.cuenta'))&&/30 preguntas/.test(await p.innerText('#bSim')),j(tarjetas));
+chk('el inicio muestra los 10 temas, cada uno con su unit y su página, la cuenta regresiva («Faltan 2 días») y el simulacro',tarjetas.length===10&&/Past simple: questions.*Unit 8 · p\. 101/.test(tarjetas[9].txt)&&/Story: The farmyard party.*Unit 7 · p\. 90 y 91/.test(tarjetas[4].txt)&&/Culture: Family festivals.*Unit 7 · p\. 92 y 93/.test(tarjetas[5].txt)&&/Housework.*Unit 7 · p\. 84/.test(tarjetas[0].txt)&&/Past simple: irregular verbs.*Unit 8 · p\. 98, 99 y 101/.test(tarjetas[7].txt)&&/Faltan 2 días/.test(await p.innerText('.cuenta'))&&/30 preguntas/.test(await p.innerText('#bSim')),j(tarjetas));
 chk('al empezar no hay nada para repasar (el botón está apagado) y el inicio sugiere seguir con el primer tema',await p.evaluate(()=>document.getElementById('bErrores').disabled)&&/Seguí con: Housework/.test(await p.innerText('.seguir')));
 // el tema: estudio con voz
-for(const t of ['housework','regular','party','hadto','everyday','irregular','roman','preguntas']){
+for(const t of ['housework','regular','party','hadto','historia1','cultura1','everyday','irregular','roman','preguntas']){
   await p.click('#pInicio .tema[data-tema="'+t+'"]');await p.waitForSelector('#bPracticar');
   const info=await p.evaluate(()=>({botones:[...document.querySelectorAll('#pTema [data-k]')].map(e=>e.dataset.k),tema:document.getElementById('pTema').dataset.tema,txt:document.getElementById('pTema').innerText.replace(/\s+/g,' ')}));
   const esperado=await p.evaluate(t=>{const x=B3.tema(t);return {n:x.items.filter(i=>!i.extra).length,nombre:x.nombre}},t);
@@ -600,13 +617,13 @@ for(const [nombre,w,h] of (RAPIDO?TAMANOS.slice(3,4):TAMANOS)){
   const falla=[];
   const m=async(que)=>{const o=await p.evaluate(medir);o.forEach(x=>falla.push(que+' → '+x))};
   await m('inicio');
-  for(const t of ['housework','regular','party','hadto','everyday','irregular','roman','preguntas']){await p.click('#pInicio .tema[data-tema="'+t+'"]');await p.waitForSelector('#bPracticar');await m('estudio '+t);await p.click('#pTema .atras');await p.waitForSelector('#pInicio .tema')}
+  for(const t of ['housework','regular','party','hadto','historia1','cultura1','everyday','irregular','roman','preguntas']){await p.click('#pInicio .tema[data-tema="'+t+'"]');await p.waitForSelector('#bPracticar');await m('estudio '+t);await p.click('#pTema .atras');await p.waitForSelector('#pInicio .tema')}
   await p.evaluate(()=>{window.scrollTo(0,0)});
   await p.click('#pInicio .barra .atras');await p.waitForSelector('#aVoz');await m('ajustes');await p.click('#pAjustes .atras');
   // las preguntas: por cada tema y tipo, las 3 de más texto (el peor caso)
   const lote=await p.evaluate(()=>{
     const ST=B3.estado();ST.extra=true;ST.es=true;const lista=[];
-    const TIPOS={vocab:['emoji2en','audio2en','en2es','es2en','cloze','spell','write','unir'],regular:['choosePast','forma','typePast','typeForma','chooseNeg','typeNeg','ordenarAff','ordenarNeg','spot','listen','tabla'],hadto:['choose','typeFill','ordenarAff','ordenarNeg','es2en','spot','lista'],irregular:['choosePast','baseToPast','pastToBase','typePast','typeForma','chooseNeg','typeNeg','ordenarAff','ordenarNeg','spot','listen','escribir','unir'],preguntas:['qDid','qSpot','qResp','qOrdenar','qTipear','qEscribirQ']};
+    const TIPOS={vocab:['emoji2en','audio2en','en2es','es2en','cloze','spell','write','unir'],regular:['choosePast','forma','typePast','typeForma','chooseNeg','typeNeg','ordenarAff','ordenarNeg','spot','listen','tabla'],hadto:['choose','typeFill','ordenarAff','ordenarNeg','es2en','spot','lista','contraste'],historia:['hElegir','hVF','hUnir','hOrden'],lectura:['hElegir','hVF','hUnir'],irregular:['choosePast','baseToPast','pastToBase','typePast','typeForma','chooseNeg','typeNeg','ordenarAff','ordenarNeg','spot','listen','escribir','unir'],preguntas:['qDid','qSpot','qResp','qOrdenar','qTipear','qEscribirQ']};
     const largo=q=>(q.cuerpo||'').replace(/<[^>]*>/g,'').length+(q.opciones||[]).reduce((s,o)=>s+o.t.length,0)+(q.fichas||[]).join(' ').length+(q.banco||[]).join(' ').length+(q.izq||[]).reduce((s,x)=>s+x.t.length,0);
     B3.TEMAS.forEach(t=>{TIPOS[t.tipo].forEach(tipo=>{
       const qs=[];t.items.forEach(it=>{if(it.be)return;if((tipo==='emoji2en'||tipo==='write')&&!it.emoji)return;for(let k=0;k<(tipo==='tabla'?10:2);k++){try{qs.push(tipo==='tabla'?B3.genTabla():B3.gen(t.id,it.id,tipo))}catch(e){}}});
@@ -631,7 +648,7 @@ for(const [nombre,w,h] of (RAPIDO?TAMANOS.slice(3,4):TAMANOS)){
   // el resultado, con una lista larga de errores
   await p.evaluate(()=>{B3.rondaCon(window.__lote.slice(0,10).map((q,i)=>Object.assign({},q,{parte:['A · Look and write','B · Complete with the past simple','C · Order the words'][i%3]})),true)});
   await jugar(p,()=>false,true);await m('resultado del simulacro (10 errores)');
-  chk('diseño '+nombre+': inicio, 8 temas de estudio, ajustes, '+lote+' preguntas (peor caso, sin corregir y corregidas) y resultado — nada se sale, se pisa ni se corta',falla.length===0&&p.errs.length===0,falla.slice(0,6).join(' | ')+j(p.errs));
+  chk('diseño '+nombre+': inicio, 10 temas de estudio, ajustes, '+lote+' preguntas (peor caso, sin corregir y corregidas) y resultado — nada se sale, se pisa ni se corta',falla.length===0&&p.errs.length===0,falla.slice(0,6).join(' | ')+j(p.errs));
   await cerrar(p);
 }
 

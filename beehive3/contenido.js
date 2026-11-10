@@ -150,6 +150,36 @@ LISTAS.forEach(l=>l.items=l.items.map(([who,task,id,es])=>({who,task,id,es,oraci
 // frases útiles para hablar (p. 85, «I have to…»)
 VOCAB[0].util=[["How do you help at home?","¿Cómo ayudás en tu casa?"],["I have to water the plants.","Tengo que regar las plantas."],["I have to load the dishwasher.","Tengo que cargar el lavavajillas."]].map(([en,es])=>({en,es,k:A(en)}));
 
+// «have to / has to / had to»: el contraste presente / pasado (p. 85 «I have to…» y p. 89 «had to es el pasado de have to»). sub = el sujeto, vp = lo que tenía que hacer
+const SUBVP={ht_tidy:["Emma","tidy up her room"],ht_set:["we","set the table"],ht_dress:["I","dress up for the party"],ht_food:["Mum","prepare food"],ht_decorate:["the boys","decorate the hall"],ht_invite:["Dad","invite our neighbours"],ht_dishes:["Anna","wash the dishes"],ht_hoover:["they","hoover the floor"],ht_room:["I","clean my room"],ht_water:["Tom","water the plants"]};
+HADTO.forEach(h=>{h.sub=SUBVP[h.id][0];h.vp=SUBVP[h.id][1]});
+B3.kHT={had:A("had to"),has:A("has to"),have:A("have to")};
+
+// ---------------- historias y lecturas de la Unit 7 (pp. 90 a 93): hechos que se preguntan de varias maneras. Todas las oraciones son propias (un resumen), no las del libro
+// hecho(id, pregunta, respuesta, tres respuestas falsas, la pregunta en castellano, oración verdadera, su traducción, versión falsa, principio, final, orden en la historia)
+const hecho=(id,q,ok,mal,es,ver,verEs,falso,izq,der,ev,orden)=>({id,q,ok,mal,es,ver,verEs,falso,izq,der,ev:ev||"",orden:orden||0,kVer:A(ver)});
+const HIST7=[
+ hecho("hf_party","What did the animals want to have?","a party",["a picnic","a concert","a race"],"¿Qué querían hacer los animales?","The animals wanted to have a party.","Los animales querían hacer una fiesta.","The animals wanted to go to the beach.","The animals wanted","to have a party.","The animals wanted to have a party.",1),
+ hecho("hf_tidy","Who tidied up the farmyard?","Donkey",["the ducks","the cat","the horse"],"¿Quién ordenó la granja?","Donkey tidied up the farmyard.","El burro ordenó la granja.","The ducks tidied up the farmyard.","Donkey","tidied up the farmyard.","Donkey tidied up the farmyard.",2),
+ hecho("hf_busy","Why didn't the other animals help Donkey?","They were busy or tired.",["They were asleep.","They were at school.","They didn't know about the party."],"¿Por qué los otros animales no ayudaron al burro?","The other animals said they were busy or tired.","Los otros animales dijeron que estaban ocupados o cansados.","The other animals helped Donkey with everything.","The other animals said they were","busy or tired."),
+ hecho("hf_food","Who prepared the food?","Donkey",["the cat","the horse","the ducks"],"¿Quién preparó la comida?","Donkey prepared the food.","El burro preparó la comida.","The cat prepared the food.","Then Donkey","prepared the food.","Then Donkey prepared the food.",3),
+ hecho("hf_nofun","How was the party at first?","It wasn't much fun.",["It was a lot of fun.","It was in the city.","It was at school."],"¿Cómo fue la fiesta al principio?","At first, the party wasn't much fun.","Al principio, la fiesta no fue muy divertida.","At first, the party was a lot of fun.","At first, the party","wasn't much fun.","At first, the party wasn't much fun.",4),
+ hecho("hf_no","Why did Donkey say no to the other animals?","Because they didn't help.",["Because they were late.","Because there was no food.","Because they were noisy."],"¿Por qué el burro les dijo que no a los otros animales?","Donkey said no because the other animals didn't help.","El burro dijo que no porque los otros animales no ayudaron.","Donkey said no because the other animals were late.","Donkey said no because they","didn't help.","Donkey said no to the other animals.",5),
+ hecho("hf_sorry","How did the other animals feel in the end?","very sorry",["very angry","very bored","very hungry"],"¿Cómo se sintieron los otros animales al final?","The other animals were very sorry.","Los otros animales se sintieron muy mal y pidieron perdón.","The other animals were very angry.","The other animals were","very sorry.","The other animals were very sorry.",6),
+ hecho("hf_tidy2","What did they all do after the party?","They all helped to tidy up.",["They went shopping.","They decorated the farmyard.","They cooked dinner."],"¿Qué hicieron todos después de la fiesta?","After the party, they all helped to tidy up.","Después de la fiesta, todos ayudaron a ordenar.","After the party, nobody helped to tidy up.","After the party, they all","helped to tidy up.","After the party, they all helped to tidy up.",7)
+];
+const CULT7=[
+ hecho("cf_japan","Which country has «Grandparents' day»?","Japan",["the USA","Argentina","England"],"¿Qué país tiene el «Día de los abuelos»?","Grandparents' day is a festival in Japan.","El Día de los abuelos es una fiesta de Japón.","Grandparents' day is a festival in the USA.","Grandparents' day is a festival in","Japan."),
+ hecho("cf_sept","When is Grandparents' day in Japan?","in September",["in November","in January","in June"],"¿Cuándo es el Día de los abuelos en Japón?","Grandparents' day is in September.","El Día de los abuelos es en septiembre.","Grandparents' day is in November.","Grandparents' day is in","September."),
+ hecho("cf_concert","What does Yukiko's school have for the older people?","a concert",["a football match","a picnic","a market"],"¿Qué hace la escuela de Yukiko para los mayores?","Yukiko's school has a concert.","La escuela de Yukiko hace un concierto.","Yukiko's school has a football match.","Yukiko's school has","a concert."),
+ hecho("cf_sing","Who sings and dances at the concert?","the children",["the older people","the teachers","the parents"],"¿Quiénes cantan y bailan en el concierto?","The children sing and dance for the older people.","Los chicos cantan y bailan para los mayores.","The older people sing and dance for the children.","The children sing and dance for","the older people."),
+ hecho("cf_visit","Who does Yukiko visit after school?","her grandparents",["her teacher","her cousins","her friends"],"¿A quién visita Yukiko después de la escuela?","After school, Yukiko visits her grandparents.","Después de la escuela, Yukiko visita a sus abuelos.","After school, Yukiko visits her cousins.","After school, Yukiko visits","her grandparents."),
+ hecho("cf_present","What does Yukiko make for her grandparents?","a present",["a cake","a robot","a hat"],"¿Qué hace Yukiko para sus abuelos?","Yukiko makes a present and buys flowers.","Yukiko hace un regalo y compra flores.","Yukiko makes a cake and buys a hat.","Yukiko makes a present and buys","flowers."),
+ hecho("cf_garden","What did Yukiko and her brother do last year?","They decorated the garden.",["They built a house.","They painted a car.","They cooked all the food."],"¿Qué hicieron Yukiko y su hermano el año pasado?","Last year, Yukiko and her little brother helped to decorate the garden.","El año pasado, Yukiko y su hermanito ayudaron a decorar el jardín.","Last year, Yukiko and her brother built a house.","Last year, they helped to decorate","the garden."),
+ hecho("cf_usa","In which country is Thanksgiving a festival?","the USA",["Japan","England","Italy"],"¿En qué país se festeja Thanksgiving?","Thanksgiving is a festival in the USA.","Thanksgiving es una fiesta de Estados Unidos.","Thanksgiving is a festival in Japan.","Thanksgiving is a festival in","the USA."),
+ hecho("cf_clear","Who clears the table after the Thanksgiving meal?","the children",["the grandparents","the guests","the cook"],"¿Quiénes levantan la mesa después de la comida de Thanksgiving?","After the meal, the children clear the table.","Después de la comida, los chicos levantan la mesa.","After the meal, the grandparents clear the table.","After the meal, the children","clear the table.")
+];
+
 // ---------------- preguntas en pasado (p. 101): «Did + sujeto + verbo en forma base …?» y las respuestas cortas «Yes, they did. / No, they didn't.»
 // dq(id, sujeto, pronombre de la respuesta corta, verbo, su pasado, lo que sigue, la pregunta en castellano, la oración afirmativa en pasado)
 const dq=(id,sujeto,pron,base,past,resto,es,decl)=>{
@@ -171,13 +201,17 @@ const DID=[
  dq("dq_see","you","I","see","saw","the castle","¿Viste el castillo?","You saw the castle.")
 ];
 
-B3.VOCAB=VOCAB;B3.REG=REG;B3.IRR=IRR;B3.BE=BE;B3.HADTO=HADTO;B3.LISTAS=LISTAS;B3.DID=DID;
+B3.VOCAB=VOCAB;B3.REG=REG;B3.IRR=IRR;B3.BE=BE;B3.HADTO=HADTO;B3.LISTAS=LISTAS;B3.DID=DID;B3.HIST7=HIST7;B3.CULT7=CULT7;
 // los temas en el orden de las units
 B3.TEMAS=[
  VOCAB[0],
  {id:"regular",unit:7,pag:"86 y 87",ico:"⏮️",nombre:"Past simple: regular verbs",es:"Verbos regulares en pasado (+ed): afirmativo y negativo",tipo:"regular",items:REG},
  VOCAB[1],
  {id:"hadto",unit:7,pag:"89",ico:"📋",nombre:"Had to",es:"«Tuve que…»: had to / didn't have to",tipo:"hadto",items:HADTO},
+ {id:"historia1",unit:7,pag:"90 y 91",ico:"🐴",nombre:"Story: The farmyard party",es:"La historia «La fiesta en la granja»",tipo:"historia",fuente:"la historia «The farmyard party»",items:HIST7,
+  notas:["Los animales de la granja quieren hacer una fiesta, pero casi todo el trabajo (ordenar y preparar la comida) lo hace el burro, <b>Donkey</b>, porque los demás dicen que están ocupados o cansados. Al principio la fiesta no es divertida; después los animales piden perdón y al final <b>todos ayudan</b>.","En la historia se usan las estructuras de la unit: <i>had to</i> (<i>they had to tidy up</i>), el negativo con <i>didn't</i> (<i>you didn't help</i>), <i>was / were</i> (<i>the animals were sorry</i>) y verbos en <b>-ed</b> (<i>tidied, prepared, helped</i>)."]},
+ {id:"cultura1",unit:7,pag:"92 y 93",ico:"🎎",nombre:"Culture: Family festivals",es:"Fiestas de familia: Estados Unidos y Japón",tipo:"lectura",fuente:"la lectura",items:CULT7,
+  notas:["<b>Thanksgiving</b> (Día de Acción de Gracias) es una fiesta de Estados Unidos: se invita gente, se prepara comida y se hace una gran comida en familia. En Japón hay un <b>Día de los abuelos</b> (<i>Grandparents' day</i> o <i>Respect for the elderly day</i>), en septiembre: los chicos hacen un concierto para los mayores y Yukiko visita a sus abuelos.","Palabras de la lectura: <b>parents</b> (padres), <b>grandparents</b> (abuelos), <b>son</b> (hijo), <b>daughter</b> (hija), <b>festival</b> (fiesta), <b>present</b> (regalo). Recordá: el pasado regular lleva <b>-ed</b>; si termina en <b>y</b> (tidy) pasa a <b>-ied</b>; si termina en <b>e</b> (dance, bake) sólo se agrega <b>-d</b>.","<b>Proyecto de la unidad (p. 94):</b> armar un póster de fiestas familiares: hacer una lista de fiestas y elegir una, dibujar tres cosas que se hacen para prepararse, escribir una oración por cada dibujo, escribir qué se recuerda de la fiesta del año pasado (en pasado) y presentar el póster a la clase."]},
  VOCAB[2],
  {id:"irregular",unit:8,pag:"98, 99 y 101",ico:"⚡",nombre:"Past simple: irregular verbs",es:"Verbos irregulares en pasado",tipo:"irregular",items:IRR.concat([{id:"vb_be",be:1,base:"be",past:"was / were",es:"ser, estar"}])},
  VOCAB[3],

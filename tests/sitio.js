@@ -180,7 +180,7 @@ T.est.resp.length=0;T.est.fallos.length=0;p.errs.length=0;
 await Promise.all([p.waitForURL('**/beehive3/'),p.click('.mod.m6')]);await p.waitForSelector('#pInicio .tema');await p.waitForTimeout(300);
 const rB=T.est.resp.map(x=>x[0]);
 chk('tocar «Beehive 3» en el menú abre /beehive3/ con todo funcionando: sus estilos, scripts y lista de audios ('+T.est.resp.length+' pedidos, ninguno con error), sin el motor de Trinity y sin errores de página',
-  new URL(p.url()).pathname==='/beehive3/'&&await p.evaluate(()=>typeof B3==='object'&&B3.TEMAS.length===8&&/Beehive 3/.test(document.title)&&document.querySelectorAll('#pInicio .tema').length===8)&&['/beehive3/estilos.css','/beehive3/contenido.js','/beehive3/app.js','/beehive3/audio/manifest.js'].every(x=>rB.includes(x))&&!rB.some(x=>/^\/(motor\.js|comun\.js|estilos\.css|contenido-g\d\.js)$/.test(x))&&T.est.resp.every(x=>x[1]<400)&&T.est.fallos.length===0&&p.errs.length===0,JSON.stringify([rB,p.errs,T.est.fallos]));
+  new URL(p.url()).pathname==='/beehive3/'&&await p.evaluate(()=>typeof B3==='object'&&B3.TEMAS.length===10&&/Beehive 3/.test(document.title)&&document.querySelectorAll('#pInicio .tema').length===10)&&['/beehive3/estilos.css','/beehive3/contenido.js','/beehive3/app.js','/beehive3/audio/manifest.js'].every(x=>rB.includes(x))&&!rB.some(x=>/^\/(motor\.js|comun\.js|estilos\.css|contenido-g\d\.js)$/.test(x))&&T.est.resp.every(x=>x[1]<400)&&T.est.fallos.length===0&&p.errs.length===0,JSON.stringify([rB,p.errs,T.est.fallos]));
 T.est.resp.length=0;
 await p.click('.tema[data-tema="housework"]');await p.waitForSelector('#bPracticar');await p.click('#pTema .oir >> nth=0');await p.waitForTimeout(700);
 const mp3B=T.est.resp.filter(x=>/\.mp3$/.test(x[0]));

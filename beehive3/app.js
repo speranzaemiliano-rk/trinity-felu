@@ -159,10 +159,27 @@ function genHad(t,h,tipo){
       const filas=L.items.map(x=>`<li><span class="cb" aria-hidden="true">☐</span> ${esc(x.task)} – <b>${esc(x.who)}</b></li>`).join("");
       return {...base,tipo:"tipear",tag:tipo,consigna:"Look at the to-do list and complete with had to.",ayuda:"Mirá la lista y escribí lo que tuvo que hacer (had to + lo que hizo).",pista:"had to …",cuerpo:`<div class="todo"><b>${esc(L.titulo)}…</b><ul>${filas}</ul></div><div class="frase">Before the party, ${esc(e.who)} <span class="hueco">____</span>.</div>${trad(e.es)}`,aceptar:["had to "+e.task,e.who+" had to "+e.task],mostrar:"had to "+e.task,explic:expl,hablar:e.k}
     }
+    case "contraste":{   // «have / has to» (hoy, todos los días) o «had to» (ayer, la semana pasada): lo dice la marca de tiempo
+      const pas=Math.random()<.5,sub=h.sub,tercera=/^(Emma|Mum|Dad|Anna|Tom)$/.test(sub),marca=pas?elegir(["Yesterday","Last night","Last week"]):elegir(["Every day","Every Saturday","Every week"]);
+      const ok=pas?"had to":tercera?"has to":"have to",kok=pas?B3.kHT.had:tercera?B3.kHT.has:B3.kHT.have;
+      return {...base,tipo:"mc",tag:tipo,consigna:"Choose: have to, has to or had to.",ayuda:"Mirá cuándo pasa: hoy o todos los días → have to / has to · ayer o la semana pasada → had to.",cuerpo:`<div class="frase">${esc(marca+", "+sub+" ____ "+h.vp+".").replace("____",'<span class="hueco">____</span>')} <small>✔</small></div>`,opciones:opcionesMC(ok,["had to","has to","have to","had"].filter(x=>x!==ok)),mostrar:ok,explic:"have to / has to = tengo (tiene) que… (presente: todos los días) · had to = tuve (tuvo) que… (pasado: ayer, la semana pasada).",hablar:kok}
+    }
     case "es2en":{const n=Math.random()<.5,ok=n?neg:aff;return {...base,tipo:"mc",tag:tipo,consigna:"How do you say it in English?",ayuda:"¿Cómo se dice en inglés?",cuerpo:`<div class="trad grande">${esc(n?h.negEs:h.affEs)}</div>`,opciones:opcionesMC(ok,[n?aff:neg].concat(malas(ok)),3),mostrar:ok,explic:expl,hablar:n?h.kNeg:h.kAff}}
     case "spot":{const n=Math.random()<.5,ok=n?neg:aff;return {...base,tipo:"mc",tag:tipo,consigna:"Choose the sentence that matches.",ayuda:"Elegí la oración en inglés que dice lo MISMO que la frase en castellano (mirá el tiempo: ¿hoy o ayer?).",cuerpo:`<div class="trad grande">${esc(n?h.negEs:h.affEs)}</div>`,opciones:opcionesMC(ok,malas(ok),3),mostrar:ok,explic:expl,hablar:n?h.kNeg:h.kAff}}
   }
   throw new Error("hadto: tipo raro "+tipo);
+}
+// --- historias y lecturas (Unit 7): comprensión de lo leído (elegir, verdadero o falso, unir principio y final, ordenar lo que pasó)
+function genHist(t,f,tipo){
+  const base={tema:t.id,ids:[f.id]},dist=(l,k)=>{const m=mezclarDistinto(l.map((_,i)=>i));return m.map(i=>l[i])};
+  switch(tipo){
+    case "hElegir":return {...base,tipo:"mc",tag:tipo,consigna:"Read and choose.",ayuda:"Elegí la respuesta según "+t.fuente+".",cuerpo:`<div class="frase">${esc(f.q)}</div>${trad(f.es)}`,opciones:opcionesMC(f.ok,f.mal),mostrar:f.ok,explic:f.ver,hablar:f.kVer};
+    case "hVF":{const v=Math.random()<.5;return {...base,tipo:"mc",tag:tipo,consigna:"Read and write T (true) or F (false).",ayuda:"¿Es verdad (True) o falso (False) según "+t.fuente+"?",cuerpo:`<div class="frase">${esc(v?f.ver:f.falso)}</div>`,opciones:[{t:"True",ok:v},{t:"False",ok:!v}],mostrar:v?"True":"False",explic:v?"✔ "+f.ver:"✘ En realidad: "+f.ver,hablar:f.kVer}}
+    case "hUnir":{const l=sacar(t.items,4);return {tema:t.id,ids:l.map(x=>x.id),tipo:"unir",tag:tipo,consigna:"Read and match.",ayuda:"Uní cada principio de oración con su final (según "+t.fuente+").",izq:l.map(x=>({t:x.izq,id:x.id})),der:dist(l.map(x=>({t:x.der,id:x.id}))),mostrar:l.map(x=>x.izq+" "+x.der).join("  ·  "),explic:l.map(x=>x.ver).join("  ·  ")}}
+    case "hOrden":{const l=sacar(t.items.filter(x=>x.orden),4).sort((a,b)=>a.orden-b.orden),sol=l.map(x=>x.ev);let fi=mezclar(sol),k=0;while(fi.join("|")===sol.join("|")&&++k<12)fi=mezclar(sol);
+      return {tema:t.id,ids:l.map(x=>x.id),tipo:"ordenar",tag:tipo,consigna:"Put the story in order.",ayuda:"Tocá las frases en el orden en que pasan en "+t.fuente+".",cuerpo:"",fichas:fi,sol,mostrar:sol.join("  →  "),explic:l.map(x=>x.ver).join("  ·  ")}}
+  }
+  throw new Error("hist: tipo raro "+tipo);
 }
 // --- preguntas en pasado (p. 101): Did + sujeto + verbo base …?  y respuestas cortas
 function genDid(t,d,tipo){
@@ -217,7 +234,9 @@ function genBe(t){
 const POOLS={
   vocab:[["emoji2en","audio2en","en2es","cloze"],["es2en","cloze","audio2en","write"],["spell","es2en","cloze","write"]],
   regular:[["choosePast","forma","spot","listen","chooseNeg"],["ordenarAff","ordenarNeg","tabla","choosePast","spot"],["typePast","typeForma","typeNeg","ordenarNeg","tabla"]],
-  hadto:[["spot","es2en","choose"],["ordenarAff","ordenarNeg","choose","spot","lista"],["ordenarNeg","typeFill","es2en","lista"]],
+  hadto:[["spot","es2en","choose","contraste"],["ordenarAff","ordenarNeg","choose","spot","lista","contraste"],["ordenarNeg","typeFill","es2en","lista","contraste"]],
+  historia:[["hElegir","hVF"],["hUnir","hElegir","hVF","hOrden"],["hOrden","hUnir","hVF","hElegir"]],
+  lectura:[["hElegir","hVF"],["hUnir","hElegir","hVF"],["hUnir","hVF","hElegir"]],
   irregular:[["choosePast","baseToPast","pastToBase","listen"],["chooseNeg","ordenarAff","ordenarNeg","spot","unir"],["typePast","typeForma","typeNeg","escribir","ordenarNeg"]],
   preguntas:[["qDid","qSpot","qResp"],["qOrdenar","qResp","qSpot","qDid"],["qTipear","qEscribirQ","qOrdenar"]]
 };
@@ -226,6 +245,7 @@ function tipoPara(t,it,c){
   if(t.tipo==="vocab"&&!it.emoji)pool=pool.filter(x=>x!=="emoji2en"&&x!=="write");
   if(t.tipo==="regular"&&!(it.casa&&it.obj))pool=pool.filter(x=>x!=="tabla");
   if(t.tipo==="irregular"&&!it.cue)pool=pool.filter(x=>x!=="escribir");
+  if((t.tipo==="historia"||t.tipo==="lectura")&&!it.orden)pool=pool.filter(x=>x!=="hOrden");
   if(t.tipo==="vocab"&&t.items.filter(usa).length<4)pool=pool.filter(x=>x!=="unir");
   return elegir(pool);
 }
@@ -234,6 +254,7 @@ function generar(t,it,tipo){
   if(t.tipo==="vocab")return genVocab(t,it,tipo);
   if(t.tipo==="regular")return tipo==="tabla"?genTabla(t,it):genReg(t,it,tipo);
   if(t.tipo==="hadto")return genHad(t,it,tipo);
+  if(t.tipo==="historia"||t.tipo==="lectura")return genHist(t,it,tipo);
   if(t.tipo==="preguntas")return genDid(t,it,tipo);
   return genIrr(t,it,tipo);
 }
@@ -303,6 +324,8 @@ function pintarTema(t){
   }else if(t.tipo==="hadto"){
     estudio=`<div class="regla"><b>had to / didn't have to</b><p>Afirmativo: <b>had to + verbo</b> → <i>I had to tidy up.</i> (tuve que…)</p><p>Negativo: <b>didn't have to + verbo</b> → <i>I didn't have to tidy up.</i> (no tuve que…)</p><p><i>had to</i> es el pasado de <i>have to</i>: <i>I have to clean my room</i> (hoy) → <i>I had to clean my room</i> (ayer).</p></div>`+
       `<h3>Lista de cosas por hacer (to-do list)</h3><div class="todo"><b>${esc(B3.LISTAS[0].titulo)}…</b><ul>${B3.LISTAS[0].items.map(x=>`<li><span class="cb" aria-hidden="true">☐</span> ${esc(x.task)} – <b>${esc(x.who)}</b></li>`).join("")}</ul></div><div class="verbos">${B3.LISTAS[0].items.map(x=>`<div class="verbo"><div class="ve" data-k="${x.k}">${esc(x.oracion)} <span>🔊</span></div>${ST.es?`<div class="vt">${esc(x.es)}</div>`:""}</div>`).join("")}</div><h3>Más oraciones</h3><div class="verbos">`+lista.map(h=>`<div class="verbo"><div class="ve" data-k="${h.kAff}">${esc(h.aff)} <span>🔊</span></div><div class="ve neg" data-k="${h.kNeg}">${esc(h.neg)} <span>🔊</span></div>${ST.es?`<div class="vt">${esc(h.affEs)}</div>`:""}</div>`).join("")+`</div>`;
+  }else if(t.tipo==="historia"||t.tipo==="lectura"){
+    estudio=(t.notas||[]).map(n=>`<div class="regla"><p>${n}</p></div>`).join("")+`<h3>${t.tipo==="historia"?"La historia en pocas palabras":"La lectura en pocas palabras"}</h3><div class="verbos">`+lista.map(f=>`<div class="verbo"><div class="ve" data-k="${f.kVer}">${esc(f.ver)} <span>🔊</span></div>${ST.es?`<div class="vt">${esc(f.verEs)}</div>`:""}</div>`).join("")+`</div>`;
   }else if(t.tipo==="preguntas"){
     estudio=`<div class="regla"><b>Preguntas en pasado (Did …?)</b><p>Para preguntar en pasado: <b>Did + sujeto + verbo en forma base</b> → <i>Did they have streets?</i> (¿Tenían calles?)</p><p>Se contesta con una respuesta corta, sin repetir el verbo: <b>Yes, they did.</b> / <b>No, they didn't.</b></p><p>Ojo: después de <i>Did</i> el verbo <b>no</b> va en pasado: <i>Did he wear…</i> (no «Did he wore»). Con <i>do / does</i> se pregunta en presente: en pasado <i>do</i> cambia a <i>did</i>.</p></div><div class="verbos">`+lista.map(d=>`<div class="verbo"><div class="ve" data-k="${d.kQ}">${esc(d.q)} <span>🔊</span></div><div class="ve" data-k="${d.kSi}">✔ ${esc(d.si)} <span>🔊</span></div><div class="ve neg" data-k="${d.kNo}">✘ ${esc(d.no)} <span>🔊</span></div>${ST.es?`<div class="vt">${esc(d.es)}</div>`:""}</div>`).join("")+`</div>`;
   }else{

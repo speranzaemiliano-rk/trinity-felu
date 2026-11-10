@@ -19,37 +19,37 @@ const LLENO=(ctx,en)=>ctx.replace("____",en);
 const v=(id,en,es,emoji,ctx,extra)=>Object.assign({id,en,es,emoji:emoji||"",ctx,k:A(en),kLleno:A(LLENO(ctx,en)),lleno:LLENO(ctx,en)},extra||{});
 const VOCAB=[
  {id:"housework",unit:7,pag:"84",ico:"🧹",nombre:"Housework",es:"Tareas de la casa",tipo:"vocab",items:[
-  v("hw_water","water the plants","regar las plantas","🌱","The plants are dry. Please ____."),
-  v("hw_dishes","wash the dishes","lavar los platos","🧽","The plates are dirty. I will ____ in the sink."),
-  v("hw_table","clear the table","levantar la mesa","🍽️","Lunch is over. Please ____ and take the plates to the kitchen."),
   v("hw_hoover","hoover the floor","pasar la aspiradora","🧹","The carpet is full of dust. Dad will use the vacuum cleaner to ____."),
-  v("hw_car","wash the car","lavar el auto","🚗","The car is very dirty. Let's ____."),
-  v("hw_room","clean my room","limpiar mi cuarto","🛏️","My room is a mess! I must ____."),
+  v("hw_dishes","wash the dishes","lavar los platos","🧽","The plates are dirty. I will ____ in the sink."),
   v("hw_load","load the dishwasher","cargar el lavavajillas","","The dishwasher is empty. Please ____ with the dirty plates."),
-  v("hw_cook","cook the dinner","cocinar la cena","🍳","We're hungry! Dad will ____.")]},
+  v("hw_water","water the plants","regar las plantas","🌱","The plants are dry. Please ____."),
+  v("hw_room","clean my room","limpiar mi cuarto","🛏️","My room is a mess! I must ____."),
+  v("hw_table","clear the table","levantar la mesa","🍽️","Lunch is over. Please ____ and take the plates to the kitchen."),
+  v("hw_cook","cook the dinner","cocinar la cena","🍳","We're hungry! Dad will ____."),
+  v("hw_car","wash the car","lavar el auto","🚗","The car is very dirty. Let's ____.")]},
  {id:"party",unit:7,pag:"88",ico:"🎉",nombre:"Party preparations",es:"Preparar una fiesta",tipo:"vocab",items:[
-  v("pp_tidy","tidy up","ordenar","","There are toys on the floor. We must ____."),
-  v("pp_dress","dress up","vestirse elegante (o disfrazarse)","👔","It's a special party, so I will ____ in my best clothes."),
-  v("pp_set","set the table","poner la mesa","🍴","The guests are coming and we need plates and forks on the table. Let's ____."),
+  v("pp_invite","invite guests","invitar gente a la fiesta","✉️","I'm writing cards for my birthday party. I want to ____."),
   v("pp_food","prepare food","preparar la comida","🥗","There is no food for the guests yet. Mum will ____."),
+  v("pp_tidy","tidy up","ordenar","","There are toys on the floor. We must ____."),
   v("pp_decorate","decorate","decorar","🎈","We have balloons and flags for the walls. Let's ____!"),
-  v("pp_invite","invite guests","invitar gente a la fiesta","✉️","I'm writing cards for my birthday party. I want to ____.")]},
+  v("pp_dress","dress up","vestirse elegante (o disfrazarse)","👔","It's a special party, so I will ____ in my best clothes."),
+  v("pp_set","set the table","poner la mesa","🍴","The guests are coming and we need plates and forks on the table. Let's ____.")]},
  {id:"everyday",unit:8,pag:"96",ico:"🏺",nombre:"Everyday things",es:"Cosas de todos los días (de antes y de ahora)",tipo:"vocab",items:[
-  v("ev_bowl","bowl","cuenco, bol","🥣","Mum put the soup in a big, round ____."),
-  v("ev_phone","phone","teléfono","☎️","I call my grandma on the ____."),
-  v("ev_cup","cup","taza","☕","I drink hot tea from a ____ with a handle."),
-  v("ev_coins","coins","monedas","💰","People paid with gold ____ in the past."),
   v("ev_helmet","helmet","casco","⛑️","A soldier wore a ____ to keep his head safe."),
+  v("ev_cup","cup","taza","☕","I drink hot tea from a ____ with a handle."),
+  v("ev_bowl","bowl","cuenco, bol","🥣","Mum put the soup in a big, round ____."),
   v("ev_fan","fan","abanico (o ventilador)","","It's very hot. I need a ____ to cool the air."),
   v("ev_lamp","lamp","lámpara","💡","It's dark in my room. Turn on the ____ to get some light."),
-  v("ev_comb","comb","peine","","I use a ____ to do my hair.")]},
+  v("ev_phone","phone","teléfono","☎️","I call my grandma on the ____."),
+  v("ev_comb","comb","peine","","I use a ____ to do my hair."),
+  v("ev_coins","coins","monedas","💰","People paid with gold ____ in the past.")]},
  {id:"roman",unit:8,pag:"100",ico:"🏛️",nombre:"A Roman town",es:"Una ciudad romana",tipo:"vocab",items:[
-  v("rt_hall","town hall","municipalidad (ayuntamiento)","🏛️","The leaders of the town worked in the ____."),
   v("rt_walls","walls","murallas","🧱","The tall ____ were all around the town."),
   v("rt_gate","gate","puerta de la ciudad (portón)","🚪","Soldiers stood at the ____ to let people in and out of the town."),
+  v("rt_street","street","calle","🛣️","People walked along the ____ with shops on both sides."),
   v("rt_market","market square","plaza del mercado","⛲","Farmers sold fruit at stalls in the big, open ____ of the town."),
   v("rt_theatre","theatre","teatro","🎭","People sat and watched the actors on the stage in the ____."),
-  v("rt_street","street","calle","🛣️","People walked along the ____ with shops on both sides.")]}
+  v("rt_hall","town hall","municipalidad (ayuntamiento)","🏛️","The leaders of the town worked in the ____.")]}
 ];
 
 // ---------------- verbos: los regulares (+ed) y los irregulares. «aff» y «neg» son oraciones de ejemplo propias; «regla» dice cómo se arma el pasado

@@ -78,7 +78,8 @@ chk('«had to»: cada afirmativa dice «had to» (sin «didn\'t») y cada negati
 chk('la lista de cosas por hacer de «had to»: cada renglón apunta a un ítem que existe, están los '+B3.HADTO.length+' ítems cubiertos y cada oración tiene su traducción y su audio',B3.LISTAS.flatMap(l=>l.items).every(e=>B3.HADTO.some(h=>h.id===e.id)&&e.oracion===e.who+' had to '+e.task+'.'&&B3.audio[e.k]===e.oracion&&/^[A-ZÁÉÍÓÚ].*\.$/.test(e.es))&&B3.HADTO.every(h=>B3.LISTAS.flatMap(l=>l.items).filter(e=>e.id===h.id).length===1),j(B3.HADTO.filter(h=>B3.LISTAS.flatMap(l=>l.items).filter(e=>e.id===h.id).length!==1).map(h=>h.id)));
 chk('was / were: cada oración tiene la respuesta correcta según el sujeto y es negativa sólo si lleva «n\'t» ('+B3.BE.length+')',B3.BE.length===Object.keys(BE_ORO).length&&B3.BE.every(b=>BE_ORO[b.id]===b.ok&&(b.neg===1)===/n't$/.test(b.ok)&&(b.s.match(/____/g)||[]).length===1),j(B3.BE.filter(b=>BE_ORO[b.id]!==b.ok).map(b=>b.id)));
 const vocab=B3.VOCAB.flatMap(t=>t.items.map(it=>({t,it})));
-chk('el vocabulario es el de las hojas: Housework (8), Party preparations (6), Everyday things (8) y A Roman town (6)',B3.VOCAB.map(t=>t.items.length).join()==='8,6,8,6'&&B3.VOCAB.map(t=>t.pag).join()==='84,88,96,100'&&['water the plants','wash the dishes','clear the table','hoover the floor','wash the car','clean my room','tidy up','dress up','set the table','prepare food','decorate','invite guests','bowl','phone','cup','coins','helmet','fan','lamp','comb','town hall','walls','gate','market square','theatre','street'].every(w=>vocab.some(x=>x.it.en===w)));
+chk('el vocabulario es el del libro, en su orden (pp. 84, 88, 96 y 100): Housework (8), Party preparations (6), Everyday things (8) y A Roman town (6)',B3.VOCAB.map(t=>t.items.map(i=>i.en).join('|')).join('/')==='hoover the floor|wash the dishes|load the dishwasher|water the plants|clean my room|clear the table|cook the dinner|wash the car/invite guests|prepare food|tidy up|decorate|dress up|set the table/helmet|cup|bowl|fan|lamp|phone|comb|coins/walls|gate|street|market square|theatre|town hall');
+chk('el vocabulario cuenta con todas las palabras (8, 6, 8 y 6)',B3.VOCAB.map(t=>t.items.length).join()==='8,6,8,6'&&B3.VOCAB.map(t=>t.pag).join()==='84,88,96,100'&&['water the plants','wash the dishes','clear the table','hoover the floor','wash the car','clean my room','tidy up','dress up','set the table','prepare food','decorate','invite guests','bowl','phone','cup','coins','helmet','fan','lamp','comb','town hall','walls','gate','market square','theatre','street'].every(w=>vocab.some(x=>x.it.en===w)));
 chk('los 7 temas, en el orden de las units, con su unit y sus páginas del libro (84, 86 y 87, 88, 89, 96, 98 a 101, 100)',B3.TEMAS.map(t=>t.id+':'+t.unit+':'+t.pag).join('|')==='housework:7:84|regular:7:86 y 87|party:7:88|hadto:7:89|everyday:8:96|irregular:8:98, 99 y 101|roman:8:100');
 const ids=vocab.map(x=>x.it.id).concat(B3.REG.map(v=>v.id),B3.IRR.map(v=>v.id),B3.HADTO.map(h=>h.id));
 chk('todos los ítems tienen un id propio',new Set(ids).size===ids.length&&ids.every(Boolean));
@@ -491,7 +492,7 @@ await p.click('#pInicio .tema[data-tema="housework"]');await p.waitForSelector('
 await p.evaluate(()=>{window.__plays.length=0});
 await p.click('#pTema .carta .oir >> nth=0');await p.waitForTimeout(200);
 const pl=await p.evaluate(()=>window.__plays);
-chk('tocar el 🔊 de una palabra baja su mp3 de audio/ con la versión de los audios (?a=)',pl.length===1&&/\/beehive3\/audio\/en_water-the-plants\.mp3\?a=[0-9a-f]{8}$/.test(pl[0].url),j(pl));
+chk('tocar el 🔊 de una palabra baja su mp3 de audio/ con la versión de los audios (?a=)',pl.length===1&&/\/beehive3\/audio\/en_hoover-the-floor\.mp3\?a=[0-9a-f]{8}$/.test(pl[0].url),j(pl));
 await p.evaluate(()=>{window.__plays.length=0});
 await p.click('#pTema .carta .oir[data-lento] >> nth=0');await p.waitForTimeout(150);
 chk('el 🐢 repite la palabra despacio',await p.evaluate(()=>window.__plays.length===1&&document.querySelector('#pTema .carta .oir[data-lento]')!==null));
@@ -508,7 +509,7 @@ p=await abrir({audioRoto:true});
 await p.click('#pInicio .tema[data-tema="housework"]');await p.waitForSelector('#bPracticar');
 await p.click('#pTema .carta .oir >> nth=0');await p.waitForTimeout(250);
 const vz=await p.evaluate(()=>window.__voz);
-chk('si el mp3 no baja, habla la voz del aparato en inglés británico (en-GB) con la misma palabra',vz.length===1&&vz[0].lang==='en-GB'&&vz[0].texto==='water the plants'&&p.errs.length===0,j([vz,p.errs]));
+chk('si el mp3 no baja, habla la voz del aparato en inglés británico (en-GB) con la misma palabra',vz.length===1&&vz[0].lang==='en-GB'&&vz[0].texto==='hoover the floor'&&p.errs.length===0,j([vz,p.errs]));
 await cerrar(p);
 }
 

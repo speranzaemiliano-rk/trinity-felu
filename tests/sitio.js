@@ -142,7 +142,7 @@ async function crear(srv){
       return r.fulfill({status:200,contentType:s.tipo,headers:{'cache-control':'no-store'},body:quien==='real'?s.cuerpo:s.cuerpo.toString().replace(/const BUILD="[^"]*"/,'const BUILD="vieja"')})}
     r.fulfill({status:200,contentType:s.tipo,body:s.cuerpo});
   });
-  await ctx.addInitScript(()=>{Object.defineProperty(window,'webkitSpeechRecognition',{value:undefined,configurable:true});Object.defineProperty(window,'SpeechRecognition',{value:undefined,configurable:true});
+  await ctx.addInitScript(()=>{window.__INT_SIN_ESPERA=true;Object.defineProperty(window,'webkitSpeechRecognition',{value:undefined,configurable:true});Object.defineProperty(window,'SpeechRecognition',{value:undefined,configurable:true});
     speechSynthesis.speak=u=>{setTimeout(()=>u.onstart&&u.onstart(),20);setTimeout(()=>u.onend&&u.onend(),100)}});
   const p=await ctx.newPage();p.errs=[];p.on('pageerror',e=>p.errs.push(e.message));
   p.on('response',r=>{const u=new URL(r.url());if(u.origin==='https://trinity.test')est.resp.push([u.pathname,r.status(),r.headers()['content-type']||''])});

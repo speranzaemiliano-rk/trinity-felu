@@ -32,10 +32,10 @@ const PROVINCIAS=[
  prov("santafe","Santa Fe","Santa Fe","Santa Fe","Santa Fe",[],["santa fe de la vera cruz"],["Rosario"],"Rosario es la ciudad más grande de la provincia, pero la capital es Santa Fe."),
  prov("santiago","Santiago del Estero","Santiago del Estero","Santiago del Estero","Sgo. del Estero",[],[],["La Banda"],"La provincia y su capital se llaman igual."),
  prov("tierradelfuego","Tierra del Fuego, Antártida e Islas del Atlántico Sur","Tierra del Fuego","Ushuaia","T. del Fuego",["tierra del fuego","tierra del fuego antartida e islas del atlantico sur","tierra del fuego e islas del atlantico sur"],[],["Río Grande"],"Esta provincia incluye también las Islas Malvinas, Georgias del Sur y Sandwich del Sur y la Antártida Argentina."),
- prov("tucuman","Tucumán","Tucumán","San Miguel de Tucumán","Tucumán",[],["san miguel","tucuman"],["Concepción"],"Se la suele llamar «Tucumán», pero su nombre completo es San Miguel de Tucumán. Es la provincia más chica del país.")
+ prov("tucuman","Tucumán","Tucumán","San Miguel de Tucumán","Tucumán",[],["san miguel","tucuman"],["Concepción"],"Se la suele llamar «Tucumán», pero su nombre completo es San Miguel de Tucumán.")
 ];
 // la Ciudad Autónoma de Buenos Aires no es una provincia: es la capital del país. Está en el mapa y en las preguntas del mapa (no tiene «capital»)
-const CABA={id:"caba",tipo:"ciudad",nombre:"Ciudad Autónoma de Buenos Aires",corto:"Ciudad de Buenos Aires",capital:null,abrev:"CABA",altNombre:["caba","capital federal","ciudad de buenos aires","ciudad autonoma de buenos aires","capital"],altCapital:[],trampas:[],nota:"No es una provincia: es la capital del país (se la llama Capital Federal o CABA). La capital de la provincia de Buenos Aires es La Plata."};
+const CABA={id:"caba",tipo:"ciudad",nombre:"Ciudad Autónoma de Buenos Aires",corto:"Ciudad de Buenos Aires",capital:null,abrev:"CABA",altNombre:["caba","capital federal","ciudad de buenos aires","ciudad autonoma de buenos aires","capital","buenos aires"],altCapital:[],trampas:[],nota:"No es una provincia: es la capital del país (se la llama Capital Federal o CABA). La capital de la provincia de Buenos Aires es La Plata."};
 const ITEMS=PROVINCIAS.concat([CABA]);
 INT.PROVINCIAS=PROVINCIAS;INT.CABA=CABA;INT.ITEMS=ITEMS;
 

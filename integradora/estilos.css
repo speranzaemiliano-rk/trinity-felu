@@ -150,6 +150,8 @@ svg.mapa .caba-et{text-anchor:start}
 .par.elegida{border-color:var(--azul);background:var(--azul-bg);color:var(--azul)}
 .par.hecho{border-color:var(--verde);background:var(--verde-bg);color:var(--verde)}
 .par.no{border-color:var(--rojo);background:var(--rojo-bg);color:var(--rojo)}
+.par.unido{border-color:var(--azul);background:var(--azul-bg);color:var(--azul)}   /* en el simulacro: pareja armada (no dice si está bien) */
+.par[data-n]::before{content:attr(data-n);display:inline-grid;place-items:center;width:1.3em;height:1.3em;border-radius:50%;margin-right:6px;background:var(--azul);color:var(--prim-ink);font:800 .8rem var(--display)}
 .feedback{margin-top:14px;border-radius:16px;padding:12px 14px;scroll-margin-bottom:16px}
 .feedback.bien{background:var(--verde-bg);border:2px solid var(--verde)}
 .feedback.mal{background:var(--rojo-bg);border:2px solid var(--rojo)}

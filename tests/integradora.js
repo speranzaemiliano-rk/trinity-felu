@@ -37,7 +37,9 @@ chk('las ciudades «trampa» (conocidas pero que NO son la capital) están en la
 chk('hay trampas en las provincias donde una ciudad grande confunde (Santa Fe→Rosario, Río Negro→Bariloche, Chubut→Comodoro Rivadavia, Buenos Aires→la Ciudad de Buenos Aires)',INT.item('santafe').trampas.includes('Rosario')&&INT.item('rionegro').trampas.includes('Bariloche')&&INT.item('chubut').trampas.includes('Comodoro Rivadavia')&&INT.item('buenosaires').trampas.includes('Ciudad de Buenos Aires'));
 const alias=(id,tipo,x)=>INT.item(id)[tipo].includes(x);
 chk('lo que se escribe vale de varias formas: «San Fernando» o «Catamarca», «San Salvador» o «Jujuy», «San Miguel» o «Tucumán», «Bs As»',alias('catamarca','altCapital','san fernando')&&alias('catamarca','altCapital','catamarca')&&alias('jujuy','altCapital','san salvador')&&alias('jujuy','altCapital','jujuy')&&alias('tucuman','altCapital','san miguel')&&alias('tucuman','altCapital','tucuman')&&alias('buenosaires','altNombre','bs as'));
-chk('ninguna forma de escribir una provincia es el nombre de otra (no hay respuestas ambiguas), y «Buenos Aires» solo es la provincia, no la Ciudad',INT.ITEMS.every(a=>INT.ITEMS.every(b=>a===b||![a.corto,a.nombre,...a.altNombre].some(x=>[b.corto,b.nombre,...b.altNombre].some(y=>NORMT(x)===NORMT(y)))))&&!INT.item('buenosaires').altNombre.some(x=>NORMT(x)==='ciudad de buenos aires')&&!INT.CABA.altNombre.some(x=>NORMT(x)==='buenos aires'));
+const formas=x=>[x.corto,x.nombre,x.abrev,...x.altNombre];
+chk('ninguna forma de escribir una provincia (ni su abreviatura del mapa) es el nombre de otra: no hay respuestas ambiguas (la única coincidencia a propósito es «Buenos Aires», que vale para la provincia pintada y para el punto de la Ciudad: son preguntas distintas)',INT.ITEMS.every(a=>INT.ITEMS.every(b=>a===b||(a.id==='caba'&&b.id==='buenosaires')||(a.id==='buenosaires'&&b.id==='caba')||!formas(a).some(x=>formas(b).some(y=>NORMT(x)===NORMT(y)))))&&!INT.item('buenosaires').altNombre.some(x=>NORMT(x)==='ciudad de buenos aires')&&INT.CABA.altNombre.some(x=>NORMT(x)==='buenos aires'));
+chk('las notas no afirman superlativos discutibles («la provincia más chica del país»: Tierra del Fuego, sin la Antártida ni las islas, es menor que Tucumán)',!INT.TODOS.some(x=>/más chic|más peque|más grande del país/i.test(x.nota)));
 chk('el área Sociales trae dos temas, «Provincias y capitales» (las 24 piezas) y «Países limítrofes» (los 5 países), y Naturales figura como «pronto» (sin temas todavía)',INT.AREAS.length===2&&INT.AREAS[0].id==='sociales'&&INT.AREAS[0].temas.length===2&&INT.AREAS[0].temas[0].id==='provincias'&&INT.AREAS[0].temas[0].items.length===24&&INT.AREAS[0].temas[1].id==='limitrofes'&&INT.AREAS[0].temas[1].items.length===5&&INT.AREAS[1].id==='naturales'&&INT.AREAS[1].pronto===true&&INT.AREAS[1].temas.length===0);
 // los países limítrofes (la Argentina limita con cinco países: Chile, Bolivia, Paraguay, Brasil y Uruguay)
 const ORO_PAISES={chile:['Chile','Santiago'],bolivia:['Bolivia','Sucre'],paraguay:['Paraguay','Asunción'],brasil:['Brasil','Brasilia'],uruguay:['Uruguay','Montevideo']};
@@ -100,14 +102,16 @@ async function abrir(o){
   await p.route(/fonts\.(googleapis|gstatic)\.com/,r=>r.abort());
   if(o.storageRoto)await p.addInitScript(()=>{const t=()=>{throw new DOMException('bloqueado','SecurityError')};Storage.prototype.getItem=t;Storage.prototype.setItem=t;Storage.prototype.removeItem=t});
   await p.addInitScript(oo=>{
-    const F=new Date(oo.fecha).getTime(),D=Date;window.Date=class extends D{constructor(...a){if(a.length)super(...a);else super(F)}static now(){return F}};
+    window.__INT_SIN_ESPERA=!oo.conEspera;   // las pruebas tocan rapidísimo: la espera anti doble toque se apaga (y se prueba aparte, con conEspera)
+    window.__F=new Date(oo.fecha).getTime();const D=Date;window.Date=class extends D{constructor(...a){if(a.length)super(...a);else super(window.__F)}static now(){return window.__F}};
     if(oo.estado&&!localStorage.getItem('__sembrado')){localStorage.setItem('__sembrado','1');localStorage.setItem('integradora_estado',typeof oo.estado==='string'?oo.estado:JSON.stringify(oo.estado))}
-  },{estado:o.estado,fecha:o.fecha||'2026-11-16T12:00:00'});
+  },{estado:o.estado,fecha:o.fecha||'2026-11-16T12:00:00',conEspera:!!o.conEspera});
   await p.goto(URL);await p.waitForSelector('#pInicio .area');
   return p;
 }
 const cerrar=async p=>{await p.ctx.close()};
 const estado=p=>p.evaluate(()=>JSON.parse(localStorage.getItem('integradora_estado')||'null'));
+const fechaST=p=>p.evaluate(()=>INT.estado().fecha);   // lo que la app tiene en memoria (el almacenamiento puede no existir todavía)
 const visible=(p,sel)=>p.evaluate(s=>{const e=document.querySelector(s);if(!e)return false;const r=e.getBoundingClientRect(),c=getComputedStyle(e);return !e.closest('[hidden]')&&r.width>0&&r.height>0&&c.visibility!=='hidden'&&c.display!=='none'},sel);
 const irTema=async(p,tema)=>{await p.click('.tema-btn[data-tema="'+(tema||'provincias')+'"]');await p.waitForSelector('#bPracticar')};
 // toca de verdad el punto de una provincia en el mapa que está en pantalla (así se prueba que el trazado ESTÁ donde dice)
@@ -123,8 +127,13 @@ async function responder(p,bien){
   else if(q.tipo==='mapa'){const lejos={jujuy:'santacruz',chile:'brasil',brasil:'chile',bolivia:'uruguay',paraguay:'chile',uruguay:'bolivia'},malo=lejos[q.ids[0]]||(q.ids[0]==='mendoza'?'misiones':'jujuy');await tocarProv(p,bien?q.ids[0]:malo,'#pPreg')}
   else if(q.tipo==='unir'){
     const par=async(i,jx)=>{await p.click('#pPreg .par[data-lado="i"][data-i="'+i+'"]');await p.click('#pPreg .par[data-lado="d"][data-i="'+jx+'"]')};
+    if(await p.evaluate(()=>INT.ronda().test)){   // simulacro: no dice si está bien; se arman las 5 parejas (bien, o todas corridas de lugar) y se toca «Listo»
+      for(let i=0;i<q.izq.length;i++)await par(i,bien?q.der.indexOf(q.izq[i]):q.der.indexOf(q.izq[(i+1)%q.izq.length]));
+      await p.click('#bUnirListo');
+    }else{
     if(!bien){const jx=q.der.findIndex(id=>id!==q.izq[0]);await par(0,jx);await par(0,jx)}   // dos confusiones: se cuenta como mal
     for(let i=0;i<q.izq.length;i++)await par(i,q.der.indexOf(q.izq[i]));
+    }
   }
   return q.tag;
 }
@@ -189,7 +198,8 @@ const probar=async()=>p.evaluate(oro=>{
       if(tipo==='vf'){
         if(it.tipo==='ciudad'){const verdad=/capital de la Argentina/.test(txt);if(bien.t!==(verdad?'Verdadero':'Falso')||!/Ciudad de Buenos Aires es la capital de (la Argentina|la provincia de Buenos Aires)\.$/.test(txt))pr(ctx,'vf de la Ciudad mal: «'+txt+'»')}
         else{const m=txt.match(it.tipo==='pais'?/^La capital de (.+) es (.+)\.$/:/^La capital de la provincia de (.+) es (.+)\.$/);if(!m||m[1]!==nombre)pr(ctx,'vf: no habla de «'+nombre+'»: «'+txt+'»');else if(bien.t!==(m[2]===cap?'Verdadero':'Falso'))pr(ctx,'vf: la respuesta no coincide con la realidad: «'+txt+'» → '+bien.t);
-          if(m&&m[2]!==cap&&oro[Object.keys(oro).find(k=>oro[k][1]===m[2])||'']===undefined&&!it.trampas.includes(m[2])&&!(it.tipo==='pais'&&m[2]==='Buenos Aires'))pr(ctx,'vf: la capital falsa «'+m[2]+'» no es ni una capital ni una trampa')}
+          if(m&&m[2]!==cap&&oro[Object.keys(oro).find(k=>oro[k][1]===m[2])||'']===undefined&&!it.trampas.includes(m[2].replace(/^la (?=Ciudad)/,''))&&!(it.tipo==='pais'&&m[2]==='Buenos Aires'))pr(ctx,'vf: la capital falsa «'+m[2]+'» no es ni una capital ni una trampa');
+          if(m&&m[2]==='Ciudad de Buenos Aires')pr(ctx,'vf: falta el «la» de «la Ciudad de Buenos Aires»')}
       }
       if(tipo==='capTipear'){if(q.aceptar[0]!==cap||!txt.includes(nombre))pr(ctx,'capTipear mal');if(INT_OTRAS(I,it,q.aceptar,'capital'))pr(ctx,'capTipear acepta la capital de otra provincia o de otro país')}
       if(tipo==='provTipear'){if(q.aceptar[0]!==nombre||!txt.includes(cap))pr(ctx,'provTipear mal')}
@@ -428,6 +438,137 @@ chk('contestar bien sube las cajas de las dos (mendoza y bolivia) y no baja la d
 await cerrar(p);
 }
 
+// ---------- 3c) lo que halló la revisión independiente
+// el primer toque después de abrir la app se atiende enseguida (la espera anti doble toque no corre al arrancar)
+{
+const p=await abrir({conEspera:true});
+await p.click('.tema-btn[data-tema="provincias"]');
+chk('el primer toque después de abrir la app (aunque sea apenas aparece el inicio) se atiende: no se pierde',await p.waitForSelector('#bPracticar',{timeout:1500}).then(()=>true).catch(()=>false));
+await cerrar(p);
+}
+// doble toque: «Siguiente» no contesta la pregunta que viene (con la espera de 400 ms prendida, como en un celular de verdad)
+{
+const p=await abrir({conEspera:true});
+await p.evaluate(()=>{INT.rondaCon([INT.gen('capEleg','mendoza',0),INT.gen('mapaToca','salta',1),INT.gen('unir','chaco',1)],false)});await p.waitForSelector('#pPreg .opcion');
+const ant=await p.evaluate(()=>{document.querySelector('#pPreg .opcion').click();return INT.ronda().ok+INT.ronda().mal});   // apenas aparece la pregunta: no cuenta
+chk('apenas aparece una pregunta nueva no se atiende ningún toque (400 ms): lo contestado al toque no cuenta',ant===0);
+await p.waitForTimeout(500);
+await p.evaluate(()=>{document.querySelectorAll('#pPreg .opcion')[INT.actual().opciones.findIndex(o=>o.ok)].click()});await p.waitForSelector('#bSig');await p.waitForTimeout(500);   // «Siguiente» no se atiende en los primeros 400 ms de la corrección
+const c1=await p.evaluate(()=>new Promise(ok=>{document.getElementById('bSig').click();   // el segundo toque del doble toque cae sobre lo que quedó debajo del dedo
+  const sv=document.querySelector('#pPreg svg.mapa path[data-id="mendoza"]');if(sv)sv.dispatchEvent(new MouseEvent('click',{bubbles:true}));
+  setTimeout(()=>ok({i:INT.ronda().i,res:INT.actual().estado.resuelta,mal:INT.ronda().mal,tipo:INT.actual().tipo}),60)}));
+chk('un doble toque en «Siguiente» pasa UNA sola pregunta y no contesta la que viene (aunque el segundo toque caiga sobre el mapa o una opción)',c1.i===1&&c1.res===false&&c1.mal===0&&c1.tipo==='mapa',j(c1));
+await p.waitForTimeout(500);await tocarProv(p,'salta','#pPreg');await p.waitForSelector('#bSig');
+await p.waitForTimeout(500);
+const c2=await p.evaluate(()=>new Promise(ok=>{document.getElementById('bSig').click();const b=document.querySelector('#pPreg .par');if(b)b.click();setTimeout(()=>ok({i:INT.ronda().i,sel:INT.actual().estado.sel.length}),60)}));
+chk('lo mismo con «unir»: el segundo toque no elige nada',c2.i===2&&c2.sel===0,j(c2));
+// «Siguiente» tampoco se activa con una segunda tecla Enter pegada a la respuesta
+await p.evaluate(()=>{INT.rondaCon([INT.gen('capTipear','mendoza',3),INT.gen('capTipear','salta',3)],false)});await p.waitForSelector('#resp');await p.waitForTimeout(500);
+await p.fill('#resp','mendoza');await p.keyboard.press('Enter');await p.waitForSelector('#bSig');
+await p.evaluate(()=>document.getElementById('bSig').click());await p.waitForTimeout(80);
+chk('«Siguiente» no se activa dentro de los 400 ms de haber contestado (por ejemplo, con un segundo Enter)',await p.evaluate(()=>INT.ronda().i===0));
+await p.waitForTimeout(450);await p.evaluate(()=>document.getElementById('bSig').click());
+chk('y pasados esos 400 ms funciona normal',await p.evaluate(()=>INT.ronda().i===1));
+await cerrar(p);
+}
+{
+const p=await abrir({conEspera:true});
+await p.evaluate(()=>{INT.rondaCon([INT.gen('capEleg','mendoza',0),INT.gen('capEleg','salta',0)],true)});await p.waitForSelector('#pPreg .opcion');await p.waitForTimeout(500);
+const r=await p.evaluate(()=>new Promise(ok=>{document.querySelector('#pPreg .opcion').click();setTimeout(()=>{const o=document.querySelector('#pPreg .opcion');if(o)o.click()},290);setTimeout(()=>ok({i:INT.ronda().i,res:INT.actual().estado.resuelta}),700)}));
+chk('en el simulacro, un segundo toque a los 290 ms (justo cuando aparece la pregunta que sigue) no la contesta',r.i===1&&r.res===false,j(r));
+await cerrar(p);
+}
+// «unir» en el simulacro: no dice si está bien (parejas numeradas que se pueden deshacer; se corrige con «Listo»)
+{
+const p=await abrir();
+await p.evaluate(()=>{INT.rondaCon([INT.armarSimulacro().find(x=>x.tipo==='unir')],true)});await p.waitForSelector('#pPreg .par');
+const q=await p.evaluate(()=>({izq:INT.actual().izq.map(x=>x.id),der:INT.actual().der.map(x=>x.id)}));
+const par=async(i,jx)=>{await p.click('#pPreg .par[data-lado="i"][data-i="'+i+'"]');await p.click('#pPreg .par[data-lado="d"][data-i="'+jx+'"]')};
+await par(0,q.der.indexOf(q.izq[0]));await par(1,q.der.indexOf(q.izq[2]));   // una bien y una mal: no se nota
+const e1=await p.evaluate(()=>({colores:document.querySelectorAll('#pPreg .par.hecho,#pPreg .par.no').length,bloq:[...document.querySelectorAll('#pPreg .par')].filter(b=>b.disabled).length,unidos:[...document.querySelectorAll('#pPreg .par.unido')].map(b=>b.dataset.n).sort().join(),listo:document.getElementById('bUnirListo').disabled,ayuda:document.querySelector('#pPreg .consigna small').innerText}));
+chk('en el simulacro «unir» NO dice si una pareja está bien o mal (ni verde ni rojo, nada se bloquea): quedan numeradas (1, 1, 2, 2), «Listo» sigue apagado y la ayuda explica cómo deshacer',e1.colores===0&&e1.bloq===0&&e1.unidos==='1,1,2,2'&&e1.listo===true&&/tocala de nuevo/.test(e1.ayuda)&&/Listo/.test(e1.ayuda),j(e1));
+await p.click('#pPreg .par[data-lado="i"][data-i="1"]');
+chk('tocar una pareja armada la deshace (y su número queda libre)',await p.evaluate(()=>[...document.querySelectorAll('#pPreg .par.unido')].map(b=>b.dataset.n).join()==='1,1'&&document.getElementById('bUnirListo').disabled));
+await par(1,q.der.indexOf(q.izq[1]));await par(2,q.der.indexOf(q.izq[3]));await par(3,q.der.indexOf(q.izq[2]));await par(4,q.der.indexOf(q.izq[4]));   // 2 y 3 quedan cambiadas
+chk('con las 5 parejas armadas se prende «Listo» y todavía no se corrigió nada',await p.evaluate(()=>!document.getElementById('bUnirListo').disabled&&INT.actual().estado.resuelta===false&&INT.ronda().ok+INT.ronda().mal===0));
+await p.click('#bUnirListo');await p.waitForFunction(()=>document.getElementById('pFin')&&!document.getElementById('pFin').hidden);
+chk('al tocar «Listo» se corrige todo junto: dos parejas cambiadas = el tablero cuenta mal, y las 4 provincias mezcladas quedan para repasar',await p.evaluate(()=>INT.ronda().mal===1&&INT.ronda().ok===0&&INT.ronda().errores[0].estado.malos.length===4)&&/Para repasar \(1\)/.test(await textoFin(p)));
+await cerrar(p);
+}
+// «unir» en la práctica: un solo tropiezo cuenta como bien y NO manda a nadie a repasar (antes decía «¡Muy bien!» y dejaba 2 provincias en la caja 0)
+{
+const p=await abrir();
+const probar=async(tropiezos)=>{
+  await p.evaluate(()=>{INT.rondaCon([INT.gen('unir','mendoza',1)],false)});await p.waitForSelector('#pPreg .par');
+  const q=await p.evaluate(()=>({izq:INT.actual().izq.map(x=>x.id),der:INT.actual().der.map(x=>x.id)}));
+  const par=async(i,jx)=>{await p.click('#pPreg .par[data-lado="i"][data-i="'+i+'"]');await p.click('#pPreg .par[data-lado="d"][data-i="'+jx+'"]')};
+  for(let k=0;k<tropiezos;k++){await par(0,q.der.findIndex(id=>id!==q.izq[0]));await p.waitForTimeout(500)}
+  for(let i=0;i<5;i++)await par(i,q.der.indexOf(q.izq[i]));
+  await p.waitForSelector('#feedback:not([hidden])');
+  return p.evaluate(()=>({ok:INT.ronda().ok,mal:INT.ronda().mal,items:INT.actual().ids.map(id=>[id,INT.estado().items[id].c,INT.estado().items[id].mal])}));
+};
+const u1=await probar(1);
+chk('un tablero de «unir» con UN solo tropiezo cuenta como bien y no baja a ninguna provincia a la caja 0',u1.ok===1&&u1.mal===0&&u1.items.every(([id,c,m])=>c>=1&&m===0),j(u1));
+const u2=await probar(2);
+chk('con dos tropiezos cuenta como mal, y sólo las provincias que se mezclaron vuelven a la caja 0',u2.mal===1&&u2.items.filter(([id,c,m])=>m>0&&c===0).length===2&&u2.items.filter(([id,c,m])=>m===0).length===3,j(u2));
+await cerrar(p);
+}
+// el simulacro reparte las provincias: lo que se muestra en una parte no regala la respuesta de otra
+{
+const p=await abrir();
+const mal=await p.evaluate(()=>{const mal=[];for(let k=0;k<300;k++){const qs=INT.armarSimulacro(),ids=n=>qs.filter(q=>q.parte&&q.parte[0]===n).flatMap(q=>q.ids);
+  const BC=new Set([...ids('B'),...ids('C')]),DF=[...ids('D'),...ids('F')],A=ids('A');
+  if(DF.length!==9||new Set(DF).size!==9||DF.some(id=>BC.has(id)))mal.push('D/F repiten o coinciden con B/C ('+k+')');
+  if(A.length!==7||new Set(A).size!==7||A.some(id=>!BC.has(id)))mal.push('A fuera de B/C ('+k+')');
+  if(ids('B').length!==10||new Set(ids('B')).size!==10||ids('C').length!==4)mal.push('B/C mal ('+k+')')}return mal.slice(0,5)});
+chk('en 300 simulacros, D («Escribí la capital») y F («¿De qué provincia es capital?») preguntan SÓLO por provincias que NO aparecieron antes en B (unir) ni en C (verdadero o falso): 9 distintas; y A, que va primero, usa 7 de las que se muestran después',mal.length===0,j(mal));
+await cerrar(p);
+}
+// fechas: una fecha a medio teclear no se guarda ni rompe el campo; una imposible se descarta; la cuenta se actualiza al volver
+{
+const p=await abrir();
+await p.click('#pInicio .barra .atras');await p.waitForSelector('#aFecha');
+await p.evaluate(()=>{window.__nodo=document.getElementById('aFecha')});
+await p.fill('#aFecha','0002-11-19');
+chk('en Ajustes, un año a medio teclear («0002-11-19») no se guarda y el campo no se pierde (sigue siendo el mismo input)',(await fechaST(p))===''&&await p.evaluate(()=>window.__nodo===document.getElementById('aFecha')));
+await p.fill('#aFecha','2026-11-20');
+chk('una fecha buena sí se guarda, sin volver a pintar el campo, y prende «Sacar la fecha»',(await fechaST(p))==='2026-11-20'&&(await estado(p)).fecha==='2026-11-20'&&await p.evaluate(()=>window.__nodo===document.getElementById('aFecha')&&!document.getElementById('aSinFecha').disabled));
+await p.fill('#aFecha','');
+chk('y vaciarla la saca (y apaga «Sacar la fecha»)',(await fechaST(p))===''&&(await estado(p)).fecha===''&&await p.evaluate(()=>document.getElementById('aSinFecha').disabled));
+await cerrar(p);
+const p2=await abrir({estado:{fecha:'2026-13-45'}});
+chk('una fecha imposible guardada («2026-13-45») se descarta: no sale «Faltan 90 días» sino el saludo',/¡Hola, Felipe!/.test(await p2.innerText('.cuenta'))&&(await fechaST(p2))==='');
+await cerrar(p2);
+const p3=await abrir({fecha:'2026-11-18T23:50:00',estado:{fecha:'2026-11-19'}});
+const a0=await p3.innerText('.cuenta');
+await p3.evaluate(()=>{window.__F=new Date('2026-11-19T07:30:00').getTime();document.dispatchEvent(new Event('visibilitychange'))});
+const a1=await p3.innerText('.cuenta');
+await p3.evaluate(()=>{window.__F=new Date('2026-11-20T07:30:00').getTime();window.dispatchEvent(new Event('pageshow'))});
+const a2=await p3.innerText('.cuenta');
+chk('la cuenta regresiva se actualiza sola al volver a la pestaña después de la medianoche («¡Es mañana!» → «¡Es hoy! Mucha suerte» → «La prueba fue el jueves…»)',/¡Es mañana!/.test(a0)&&/¡Es hoy! Mucha suerte/.test(a1)&&/La prueba fue el jueves/.test(a2),[a0,a1,a2].join(' → '));
+await cerrar(p3);
+}
+// la Ciudad de Buenos Aires y las abreviaturas del mapa
+{
+const p=await abrir();
+const r=await p.evaluate(()=>{const o={n:0,ba:0,prov:0,ph:new Set(),vfMal:0,vfBien:0};for(let k=0;k<300;k++){const q=INT.gen('mapaEleg','caba',k%4);o.n++;if(q.opciones.some(x=>!x.ok&&x.t==='Buenos Aires'))o.ba++;if(q.opciones.some(x=>x.t==='Provincia de Buenos Aires'))o.prov++;o.ph.add(INT.gen('mapaTipear','caba',3).pista);
+  const v=INT.gen('vf','buenosaires',1).resumen;if(/es Ciudad de Buenos Aires\./.test(v))o.vfMal++;if(/es la Ciudad de Buenos Aires\./.test(v))o.vfBien++}return {n:o.n,ba:o.ba,prov:o.prov,ph:[...o.ph],vfMal:o.vfMal,vfBien:o.vfBien}});
+chk('para el punto de la Ciudad la opción incorrecta nunca es «Buenos Aires» (para un chico el punto ES Buenos Aires): es «Provincia de Buenos Aires», y aparece siempre; al escribir, el cartelito dice «Es…» y no «La provincia es…»',r.ba===0&&r.prov===r.n&&r.ph.join()==='Es…',j(r));
+chk('«Provincia de Buenos Aires» no se confunde con nada: la provincia pintada sigue ofreciendo «Ciudad de Buenos Aires» como trampa, y el verdadero/falso dice «la Ciudad de Buenos Aires» con su artículo',r.vfMal===0&&r.vfBien>0,j(r));
+const abrevMal=await p.evaluate(()=>INT.PROVINCIAS.filter(x=>!INT.gen('mapaTipear',x.id,3).aceptar.some(a=>INT.NORM(a)===INT.NORM(x.abrev))||!INT.gen('provTipear',x.id,3).aceptar.some(a=>INT.NORM(a)===INT.NORM(x.abrev))).map(x=>x.id));
+chk('todas las abreviaturas que la app escribe en el mapa («Sta. Cruz», «Sgo. del Estero», «T. del Fuego», «Bs. As.»…) se aceptan al escribirlas',abrevMal.length===0,j(abrevMal));
+// el memotest: el lector de pantalla oye lo que dice la carta abierta
+await irTema(p);await p.click('#bMemo');await p.waitForSelector('#pMemo .cm');
+const m0=await p.evaluate(()=>{const c=INT.memo().cartas;let k=0;for(let i=1;i<c.length;i++)if(c[i].id!==c[0].id){k=i;break}return {a:0,b:k,ta:c[0].t,tb:c[k].t}});
+await p.click('#pMemo .cm[data-c="0"]');
+const l1=await p.evaluate(()=>document.querySelector('#pMemo .cm[data-c="0"]').getAttribute('aria-label'));
+await p.click('#pMemo .cm[data-c="'+m0.b+'"]');await p.waitForTimeout(1100);
+const l2=await p.evaluate(b=>[document.querySelector('#pMemo .cm[data-c="0"]').getAttribute('aria-label'),document.querySelector('#pMemo .cm[data-c="'+b+'"]').getAttribute('aria-label')],m0.b);
+chk('en el memotest, una carta abierta se anuncia con su texto (no «Carta 1») y al taparse vuelve a «Carta N»',l1===m0.ta&&l2[0]==='Carta 1'&&l2[1]==='Carta '+(m0.b+1),j([l1,l2,m0]));
+await cerrar(p);
+}
+chk('los textos de la revisión están corregidos en el código: «Seguí practicando» (no «Sigan») y la fecha en minúscula dentro de la oración',/Seguí practicando/.test(fs.readFileSync(path.join(RAIZ,'integradora','app.js'),'utf8'))&&!/Sigan/.test(fs.readFileSync(path.join(RAIZ,'integradora','app.js'),'utf8')));
+
 // ---------- 4) el simulacro: 35 preguntas (30 de provincias y 5 de países), sin ver si estuvo bien hasta el final, con resultado por parte
 {
 const p=await abrir();
@@ -470,7 +611,10 @@ r=await tipear('capTipear','buenosaires','Ciudad de Buenos Aires');chk('«Ciudad
 r=await tipear('provTipear','tierradelfuego','tierra del fuego');chk('la provincia de Ushuaia se escribe «Tierra del Fuego» (alcanza con eso)',r.ok,r.fb);
 r=await tipear('provTipear','rionegro','Rio Negro');chk('«Rio Negro» (sin tilde) vale',r.ok,r.fb);
 r=await tipear('mapaTipear','caba','CABA');chk('en el mapa, el punto de la Ciudad de Buenos Aires se acepta como «CABA»',r.ok,r.fb);
-r=await tipear('mapaTipear','caba','Buenos Aires');chk('pero «Buenos Aires» solo no vale para el punto de la Ciudad (es la provincia)',!r.ok,r.fb);
+r=await tipear('mapaTipear','caba','Buenos Aires');chk('y también «Buenos Aires» (el punto es la ciudad de Buenos Aires)',r.ok,r.fb);
+r=await tipear('mapaTipear','santacruz','Sta. Cruz');chk('la abreviatura que se ve en el mapa («Sta. Cruz») se acepta al escribir',r.ok,r.fb);
+r=await tipear('provTipear','santiago','sgo. del estero');chk('«Sgo. del Estero» también (con o sin mayúsculas y puntos)',r.ok,r.fb);
+r=await tipear('mapaTipear','tierradelfuego','T. del Fuego');chk('y «T. del Fuego»',r.ok,r.fb);
 r=await tipear('mapaTipear','buenosaires','Ciudad de Buenos Aires');chk('y «Ciudad de Buenos Aires» no vale para la provincia pintada',!r.ok,r.fb);
 // en blanco no corrige
 await p.evaluate(()=>{INT.rondaCon([INT.gen('capTipear','mendoza',3)],false)});await p.waitForSelector('#resp');
@@ -515,7 +659,7 @@ await cerrar(p);
 }
 
 // ---------- 6) la cuenta regresiva
-for(const [f,fecha,esp] of [['2026-11-16T09:00:00','2026-11-19',/Faltan 3 días/],['2026-11-18T23:50:00','2026-11-19',/¡Es mañana!/],['2026-11-19T08:00:00','2026-11-19',/¡Es hoy! Mucha suerte/],['2026-11-20T08:00:00','2026-11-19',/La prueba fue el Jueves,? 19 de noviembre/]]){
+for(const [f,fecha,esp] of [['2026-11-16T09:00:00','2026-11-19',/Faltan 3 días/],['2026-11-18T23:50:00','2026-11-19',/¡Es mañana!/],['2026-11-19T08:00:00','2026-11-19',/¡Es hoy! Mucha suerte/],['2026-11-20T08:00:00','2026-11-19',/La prueba fue el jueves,? 19 de noviembre/]]){
   const p=await abrir({fecha:f,estado:{fecha}});
   const t=await p.innerText('.cuenta');chk('la cuenta regresiva el '+f.slice(0,10)+' (prueba el '+fecha+') dice «'+t.split('\n')[0]+'»',esp.test(t),t);await cerrar(p);
 }
@@ -618,6 +762,11 @@ for(const [nombre,w,h] of (RAPIDO?TAMANOS.slice(3,4):TAMANOS)){
       if(sig)falla.push('corregida '+i+' '+info+' → '+sig);
     }
   }
+  // «unir» del simulacro, con las 5 parejas numeradas y el botón «Listo»
+  await p.evaluate(()=>{INT.rondaCon([INT.armarSimulacro().find(x=>x.tipo==='unir')],true)});await p.waitForSelector('#bUnirListo');
+  const qu=await p.evaluate(()=>({izq:INT.actual().izq.map(x=>x.id),der:INT.actual().der.map(x=>x.id)}));
+  for(let i=0;i<5;i++){await p.click('#pPreg .par[data-lado="i"][data-i="'+i+'"]');await p.click('#pPreg .par[data-lado="d"][data-i="'+qu.der.indexOf(qu.izq[i])+'"]')}
+  await m('unir del simulacro (5 parejas numeradas y «Listo»)');
   // el memotest
   await p.evaluate(()=>{window.scrollTo(0,0)});await p.click('#pPreg .barra .atras').catch(()=>{});
   await p.evaluate(()=>{});

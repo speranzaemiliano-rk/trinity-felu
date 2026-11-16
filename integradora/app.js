@@ -13,11 +13,11 @@ const esc=t=>String(t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"
 const FECHA=d=>{d=d||new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 const diasEntre=(a,b)=>{const f=s=>Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10));return Math.round((f(b)-f(a))/864e5)};
 const NUM=(x,max)=>Number.isFinite(+x)?Math.max(0,Math.min(max||1e9,Math.floor(+x))):0;
-const FECHA_OK=s=>/^\d{4}-\d{2}-\d{2}$/.test(String(s||""))&&!isNaN(Date.UTC(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10)));
+const FECHA_OK=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s||""));if(!m)return false;const y=+m[1],mo=+m[2],d=+m[3];if(y<2000||y>2100)return false;const t=new Date(Date.UTC(y,mo-1,d));return t.getUTCFullYear()===y&&t.getUTCMonth()===mo-1&&t.getUTCDate()===d};   // una fecha que existe de verdad (no «2026-13-45» ni un año a medio teclear como «0002»)
 // cómo se comparan las respuestas escritas: sin mayúsculas, sin tildes, sin signos y sin espacios de más («cordoba» = «Córdoba»)
 const NORM=s=>String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
 const igual=(dado,aceptar)=>aceptar.some(x=>NORM(x)===NORM(dado));
-const fmtFecha=s=>{try{const t=new Date(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10)).toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});return t.charAt(0).toUpperCase()+t.slice(1)}catch(e){return s}};
+const fmtFecha=(s,min)=>{try{const t=new Date(+s.slice(0,4),+s.slice(5,7)-1,+s.slice(8,10)).toLocaleDateString("es-AR",{weekday:"long",day:"numeric",month:"long"});return min?t:t.charAt(0).toUpperCase()+t.slice(1)}catch(e){return s}};
 
 // ---------------- los ítems (por id; sin prototipo, así un id raro como «constructor» no existe)
 const ITEM=Object.create(null);INT.TODOS.forEach(it=>{ITEM[it.id]=it});
@@ -100,9 +100,9 @@ function malasCaps(it,c){   // otras capitales: con una «trampa» (una ciudad c
 }
 function malasProvs(it){   // otras provincias (o países): con la Ciudad de Buenos Aires de «trampa» para Buenos Aires, y una que se le parezca
   if(it.tipo==="pais")return mezclar(PAISES.filter(x=>x!==it).map(x=>x.corto));
-  const otras=PROVS.filter(x=>x!==it).map(x=>x.corto).concat(it.id==="caba"?[]:[CABA.corto]);
+  const otras=PROVS.filter(x=>x!==it).map(x=>it.id==="caba"&&x.id==="buenosaires"?"Provincia de Buenos Aires":x.corto).concat(it.id==="caba"?[]:[CABA.corto]);   // para el punto de la Ciudad la provincia se llama «Provincia de Buenos Aires»: el punto ES «Buenos Aires» para un chico
   const par=mezclar(otras.filter(x=>raiz(x)===raiz(it.corto))).slice(0,1);
-  const trampa=it.id==="buenosaires"?[CABA.corto]:it.id==="caba"?[ITEM.buenosaires.corto]:[];
+  const trampa=it.id==="buenosaires"?[CABA.corto]:it.id==="caba"?["Provincia de Buenos Aires"]:[];
   return [...trampa,...par,...mezclar(otras)];
 }
 const expCap=it=>`La capital de ${it.corto} es ${it.capital}.`+(it.nota?" "+it.nota:"");
@@ -120,7 +120,7 @@ const kindDe=it=>KIND[it.tipo==="pais"?"pais":"provincia"];
 const grupoDe=it=>it.tipo==="pais"?PAISES:PROVS;
 const mapaDe=(it,o)=>it.tipo==="pais"?mapaLimHTML(o):mapaHTML(o);
 const nombreProv=it=>`<div class="pal">${esc(it.corto)}</div><div class="sub2">${it.tipo==="ciudad"?"capital del país":kindDe(it).sub}</div>`;
-const aceptaProv=it=>[it.corto,it.nombre,...it.altNombre];
+const aceptaProv=it=>[it.corto,it.nombre,it.abrev,...it.altNombre];   // también la abreviatura que se ve en el mapa («Sta. Cruz», «T. del Fuego»…)
 
 function tableroUnir(l,K){   // un tablero de «unir»: 5 provincias (o los 5 países) a la izquierda y sus capitales, desordenadas, a la derecha
   K=K||KIND.provincia;
@@ -136,13 +136,13 @@ function generar(tipo,it,c){
     case "vf":{
       let texto,ok,explic;
       if(it.tipo==="ciudad"){ok=Math.random()<.5;texto=ok?"La Ciudad de Buenos Aires es la capital de la Argentina.":"La Ciudad de Buenos Aires es la capital de la provincia de Buenos Aires.";explic=it.nota}
-      else{ok=Math.random()<.5;const falsa=elegir(malasCaps(it,1).slice(0,2));texto=K.vf(it)+(ok?it.capital:falsa)+".";explic=ok?expCap(it):"En realidad, "+expCap(it).replace(/^L/,"l")}
+      else{ok=Math.random()<.5;const falsa=elegir(malasCaps(it,1).slice(0,2));texto=K.vf(it)+(ok?it.capital:(falsa===CABA.corto?"la "+falsa:falsa))+".";explic=ok?expCap(it):"En realidad, "+expCap(it).replace(/^L/,"l")}
       return {...base,tipo:"mc",resumen:texto,consigna:"¿Verdadero o falso?",ayuda:"Leé la oración y decidí.",cuerpo:`<div class="frase">${esc(texto)}</div>`,opciones:[{t:"Verdadero",ok:ok},{t:"Falso",ok:!ok}],mostrar:ok?"Verdadero":"Falso",explic};
     }
     case "capTipear":return {...base,tipo:"tipear",resumen:"Capital de "+it.corto,consigna:K.capTipear,ayuda:"Escribila (no hace falta poner tildes ni mayúsculas).",pista:"La capital es…",cuerpo:nombreProv(it),aceptar:[it.capital,...it.altCapital],mostrar:it.capital,explic:expCap(it)};
     case "provTipear":return {...base,tipo:"tipear",resumen:K.provEleg.replace(/\?$/," "+it.capital+"?"),consigna:K.provTipear,ayuda:K.provTipear_a,pista:K.provTipear_p,cuerpo:`<div class="sub2">capital</div><div class="pal">${esc(it.capital)}</div>`,aceptar:aceptaProv(it),mostrar:it.corto,explic:expCap(it)};
     case "mapaEleg":return {...base,tipo:"mc",mapa:1,resumen:K.resMapa,consigna:it.tipo==="ciudad"?"¿Qué es el punto pintado en el mapa?":K.mapaEleg,ayuda:"Mirá bien el mapa.",cuerpo:mapaDe(it,{res:it.id}),opciones:opciones(it.corto,malasProvs(it),4),mostrar:it.corto,explic:expProv(it)};
-    case "mapaTipear":return {...base,tipo:"tipear",mapa:1,resumen:K.resMapa,consigna:it.tipo==="ciudad"?"Escribí qué es el punto pintado en el mapa.":K.mapaTipear,ayuda:"Escribila (no hace falta poner tildes ni mayúsculas).",pista:K.mapaTipear_p,cuerpo:mapaDe(it,{res:it.id}),aceptar:aceptaProv(it),mostrar:it.corto,explic:expProv(it)};
+    case "mapaTipear":return {...base,tipo:"tipear",mapa:1,resumen:K.resMapa,consigna:it.tipo==="ciudad"?"Escribí qué es el punto pintado en el mapa.":K.mapaTipear,ayuda:"Escribila (no hace falta poner tildes ni mayúsculas).",pista:it.tipo==="ciudad"?"Es…":K.mapaTipear_p,cuerpo:mapaDe(it,{res:it.id}),aceptar:aceptaProv(it),mostrar:it.corto,explic:expProv(it)};
     case "mapaToca":return {...base,tipo:"mapa",mapa:1,resumen:"Tocar en el mapa: "+it.corto,consigna:"Tocá en el mapa:",ayuda:K.toca_a,cuerpo:`<div class="pal">${esc(it.corto)}</div>`+mapaDe(it,{clic:true}),mostrar:it.corto,explic:expProv(it)};
     case "unir":return tableroUnir([it,...sacar(grupoDe(it).filter(x=>x!==it),4)],K);
   }
@@ -203,14 +203,17 @@ const actual=()=>R&&R.qs[R.i];
 
 // ---------------- pantallas
 const PANT=["pInicio","pTema","pMapa","pPreg","pMemo","pFin","pAjustes"];
-function ir(p){PANT.forEach(x=>{$(x).hidden=x!==p});window.scrollTo(0,0)}
+// un doble toque (o un toque apurado justo después de que cambia la pantalla) no tiene que contestar lo que quedó debajo del dedo: durante 400 ms no se atiende nada (las pruebas lo apagan con window.__INT_SIN_ESPERA)
+let ULT_NAV=-1e9,ULT_RESP=-1e9;   // «hace mucho»: al abrir la app no hay nada que esperar
+const esperando=()=>window.__INT_SIN_ESPERA!==true&&performance.now()-ULT_NAV<400;
+function ir(p,arranque){PANT.forEach(x=>{$(x).hidden=x!==p});if(!arranque)ULT_NAV=performance.now();window.scrollTo(0,0)}   // al abrir la app no corre la espera (el primer toque es de verdad)
 function barra(titulo,atras,extra){return `<header class="barra"><button class="atras" data-ir="${atras}" aria-label="Volver">⬅</button><div class="titulo">${titulo}</div>${extra||"<span></span>"}</header>`}
 const barraProg=i=>`<span class="prog" aria-hidden="true"><i style="width:${i}%"></i></span>`;
 
 const progresoTema=t=>{const m=dominio(t.items);return `<button class="tema-btn" data-tema="${t.id}"><span class="tb-t"><b>${esc(t.ico)} ${esc(t.nombre)}</b><small>${m.aprendidas} de ${m.n} aprendidas</small></span>${barraProg(m.pct)}</button>`};
 function pintarInicio(){
   const hoy=FECHA(),d=ST.fecha?diasEntre(hoy,ST.fecha):null;
-  const cuenta=ST.fecha?`<div>${d>1?`Faltan <b>${d} días</b>`:d===1?`<b>¡Es mañana!</b>`:d===0?`<b>¡Es hoy! Mucha suerte</b>`:`La prueba fue el ${esc(fmtFecha(ST.fecha))}`}</div><small>${esc(fmtFecha(ST.fecha))}</small>`:`<div>¡Hola, ${esc(INT.ALUMNO)}!</div><small>Elegí qué querés estudiar</small>`;
+  const cuenta=ST.fecha?`<div>${d>1?`Faltan <b>${d} días</b>`:d===1?`<b>¡Es mañana!</b>`:d===0?`<b>¡Es hoy! Mucha suerte</b>`:`La prueba fue el ${esc(fmtFecha(ST.fecha,true))}`}</div><small>${esc(fmtFecha(ST.fecha))}</small>`:`<div>¡Hola, ${esc(INT.ALUMNO)}!</div><small>Elegí qué querés estudiar</small>`;
   const err=TODOS.filter(it=>aprendiendo(it.id)),sims=ST.sims,mejor=sims.length?Math.max(...sims.map(s=>Math.round(100*s.p/s.t))):null;
   $("pInicio").innerHTML=`<header class="barra"><div class="logo">📚</div><div class="titulo">${esc(INT.NOMBRE)}</div><button class="atras" data-ir="pAjustes" aria-label="Ajustes">⚙️</button></header>
     <section class="cuenta">${cuenta}</section>
@@ -256,16 +259,16 @@ function mostrarPregunta(){
   let h=barraPreg()+(q.parte?`<div class="parte">${esc(q.parte)}</div>`:"")+`<div class="consigna"><b>${esc(q.consigna)}</b><small>${esc(q.ayuda||"")}</small></div><div class="cuerpo${q.mapa?" conmapa"+(q.tipo==="mapa"?" toca":""):""}">${q.cuerpo||""}</div>`;
   if(q.tipo==="mc")h+=`<div class="opciones n${q.opciones.length}${q.opciones.some(o=>o.t.length>22)?" largas":""}">${q.opciones.map((o,i)=>`<button class="opcion" data-i="${i}">${esc(o.t)}</button>`).join("")}</div>`;
   else if(q.tipo==="tipear")h+=`<input id="resp" class="resp" type="text" autocomplete="off" autocapitalize="sentences" autocorrect="off" spellcheck="false" enterkeyhint="done" placeholder="${esc(q.pista||"Escribí acá…")}" aria-label="Tu respuesta"><button class="btn" id="bCheck">Listo ✔</button>`;
-  else if(q.tipo==="unir")h+=`<div class="unir"><div class="col" id="izq"><div class="colt">${esc(q.colA||"Provincias")}</div>${q.izq.map((x,i)=>`<button class="par" data-lado="i" data-i="${i}">${esc(x.t)}</button>`).join("")}</div><div class="col" id="der"><div class="colt">Capitales</div>${q.der.map((x,i)=>`<button class="par" data-lado="d" data-i="${i}">${esc(x.t)}</button>`).join("")}</div></div>`;
+  else if(q.tipo==="unir")h+=`<div class="unir"><div class="col" id="izq"><div class="colt">${esc(q.colA||"Provincias")}</div>${q.izq.map((x,i)=>`<button class="par" data-lado="i" data-i="${i}">${esc(x.t)}</button>`).join("")}</div><div class="col" id="der"><div class="colt">Capitales</div>${q.der.map((x,i)=>`<button class="par" data-lado="d" data-i="${i}">${esc(x.t)}</button>`).join("")}</div></div>${R.test?`<button class="btn" id="bUnirListo" disabled>Listo ✔</button>`:""}`;
   h+=`<div class="feedback" id="feedback" role="status" aria-live="polite" hidden></div>`;
   $("pPreg").innerHTML=h;$("pPreg").classList.toggle("pmapa",!!q.mapa);
   q.estado={pares:0,fallos:0,resuelta:false,sel:[]};
   if(q.tipo==="tipear"){const r=$("resp");setTimeout(()=>{try{r.focus({preventScroll:true})}catch(e){}},60)}
 }
 function resolver(q,ok,dado){   // se corrigió la pregunta: se anota, se muestra qué pasó y se pasa a la siguiente
-  if(q.estado.resuelta)return;q.estado.resuelta=true;q.estado.ok=ok;q.estado.dado=dado;
+  if(q.estado.resuelta)return;ULT_RESP=performance.now();q.estado.resuelta=true;q.estado.ok=ok;q.estado.dado=dado;
   if(!q.reintento){if(ok)R.ok++;else{R.mal++;R.errores.push(q)}}
-  if(q.tipo==="unir"){const malos=new Set(q.estado.malos||[]);q.ids.forEach(id=>anotar(id,!malos.has(id)))}else q.ids.forEach(id=>anotar(id,ok));
+  if(q.tipo==="unir"){const malos=new Set(q.estado.malos||[]);q.ids.forEach(id=>anotar(id,ok||!malos.has(id)))}else q.ids.forEach(id=>anotar(id,ok));   // un tablero que cuenta como bien (a lo sumo un tropiezo) no baja a nadie a la caja 0: antes decía «¡Muy bien!» y mandaba 2 provincias a repasar
   sumarDia(ok);
   // lo que falló vuelve a aparecer al final de la ronda (una sola vez, y esa vuelta no cuenta en el puntaje)
   if(!R.test&&!ok&&!q.reintento&&!R.reint[q.ids.join()]&&q.tipo!=="unir"){R.reint[q.ids.join()]=1;const it=ITEM[q.ids[0]];if(it){try{const r=generar(q.tag,it,0);r.reintento=true;R.qs.push(r)}catch(e){}}}
@@ -288,7 +291,7 @@ function comprobarTipear(){
   r.disabled=true;const b=$("bCheck");if(b)b.disabled=true;const ok=igual(dado,q.aceptar);if(!R.test)r.classList.add(ok?"si":"no");resolver(q,ok,dado);
 }
 function tocarMapaPreg(id){   // «Tocá en el mapa»: un toque es la respuesta
-  const q=actual();if(!q||q.tipo!=="mapa"||q.estado.resuelta)return;
+  const q=actual();if(!q||q.tipo!=="mapa"||q.estado.resuelta||esperando())return;
   const ok=id===q.ids[0];
   if(!R.test){const sv=$("pPreg").querySelector("svg.mapa");sv.classList.remove("clic");sv.querySelectorAll("[data-id]").forEach(e=>{if(e.dataset.id===q.ids[0])e.classList.add("ok");else if(e.dataset.id===id)e.classList.add("mal")})}
   else $("pPreg").querySelector("svg.mapa").classList.remove("clic");
@@ -296,7 +299,9 @@ function tocarMapaPreg(id){   // «Tocá en el mapa»: un toque es la respuesta
 }
 function tocarPar(lado,i){
   const q=actual();if(!q||q.estado.resuelta)return;const e=q.estado;
-  const btn=$("pPreg").querySelector(`.par[data-lado="${lado}"][data-i="${i}"]`);if(!btn||btn.classList.contains("hecho"))return;
+  const btn=$("pPreg").querySelector(`.par[data-lado="${lado}"][data-i="${i}"]`);if(!btn)return;
+  if(R.test)return tocarParExamen(q,e,lado,i,btn);
+  if(btn.classList.contains("hecho"))return;
   const prev=e.sel.find(s=>s.lado===lado);
   if(prev){$("pPreg").querySelector(`.par[data-lado="${lado}"][data-i="${prev.i}"]`).classList.remove("elegida");e.sel=e.sel.filter(s=>s.lado!==lado)}
   btn.classList.add("elegida");e.sel.push({lado,i});
@@ -307,6 +312,28 @@ function tocarPar(lado,i){
       if(e.pares===q.izq.length)resolver(q,e.fallos<=1,"");}
     else{e.fallos++;(e.malos=e.malos||[]).push(q.izq[a.i].id,q.der[d.i].id);ba.classList.add("no");bd.classList.add("no");setTimeout(()=>{ba.classList.remove("no");bd.classList.remove("no")},450)}
   }
+}
+// en el simulacro «unir» tampoco avisa si está bien: cada pareja queda marcada con un número (se deshace tocándola de nuevo) y se corrige todo junto al tocar «Listo»
+function tocarParExamen(q,e,lado,i,btn){
+  const P=$("pPreg"),par=e.parejas=e.parejas||[],bt=(l,k)=>P.querySelector(`.par[data-lado="${l}"][data-i="${k}"]`);
+  const hecha=par.find(x=>(lado==="i"?x.a:x.d)===i);
+  if(hecha){par.splice(par.indexOf(hecha),1);[bt("i",hecha.a),bt("d",hecha.d)].forEach(b=>{b.classList.remove("unido");b.removeAttribute("data-n")});$("bUnirListo").disabled=true;return}
+  const prev=e.sel.find(s=>s.lado===lado);
+  if(prev){bt(lado,prev.i).classList.remove("elegida");e.sel=e.sel.filter(s=>s.lado!==lado)}
+  btn.classList.add("elegida");e.sel.push({lado,i});
+  if(e.sel.length===2){
+    const a=e.sel.find(s=>s.lado==="i").i,d=e.sel.find(s=>s.lado==="d").i;e.sel=[];
+    const usados=new Set(par.map(x=>x.n));let n=1;while(usados.has(n))n++;
+    par.push({a,d,n});
+    [bt("i",a),bt("d",d)].forEach(b=>{b.classList.remove("elegida");b.classList.add("unido");b.dataset.n=n});
+    $("bUnirListo").disabled=par.length<q.izq.length;
+  }
+}
+function terminarUnir(){
+  const q=actual();if(!q||q.tipo!=="unir"||q.estado.resuelta||!q.estado.parejas||q.estado.parejas.length<q.izq.length)return;
+  const malos=[];q.estado.parejas.forEach(x=>{if(q.izq[x.a].id!==q.der[x.d].id)malos.push(q.izq[x.a].id,q.der[x.d].id)});
+  q.estado.malos=malos;q.estado.fallos=malos.length/2;
+  resolver(q,malos.length===0,"");
 }
 // el enunciado de una pregunta en una línea (para la lista «Para repasar»)
 const enunciado=q=>q.resumen||q.consigna||"";
@@ -330,16 +357,19 @@ function porParte(){
 }
 // ---- simulacro: como una prueba (sin ver si estuvo bien hasta el final)
 const N_SIM=35;   // 30 de provincias (6 partes) y 5 de los países limítrofes (parte G)
+const AYUDA_UNIR_EXAMEN="Tocá una provincia y después su capital. Para cambiar una pareja, tocala de nuevo. Al terminar, tocá «Listo».";
 function armarSimulacro(){
   const qs=[],P=mezclar(PROVS),T=mezclar(INT.ITEMS);
   const poner=(lista,tipo,parte)=>lista.forEach(it=>qs.push({...generar(tipo,it,1),parte}));
-  poner(P.slice(0,7),"capEleg","A · Elegí la capital");
-  // dos tableros de unir con 5 provincias cada uno (10 provincias distintas)
-  [P.slice(7,12),P.slice(12,17)].forEach(l=>qs.push({...tableroUnir(l),parte:"B · Uní provincias y capitales"}));
-  poner(P.slice(17,21),"vf","C · Verdadero o falso");
-  poner(sacar(PROVS,5),"capTipear","D · Escribí la capital");
+  // las provincias se reparten para que lo que se ve en una parte no le regale la respuesta a otra: B (unir) y C (verdadero o falso) muestran 14 provincias con su capital;
+  // D y F preguntan por 9 que NO aparecieron ahí; y A (la primera, antes de todo) puede repetir cualquiera de las 14
+  const B=[P.slice(0,5),P.slice(5,10)],C=P.slice(10,14),D=P.slice(14,19),F=P.slice(19,23),A=sacar(P.slice(0,14),7);
+  poner(A,"capEleg","A · Elegí la capital");
+  B.forEach(l=>qs.push({...tableroUnir(l),ayuda:AYUDA_UNIR_EXAMEN,parte:"B · Uní provincias y capitales"}));
+  poner(C,"vf","C · Verdadero o falso");
+  poner(D,"capTipear","D · Escribí la capital");
   const mapa=T.slice(0,8);poner(mapa.slice(0,5),"mapaEleg","E · Mirá el mapa");poner(mapa.slice(5,8),"mapaTipear","E · Mirá el mapa");
-  poner(sacar(PROVS,4),"provEleg","F · ¿De qué provincia es capital?");
+  poner(F,"provEleg","F · ¿De qué provincia es capital?");
   // los cinco países limítrofes, uno por pregunta y de distinto tipo
   const tg=mezclar(["capEleg","mapaEleg","capTipear","provEleg","vf"]);
   mezclar(PAISES).forEach((it,i)=>qs.push({...generar(tg[i%tg.length],it,1),parte:"G · Países limítrofes"}));
@@ -360,13 +390,13 @@ function pintarMemo(){
 }
 function tocarCarta(i){
   if(!MM||MM.bloq||MM.abiertas.includes(i)||MM.hechas.has(i))return;
-  const bs=$("pMemo").querySelectorAll(".cm");bs[i].classList.add("abierta");MM.abiertas.push(i);
+  const bs=$("pMemo").querySelectorAll(".cm");bs[i].classList.add("abierta");bs[i].setAttribute("aria-label",MM.cartas[i].t);MM.abiertas.push(i);
   if(MM.abiertas.length<2)return;
   MM.intentos++;$("mmInt").textContent=MM.intentos;
   const [a,b]=MM.abiertas,ca=MM.cartas[a],cb=MM.cartas[b];
   if(ca.id===cb.id&&ca.lado!==cb.lado){MM.hechas.add(a);MM.hechas.add(b);bs[a].classList.add("hecha");bs[b].classList.add("hecha");MM.abiertas=[];if(MM.hechas.size===MM.cartas.length)setTimeout(finMemo,500)}
   else{MM.fallos[ca.id]=(MM.fallos[ca.id]||0)+1;MM.fallos[cb.id]=(MM.fallos[cb.id]||0)+1;MM.bloq=true;
-    setTimeout(()=>{bs[a].classList.remove("abierta");bs[b].classList.remove("abierta");MM.abiertas=[];MM.bloq=false},850)}
+    setTimeout(()=>{bs[a].classList.remove("abierta");bs[b].classList.remove("abierta");bs[a].setAttribute("aria-label","Carta "+(a+1));bs[b].setAttribute("aria-label","Carta "+(b+1));MM.abiertas=[];MM.bloq=false},850)}
 }
 function finMemo(){
   if(!MM)return;
@@ -374,7 +404,7 @@ function finMemo(){
   ST.rondas++;guardar();
   const n=MM.intentos,k=MM.items.length;ir("pFin");
   $("pFin").innerHTML=`<header class="barra"><span></span><div class="titulo">Memotest</div><span></span></header>
-    <div class="nota"><div class="gran">${n} <small>intentos</small></div><p>${n<=k+2?"🏆 ¡Memoria de campeón!":n<=2*k?"👏 ¡Muy bien!":"💪 Sigan practicando: cada vez sale mejor."} (lo mejor posible son ${k})</p></div>
+    <div class="nota"><div class="gran">${n} <small>intentos</small></div><p>${n<=k+2?"🏆 ¡Memoria de campeón!":n<=2*k?"👏 ¡Muy bien!":"💪 Seguí practicando: cada vez sale mejor."} (lo mejor posible son ${k})</p></div>
     <div class="acciones"><button class="btn grande" id="bOtraMemo">🃏 Otro memotest</button><button class="btn sec" id="bInicioFin">🏠 Inicio</button></div>`;
   MM=null;R=null;
 }
@@ -400,6 +430,8 @@ function confirmar(msg,si,textoSi){
 
 // ---------------- eventos
 function arrancar(){
+  const refrescar=()=>{if(!$("pInicio").hidden)pintarInicio()};   // la cuenta regresiva cambia a la medianoche: si el inicio quedó abierto, se actualiza al volver a la pestaña
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)refrescar()});window.addEventListener("pageshow",refrescar);
   document.addEventListener("click",e=>{
     const svg=e.target.closest&&e.target.closest("svg.mapa");
     if(svg){const el=e.target.closest("[data-id]");if(!el)return;const id=el.dataset.id;
@@ -407,6 +439,8 @@ function arrancar(){
       if(svg.closest("#pPreg")&&svg.classList.contains("clic"))tocarMapaPreg(id);
       return}
     const el=e.target.closest("button");if(!el)return;
+    if(esperando())return;
+    if(el.id==="bSig"&&window.__INT_SIN_ESPERA!==true&&performance.now()-ULT_RESP<400)return;   // «Siguiente» no se activa con el segundo toque (o la segunda tecla Enter) de la misma respuesta
     if(el.dataset.ir){const d=el.dataset.ir;if(d==="pAjustes")pintarAjustes();if(d==="pInicio")pintarInicio();if(d==="pTema")pintarTema(TEMA_ACT);return ir(d)}
     if(el.dataset.tema){const t=INT.tema(el.dataset.tema);if(t){TEMA_ACT=t;pintarTema(t);return ir("pTema")}return}
     if(el.dataset.ver){pintarMapaEstudio(el.dataset.ver);return ir("pMapa")}
@@ -426,12 +460,13 @@ function arrancar(){
     if(el.id==="bCheck")return comprobarTipear();
     if(el.classList.contains("opcion"))return comprobarMC(+el.dataset.i);
     if(el.classList.contains("par"))return tocarPar(el.dataset.lado,+el.dataset.i);
+    if(el.id==="bUnirListo")return terminarUnir();
     if(el.id==="aSinFecha"){ST.fecha="";guardar();pintarAjustes();return}
     if(el.id==="aBorrar"){confirmar("¿Borrar todo lo que hiciste (lo aprendido, los simulacros y los días)? No se puede deshacer.",()=>{ST={v:1,fecha:ST.fecha,etq:ST.etq,items:Object.create(null),dias:{},sims:[],rondas:0};guardar();pintarAjustes()},"Borrar");return}
   });
   document.addEventListener("change",e=>{
     const i=e.target.id;
-    if(i==="aFecha"){ST.fecha=FECHA_OK(e.target.value)?e.target.value:"";guardar();pintarAjustes()}
+    if(i==="aFecha"){const v=e.target.value,b=$("aSinFecha");if(v===""){ST.fecha="";guardar();if(b)b.disabled=true}else if(FECHA_OK(v)){ST.fecha=v;guardar();if(b)b.disabled=false}}   // sin volver a pintar: un año a medio teclear («0002») no se guarda y el campo no se pierde
     else if(i==="aEtq"||i==="mEtq"){ST.etq=e.target.checked;guardar();if(!$("pMapa").hidden)pintarMapaEstudio($("pMapa").dataset.sel||null)}
   });
   document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="resp"){e.preventDefault();comprobarTipear()}else if(e.key==="Escape"&&!$("modal").hidden){$("modal").hidden=true;$("modal").innerHTML=""}});
@@ -439,5 +474,5 @@ function arrancar(){
 // para las pruebas
 INT.gen=(tipo,id,c)=>generar(tipo,ITEM[id],c);INT.tipos=()=>POOL;INT.ELEGIBLES=ELEGIBLES;INT.ACTIVIDADES=ACTIVIDADES;INT.ACTIVIDADES_PAIS=ACTIVIDADES_PAIS;INT.N_SIM=N_SIM;
 INT.rondaCon=(qs,test)=>ronda({qs,test:!!test});INT.estado=()=>ST;INT.actual=actual;INT.ronda=()=>R;INT.armarSimulacro=armarSimulacro;INT.NORM=NORM;INT.dominio=dominio;INT.mapaHTML=mapaHTML;INT.mapaLimHTML=mapaLimHTML;INT.memo=()=>MM;
-arrancar();pintarInicio();ir("pInicio");
+arrancar();pintarInicio();ir("pInicio",true);
 })();

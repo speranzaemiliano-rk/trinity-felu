@@ -1,0 +1,30 @@
+{
+  "name": "Prueba final integradora · Felipe",
+  "short_name": "Integradora",
+  "description": "Estudiar y practicar para la prueba final integradora: Sociales (provincias argentinas y sus capitales, con mapa) y, más adelante, Naturales.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "../",
+  "display": "standalone",
+  "background_color": "#f1f6ff",
+  "theme_color": "#2459d6",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "id": "/trinity-felu/integradora/"
+}

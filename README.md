@@ -1,15 +1,16 @@
 # Trinity GESE · Grade 3 (Felu) y Grade 4 (Raphina)
 
-Sitio de estudio y práctica para el examen oral Trinity GESE, con **un módulo por grado** que comparten el mismo motor, y aparte **«Sala de 5»** (juegos de inglés, lengua y matemática para una nena de 5 años) y **«Beehive 3»** (estudiar y practicar la prueba de inglés de 4.º grado de Felu): dos módulos independientes, sin el motor de Trinity. Sin build: se edita y se sube.
-Se publica en GitHub Pages. **La dirección de siempre es el INICIO: un menú para entrar al Trinity 3, al Trinity 4, a Sala de 5 o a Beehive 3**; cada módulo de Trinity tiene arriba una barra («🏠 Inicio · Trinity 3 · Trinity 4») para volver o pasar al otro en un toque.
+Sitio de estudio y práctica para el examen oral Trinity GESE, con **un módulo por grado** que comparten el mismo motor, y aparte **«Sala de 5»** (juegos de inglés, lengua y matemática para una nena de 5 años), **«Beehive 3»** (estudiar y practicar la prueba de inglés de 4.º grado de Felu) y la **«Prueba final integradora»** (Sociales —las provincias argentinas y sus capitales, con mapa— y, más adelante, Naturales, para Felipe): tres módulos independientes, sin el motor de Trinity. Sin build: se edita y se sube.
+Se publica en GitHub Pages. **La dirección de siempre es el INICIO: un menú para entrar al Trinity 3, al Trinity 4, a Sala de 5, a Beehive 3 o a la Prueba final integradora**; cada módulo de Trinity tiene arriba una barra («🏠 Inicio · Trinity 3 · Trinity 4») para volver o pasar al otro en un toque.
 
 | Pantalla | Para | Qué es | Dirección |
 |---|---|---|---|
-| **Inicio** | todos | el menú con las cuatro opciones (marca «Última vez» el que se abrió último en ese aparato) | https://speranzaemiliano-rk.github.io/trinity-felu/ |
+| **Inicio** | todos | el menú con las cinco opciones (marca «Última vez» el que se abrió último en ese aparato) | https://speranzaemiliano-rk.github.io/trinity-felu/ |
 | **Trinity 3** (Grade 3) | Felu | charla de 7 minutos con el examinador | https://speranzaemiliano-rk.github.io/trinity-felu/felu/ |
 | **Trinity 4** (Grade 4) | Raphina | 10 minutos: tema preparado + conversación | https://speranzaemiliano-rk.github.io/trinity-felu/raphina/ |
 | **Sala de 5** | una nena de 5 años | juegos con dibujos y voz (no hace falta leer): inglés, lengua y matemática | https://speranzaemiliano-rk.github.io/trinity-felu/sala5/ |
 | **Beehive 3** | Felu (4.º grado) | estudiar con voz, practicar y hacer un simulacro de la evaluación de inglés del jueves 12 de noviembre (Units 7 y 8 de *Beehive 3*) | https://speranzaemiliano-rk.github.io/trinity-felu/beehive3/ |
+| **Prueba final integradora** | Felipe | estudiar **Sociales** (las 23 provincias y la Ciudad de Buenos Aires con sus capitales, con mapa, actividades, memotest y simulacro) y, más adelante, **Naturales** | https://speranzaemiliano-rk.github.io/trinity-felu/integradora/ |
 
 Instalar como app: lo más cómodo es instalar el **Inicio** (queda un solo ícono «Trinity» que abre el menú); los módulos también se pueden instalar solos (cada uno con su ícono y su `id`). Los manifiestos de los módulos tienen alcance sobre todo el sitio, así «Inicio» y el otro módulo abren dentro de la misma app. Hasta la versión «módulos 2» el Grade 3 vivía en la raíz (`/`): quien lo tenga instalado ahora abre el menú y entra con un toque.
 
@@ -28,7 +29,8 @@ Nada se compila: son archivos que el navegador carga en este orden. **El motor n
 | `felu/index.html` · `raphina/index.html` | la página de cada módulo (misma estructura; otra paleta y otros textos), con la barra «Inicio · Trinity 3 · Trinity 4» arriba. Cada carpeta tiene su `manifest.json` y sus íconos |
 | `sala5/` | **«Sala de 5»**, aparte de todo lo de arriba (no usa el motor, ni `comun.js`, ni Firebase): su propia página, estilos, contenido, juegos, audios, manifiesto e íconos. Ver «Sala de 5» más abajo |
 | `beehive3/` | **«Beehive 3 · Prueba de inglés»**, también aparte (sin motor ni Firebase): su página, estilos, contenido, lógica, audios, manifiesto e íconos. Ver «Beehive 3» más abajo |
-| `sw.js` | el service worker, **uno solo para todo el sitio**: guarda el inicio y los cuatro módulos para abrirlos sin internet y cada uno cae en el suyo (los mp3 no los guarda: Safari los pide por partes) |
+| `integradora/` | **«Prueba final integradora · Felipe»**, también aparte (sin motor, sin Firebase y sin audio): su página, estilos, contenido, mapa dibujado, lógica, manifiesto e íconos. Ver «Prueba final integradora» más abajo |
+| `sw.js` | el service worker, **uno solo para todo el sitio**: guarda el inicio y los cinco módulos para abrirlos sin internet y cada uno cae en el suyo (los mp3 no los guarda: Safari los pide por partes) |
 
 **Lo que define un contenido** (`contenido-gN.js`): `MOD`, `VISTAS_KEY`, `armarPasos(vista)` (la lista de pasos de la charla), `planIA(esExamen)` (el plan al azar que se le pasa a la IA), `SISTEMA_IA`, `SISTEMA_EVAL`, `PROMPT_TRANSCRIBIR`, `EVAL_CRIT`, `PIC_LISTA`, `VOCAB`, `DIB*`, `bank` y `rkTextosGuion()` (todas las frases que puede decir el examinador, para generar los audios). Opcionales: `evalExtra(reg)` (datos que cuenta la página para corregir) y `pideDePregunta()` (si en ese momento se exige que le pregunte algo al examinador). Un **paso** de la charla es `{g, q, a, need, hints, react, follow, …}`; el Grade 4 sumó `rotulo` (la etiqueta de la burbuja), `contexto` (una línea fija sobre la pregunta, p. ej. el punto del tema), `solo` (el examinador habla y no espera respuesta: «Let's talk about food») y `corta` (acepta una respuesta corta).
 
@@ -44,7 +46,7 @@ node tools/version.js "2026-11-03 · lo que cambió"
 1. Copiá `contenido-g4.js` como `contenido-gN.js`; cambiá `MOD` y **todas las claves de almacenamiento** (con un prefijo propio) y reescribí el contenido.
 2. Copiá la carpeta `raphina/` con otro nombre; en su `index.html` cambiá textos, paleta y el `<script src="../contenido-gN.js?b=…">` (y el `trinity_ultimo` del `<head>`); en `manifest.json` cambiá `name`, `short_name`, `id` y colores (un `id` distinto es lo que hace que se instale como otra app; el `scope` queda en `../`).
 3. Copiá en la página el `<script src="../escucha.js?b=…">` (va después de `comun.js`) y definí en el contenido `ESC_SEG` y `ESC_YA` y marcá con `escucha:true` las preguntas de contenido (ver «El examinador que escucha»).
-4. **Sumalo al menú:** una tarjeta más en el `index.html` de la raíz y un enlace más en la barra `.modbar` de **todas** las páginas de módulos de Trinity (si no, desde los otros módulos no se llega). «Sala de 5» y «Beehive 3» son la excepción a propósito: tienen su tarjeta en el menú pero no la barra `.modbar`, porque quien juega ahí no tiene que poder pasar solo al Trinity.
+4. **Sumalo al menú:** una tarjeta más en el `index.html` de la raíz y un enlace más en la barra `.modbar` de **todas** las páginas de módulos de Trinity (si no, desde los otros módulos no se llega). «Sala de 5», «Beehive 3» y la «Prueba final integradora» son la excepción a propósito: tienen su tarjeta en el menú pero no la barra `.modbar`, porque quien juega ahí no tiene que poder pasar solo al Trinity.
 5. Sumá los archivos nuevos a `ARCHIVOS` de `sw.js` (si uno falta, el service worker no se instala; ahí también va la carpeta con la barra final, `./carpeta/`) y la página a `PAGINAS` de `tools/audio/lista.js`.
 6. Generá los audios (ver «Audios grabados»), escribí `tests/gN_*.js`, sumá el módulo a `tests/sitio.js` y corré `node tools/version.js "…"`.
 
@@ -153,6 +155,39 @@ node beehive3.js --borrar   # (si sobran mp3 de frases que ya no existen) los bo
 node beehive3.js            # debe decir «faltan: 0»
 ```
 ⚠️ **Qué no se pudo comprobar desde acá:** que las voces suenen bien al oído (se generaron sin escucharlas), el funcionamiento en un iPhone de verdad y que el nivel de las preguntas le resulte justo a Felu. `tests/beehive3.js` (~145 chequeos, tarda unos 5 minutos; con `RAPIDO=1`, unos 90 segundos) comprueba el resto: cada mp3, los verbos contra una tabla aparte, que **todas las preguntas** (cada ítem × cada tipo, muchas veces) tengan una sola respuesta correcta y coincidan con el contenido, los recorridos tocando botones, lo guardado roto, la voz, la cuenta regresiva y el **diseño en 12 tamaños** de pantalla (más el contraste en claro y oscuro).
+
+## Prueba final integradora · Felipe (`/integradora/`)
+
+Un módulo **aparte** para preparar la **prueba final integradora** de Felipe. Tiene dos áreas: **Sociales** (activa: el tema «Provincias y capitales») y **Naturales** (figura como «Pronto»; sus temas se suman cuando lleguen). No usa el motor de Trinity, ni Firebase, ni IA, ni audio: todo corre en el aparato y **no se comunica con ningún sitio** (sólo baja las fuentes de Google y sus propios archivos). Dirección: https://speranzaemiliano-rk.github.io/trinity-felu/integradora/ (tiene su tarjeta en el inicio).
+
+**Qué tiene (Sociales · Provincias y capitales).**
+- **Las 23 provincias y la Ciudad Autónoma de Buenos Aires** (24 piezas) con sus capitales. La Ciudad es un caso aparte a propósito: **no es una provincia ni tiene «capital»** (es la capital del país) y es la trampa clásica de la provincia de Buenos Aires (cuya capital es **La Plata**), así que sólo entra en las preguntas de mapa y de verdadero o falso. Tierra del Fuego lleva su nombre oficial completo (*Tierra del Fuego, Antártida e Islas del Atlántico Sur*) y en el mapa incluye las Islas Malvinas.
+- **🗺️ Mapa para estudiar:** se toca una provincia y aparecen su nombre y su capital; se puede mostrar el nombre escrito sobre cada una.
+- **Practicar** (rondas mezcladas de 10) y **8 actividades**, cada una una ronda de un solo tipo: elegir la capital, elegir la provincia (te dan la capital), ¿cuál está en el mapa? (una provincia pintada), tocá en el mapa (te dicen una provincia y se toca), escribir la capital, mapa mudo (escribir el nombre de la provincia pintada), **unir** 5 provincias con sus capitales y verdadero o falso; más un **🃏 memotest** (provincia ↔ capital, 6 pares).
+- **Cajas** (0 a 4, como en Beehive 3): acertar la sube, errar la vuelve a 0 y aparece más seguido. El tipo de pregunta **sube con la caja** (elegir → ubicar en el mapa, unir y trampas → escribir). Las **ciudades trampa** (Rosario para Santa Fe, Bariloche para Río Negro, Comodoro Rivadavia para Chubut, Mar del Plata y la Ciudad de Buenos Aires para Buenos Aires…) aparecen como opciones desde la caja 1, junto con una capital parecida (otra que empieza igual, como San Juan / San Luis). Lo que se erró **vuelve al final de la ronda una vez** (esa vuelta no cuenta en el puntaje).
+- **📝 Simulacro: 30 preguntas en 6 partes** (A · Elegí la capital 7, B · Uní provincias y capitales 2, C · Verdadero o falso 4, D · Escribí la capital 5, E · Mirá el mapa 8, F · ¿De qué provincia es capital? 4). **No se ve si estuvo bien o mal hasta el final**; el resultado dice cuántas salieron bien en cada parte. **🔁 Repasar lo que me salió mal** (lo que se erró alguna vez y todavía no lleva 2 aciertos seguidos), «Hoy: n bien · n mal» y una **cuenta regresiva** a la fecha de la prueba (**no hay fecha cargada**: se pone en ⚙️ Ajustes).
+- **Lo que se escribe vale** sin tildes ni mayúsculas, con puntos o espacios de más, y de varias formas donde corresponde (*San Fernando* o *Catamarca* para San Fernando del Valle de Catamarca, *San Salvador* o *Jujuy*, *San Miguel* o *Tucumán*, *Tierra del Fuego*, *CABA*…). «Rosario» para la capital de Santa Fe está mal y la corrección explica por qué.
+- **Todo queda en ese aparato** (`localStorage`, clave `integradora_estado`, revisada campo por campo al leerla: lo roto o tocado a mano no rompe nada; también anda con el almacenamiento bloqueado). La app no usa `confirm()` ni `alert()`: sale con un cartel propio.
+
+**El mapa.** Es un **dibujo SVG propio** generado con los límites de *Natural Earth* (`ne_10m_admin_1_states_provinces`, **dominio público**; el archivo de escala 50m no trae la Argentina), con proyección cónica equivalente de Albers, simplificado (27 KB) y con un punto «bien adentro» de cada provincia (para tocar y para poner el nombre). `integradora/mapa.js` **no se edita a mano**: se regenera con
+```
+node tools/mapa_integradora.js <ne_10m_admin_1_states_provinces.geojson>
+```
+Las Malvinas se dibujan como parte de Tierra del Fuego, y la Ciudad de Buenos Aires con un punto grande (a esta escala el polígono real sería invisible).
+
+**Archivos** (todo en `integradora/`, sin build; `node tools/version.js` también actualiza el `?b=` de esta página):
+
+| Archivo | Qué tiene |
+|---|---|
+| `index.html` · `estilos.css` | las pantallas (inicio, tema, mapa, pregunta, memotest, resultado, ajustes, cartel) y los estilos: una columna, botones grandes, claro y oscuro, de pie y de costado (con el mapa al costado de la pregunta) |
+| `contenido.js` | **todo el contenido**: `INT.PROVINCIAS` (cada una con su nombre, capital, forma abreviada para el mapa, otras formas de escribirla, **ciudades trampa** y una nota), `INT.CABA`, `INT.ITEMS`, `INT.AREAS` (Sociales con su tema; Naturales `pronto:true`) |
+| `mapa.js` | el dibujo (`window.MAPA`): el trazado de cada pieza y su punto interior. Generado, no se toca |
+| `app.js` | la lógica: estado y cajas, los **generadores de preguntas** (`capEleg`, `provEleg`, `vf`, `capTipear`, `provTipear`, `mapaEleg`, `mapaTipear`, `mapaToca`, `unir`; una pregunta tiene que tener UNA sola respuesta correcta), rondas, simulacro, memotest, repaso, ajustes y las pantallas |
+| `manifest.json` · `icon*.{svg,png}` | para instalarla como app (`id` propio, alcance `../`) |
+
+**Para sumar Naturales (u otra materia).** Hoy el motor sólo sabe armar preguntas de un tema de tipo `provincias`: un tema nuevo con otro tipo de contenido necesita su propio generador de preguntas en `app.js` (con la misma regla: una sola correcta, opciones distintas) y su entrada en `INT.AREAS` (sacarle `pronto:true` al área). Lo que esté en `contenido.js` se contrasta con una tabla aparte en `tests/integradora.js`; el contenido de un tema nuevo se tiene que contrastar igual.
+
+⚠️ **Qué no se pudo comprobar desde acá:** el funcionamiento en un iPhone o un Android de verdad (se probó con Chromium en 12 tamaños de pantalla, tocando de verdad cada provincia del mapa) y que el nivel de las preguntas le resulte justo a Felipe. `tests/integradora.js` (~100 chequeos, tarda unos 8 minutos; con `RAPIDO=1`, un minuto) comprueba el resto: las provincias y capitales contra una tabla aparte, el mapa (que cada pieza esté donde corresponde: se toca el punto de cada una y también se comprueba qué provincia queda al norte, sur, este u oeste de sus vecinas), que **todas las preguntas** (cada tipo × cada pieza × cada caja, muchas veces) tengan una sola correcta y digan la verdad, los recorridos tocando botones, lo guardado roto, que no pida nada a otros sitios y el **diseño en 12 tamaños** (más el contraste en claro y oscuro).
 
 ## Examinador con IA (Firebase AI Logic) — los dos módulos
 

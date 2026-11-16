@@ -31,6 +31,7 @@ h1 span{display:inline-block;background:var(--accent);color:var(--accent-ink);pa
 .m4{background:linear-gradient(135deg,#6d3fc4,#d24f93)}
 .m5{background:linear-gradient(135deg,#e0197f,#ff8a3d)}
 .m6{background:linear-gradient(135deg,#0c8574,#3fbf78)}
+.m7{background:linear-gradient(135deg,#1a3f9e,#0f7a52)}
 .ic{grid-row:1/4;font-size:3rem;line-height:1;filter:drop-shadow(0 3px 0 rgba(0,0,0,.2))}
 .tt b{display:block;font-family:var(--display);font-weight:800;font-size:2rem;line-height:1.05}
 .tt small{display:block;margin-top:2px;font-size:1rem;font-weight:700;opacity:.92}
@@ -74,6 +75,13 @@ h1 span{display:inline-block;background:var(--accent);color:var(--accent-ink);pa
       <span class="go">Practicar →</span>
       <span class="ult" hidden>Última vez</span>
     </a>
+    <a class="mod m7" href="integradora/" data-m="7">
+      <span class="ic" aria-hidden="true">🗺️</span>
+      <span class="tt"><b>Integradora</b><small>Felipe · Sociales y Naturales</small></span>
+      <span class="dd">Para la prueba final integradora: las provincias argentinas y sus capitales, con mapa, actividades y simulacro. Naturales se suma después.</span>
+      <span class="go">Estudiar →</span>
+      <span class="ult" hidden>Última vez</span>
+    </a>
   </nav>
   <div class="pie">
     <p>Cada módulo guarda sus propias notas en este aparato.</p>
@@ -82,10 +90,10 @@ h1 span{display:inline-block;background:var(--accent);color:var(--accent-ink);pa
 </main>
 <script>
 (function(){
-  // «Última vez»: cada módulo anota que se abrió (trinity_ultimo = 3, 4, 5 o 6) y acá se marca el último que se usó en este aparato
+  // «Última vez»: cada módulo anota que se abrió (trinity_ultimo = 3, 4, 5, 6 o 7) y acá se marca el último que se usó en este aparato
   try{var u=localStorage.getItem("trinity_ultimo"),a=u&&document.querySelector('.mod[data-m="'+u+'"]');
     if(a){var t=a.querySelector(".ult");if(t)t.hidden=false}}catch(e){}
-  // el service worker guarda el inicio y los cuatro módulos para abrirlos sin internet
+  // el service worker guarda el inicio y los cinco módulos para abrirlos sin internet
   if("serviceWorker"in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(function(){});
 })();
 </script>

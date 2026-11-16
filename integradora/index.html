@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prueba final integradora · Felipe</title>
+<meta name="theme-color" content="#2459d6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Integradora">
+<script>try{localStorage.setItem("trinity_ultimo","7")}catch(e){}</script>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="estilos.css?b=2026-11-16-integradora-provincias-y-capitales-con-mapa">
+</head>
+<body>
+<main class="app">
+  <!-- Inicio: las materias (Sociales; Naturales todavía no), el simulacro y el repaso de lo que salió mal -->
+  <section id="pInicio" class="pantalla" hidden></section>
+  <!-- Un tema: practicar, las actividades, el mapa para estudiar y la lista de provincias con sus capitales -->
+  <section id="pTema" class="pantalla" hidden></section>
+  <!-- El mapa para estudiar: se toca una provincia y se ve su nombre y su capital -->
+  <section id="pMapa" class="pantalla" hidden></section>
+  <!-- Una pregunta (de práctica o de simulacro) -->
+  <section id="pPreg" class="pantalla" hidden></section>
+  <!-- El memotest -->
+  <section id="pMemo" class="pantalla" hidden></section>
+  <!-- Resultado de una ronda, del simulacro o del memotest -->
+  <section id="pFin" class="pantalla" hidden></section>
+  <!-- Ajustes: fecha de la prueba, nombres en el mapa, borrar el progreso -->
+  <section id="pAjustes" class="pantalla" hidden></section>
+  <noscript><p class="sin-js">Esta página necesita JavaScript para funcionar.</p></noscript>
+</main>
+<!-- Cartel para confirmar (salir de una ronda, borrar el progreso) -->
+<div class="modal" id="modal" hidden></div>
+
+<script src="contenido.js?b=2026-11-16-integradora-provincias-y-capitales-con-mapa"></script>
+<script src="mapa.js?b=2026-11-16-integradora-provincias-y-capitales-con-mapa"></script>
+<script src="app.js?b=2026-11-16-integradora-provincias-y-capitales-con-mapa"></script>
+<script>
+if("serviceWorker"in navigator&&location.protocol==="https:")navigator.serviceWorker.register("../sw.js").catch(function(){});
+</script>
+</body>
+</html>

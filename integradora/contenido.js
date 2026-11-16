@@ -1,6 +1,7 @@
-// «Prueba final integradora · Felipe»: el contenido. Por ahora, Sociales → provincias de la República Argentina y sus capitales (más la Ciudad Autónoma de Buenos Aires).
-// Naturales todavía no tiene temas: la estructura (áreas → temas → ítems) está pensada para sumarlos sin tocar la lógica.
-// El mapa (integradora/mapa.js) usa los mismos «id» de cada provincia que figuran acá.
+// «Prueba final integradora · Felipe»: el contenido. Por ahora, Sociales → (1) las provincias de la República Argentina y sus capitales (más la Ciudad Autónoma de Buenos Aires)
+// y (2) los países limítrofes (Chile, Bolivia, Paraguay, Brasil y Uruguay) y sus capitales.
+// Naturales todavía no tiene temas: la estructura (áreas → temas → ítems) está pensada para sumarlos.
+// Los mapas (integradora/mapa.js y mapa-limitrofes.js) usan los mismos «id» de cada provincia y de cada país que figuran acá.
 (function(){
 "use strict";
 const INT=window.INT={NOMBRE:"Prueba final integradora",ALUMNO:"Felipe"};
@@ -37,12 +38,25 @@ const PROVINCIAS=[
 const CABA={id:"caba",tipo:"ciudad",nombre:"Ciudad Autónoma de Buenos Aires",corto:"Ciudad de Buenos Aires",capital:null,abrev:"CABA",altNombre:["caba","capital federal","ciudad de buenos aires","ciudad autonoma de buenos aires","capital"],altCapital:[],trampas:[],nota:"No es una provincia: es la capital del país (se la llama Capital Federal o CABA). La capital de la provincia de Buenos Aires es La Plata."};
 const ITEMS=PROVINCIAS.concat([CABA]);
 INT.PROVINCIAS=PROVINCIAS;INT.CABA=CABA;INT.ITEMS=ITEMS;
-INT.item=id=>ITEMS.find(x=>x.id===id);
+
+// pais(id, nombre, capital, otras formas de escribir el país, otras formas de escribir la capital, ciudades conocidas de ese país que NO son la capital (las «trampas»), una nota para la corrección, por dónde limita con la Argentina, cómo se muestra la capital en la lista)
+const pais=(id,nombre,capital,altNombre,altCapital,trampas,nota,limita,capitalTxt)=>({id,tipo:"pais",nombre,corto:nombre,capital,abrev:nombre,altNombre:altNombre||[],altCapital:altCapital||[],trampas:trampas||[],nota:nota||"",limita:limita||"",capitalTxt:capitalTxt||capital});
+const PAISES=[
+ pais("chile","Chile","Santiago",["republica de chile"],["santiago de chile"],["Valparaíso","Viña del Mar"],"A veces se la llama Santiago de Chile. No es Santiago del Estero, que es una provincia argentina.","Limita con la Argentina por el oeste y por el sur, sobre todo a lo largo de la cordillera de los Andes."),
+ pais("bolivia","Bolivia","Sucre",[],["la paz","sucre y la paz","la paz y sucre","sucre la paz","la paz sucre"],["Santa Cruz de la Sierra","Cochabamba"],"Tiene dos capitales: Sucre (la capital constitucional) y La Paz (la sede del gobierno). Las dos valen.","Limita con la Argentina por el norte (Jujuy y Salta). No tiene salida al mar.","Sucre y La Paz"),
+ pais("paraguay","Paraguay","Asunción",[],[],["Ciudad del Este","Encarnación"],"","Limita con la Argentina por el norte y por el noreste. No tiene salida al mar."),
+ pais("brasil","Brasil","Brasilia",["brazil"],[],["Río de Janeiro","San Pablo"],"No es Río de Janeiro ni San Pablo: Brasilia es la capital desde 1960 (antes lo fue Río de Janeiro).","Limita con la Argentina por el noreste (Misiones y Corrientes). Es el país más grande de Sudamérica."),
+ pais("uruguay","Uruguay","Montevideo",[],[],["Punta del Este","Colonia del Sacramento"],"","Limita con la Argentina por el este, del otro lado del río Uruguay.")
+];
+const TODOS=ITEMS.concat(PAISES);
+INT.PAISES=PAISES;INT.TODOS=TODOS;
+INT.item=id=>TODOS.find(x=>x.id===id);
 
 // las áreas y sus temas
 INT.AREAS=[
  {id:"sociales",nombre:"Sociales",ico:"🗺️",color:"azul",temas:[
-  {id:"provincias",nombre:"Provincias y capitales",ico:"📍",es:"Las 23 provincias de la Argentina, la Ciudad de Buenos Aires y sus capitales",tipo:"provincias",items:ITEMS}
+  {id:"provincias",nombre:"Provincias y capitales",ico:"📍",es:"Las 23 provincias de la Argentina, la Ciudad de Buenos Aires y sus capitales",tipo:"provincias",items:ITEMS},
+  {id:"limitrofes",nombre:"Países limítrofes",ico:"🌎",es:"Los 5 países que limitan con la Argentina (Chile, Bolivia, Paraguay, Brasil y Uruguay) y sus capitales",tipo:"paises",items:PAISES}
  ]},
  {id:"naturales",nombre:"Naturales",ico:"🌿",color:"verde",pronto:true,temas:[]}
 ];

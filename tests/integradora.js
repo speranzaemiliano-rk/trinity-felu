@@ -1,5 +1,5 @@
 // «Prueba final integradora · Felipe» (carpeta integradora/): Sociales → las 23 provincias argentinas y la Ciudad de Buenos Aires con sus capitales, con un mapa. Naturales todavía no tiene temas.
-// Cubre: que los DATOS estén bien (provincias, capitales, nombres para escribir y ciudades «trampa», contrastados con una tabla aparte); que el MAPA sea el de la Argentina (las 24 piezas, cada una
+// Cubre: que los DATOS estén bien (provincias, países limítrofes, capitales, nombres para escribir y ciudades «trampa», contrastados con una tabla aparte); que los MAPAS sean los de la Argentina (las 24 piezas, cada una
 // donde corresponde: se comprueba tocando de verdad el punto de cada provincia, y que cada una esté al norte / sur / este / oeste de sus vecinas); que TODAS las preguntas que arma el programa (cada tipo ×
 // cada provincia, muchas veces) tengan UNA sola respuesta correcta, opciones distintas y coherentes con los datos; el recorrido (inicio, tema, mapa para estudiar, cada actividad, el memotest, el simulacro de 30
 // en 6 partes, el repaso de lo que salió mal, ajustes); que lo escrito valga sin tildes ni mayúsculas; que lo guardado roto no rompa nada y que ande con el almacenamiento bloqueado; que no pida nada a
@@ -23,8 +23,8 @@ const j=o=>JSON.stringify(o);
 
 // ---------- 1) los datos, contrastados con una tabla aparte (si alguien cambia una capital mal, esto lo agarra)
 const sb={window:{}};vm.createContext(sb);
-vm.runInContext(fs.readFileSync(path.join(RAIZ,'integradora','contenido.js'),'utf8'),sb);vm.runInContext(fs.readFileSync(path.join(RAIZ,'integradora','mapa.js'),'utf8'),sb);
-const INT=sb.window.INT,MAPA=sb.window.MAPA;
+vm.runInContext(fs.readFileSync(path.join(RAIZ,'integradora','contenido.js'),'utf8'),sb);vm.runInContext(fs.readFileSync(path.join(RAIZ,'integradora','mapa.js'),'utf8'),sb);vm.runInContext(fs.readFileSync(path.join(RAIZ,'integradora','mapa-limitrofes.js'),'utf8'),sb);
+const INT=sb.window.INT,MAPA=sb.window.MAPA,LIM=sb.window.MAPA_LIM;
 const NORMT=s=>String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
 const ORO={buenosaires:['Buenos Aires','La Plata'],catamarca:['Catamarca','San Fernando del Valle de Catamarca'],chaco:['Chaco','Resistencia'],chubut:['Chubut','Rawson'],cordoba:['Córdoba','Córdoba'],corrientes:['Corrientes','Corrientes'],entrerios:['Entre Ríos','Paraná'],formosa:['Formosa','Formosa'],jujuy:['Jujuy','San Salvador de Jujuy'],lapampa:['La Pampa','Santa Rosa'],larioja:['La Rioja','La Rioja'],mendoza:['Mendoza','Mendoza'],misiones:['Misiones','Posadas'],neuquen:['Neuquén','Neuquén'],rionegro:['Río Negro','Viedma'],salta:['Salta','Salta'],sanjuan:['San Juan','San Juan'],sanluis:['San Luis','San Luis'],santacruz:['Santa Cruz','Río Gallegos'],santafe:['Santa Fe','Santa Fe'],santiago:['Santiago del Estero','Santiago del Estero'],tierradelfuego:['Tierra del Fuego','Ushuaia'],tucuman:['Tucumán','San Miguel de Tucumán']};
 chk('son exactamente las 23 provincias argentinas, cada una con su capital (contrastado con una tabla aparte)',INT.PROVINCIAS.length===23&&Object.keys(ORO).length===23&&INT.PROVINCIAS.every(p=>ORO[p.id]&&p.corto===ORO[p.id][0]&&p.capital===ORO[p.id][1]),j(INT.PROVINCIAS.filter(p=>!ORO[p.id]||p.corto!==ORO[p.id][0]||p.capital!==ORO[p.id][1]).map(p=>p.id)));
@@ -38,7 +38,18 @@ chk('hay trampas en las provincias donde una ciudad grande confunde (Santa Fe→
 const alias=(id,tipo,x)=>INT.item(id)[tipo].includes(x);
 chk('lo que se escribe vale de varias formas: «San Fernando» o «Catamarca», «San Salvador» o «Jujuy», «San Miguel» o «Tucumán», «Bs As»',alias('catamarca','altCapital','san fernando')&&alias('catamarca','altCapital','catamarca')&&alias('jujuy','altCapital','san salvador')&&alias('jujuy','altCapital','jujuy')&&alias('tucuman','altCapital','san miguel')&&alias('tucuman','altCapital','tucuman')&&alias('buenosaires','altNombre','bs as'));
 chk('ninguna forma de escribir una provincia es el nombre de otra (no hay respuestas ambiguas), y «Buenos Aires» solo es la provincia, no la Ciudad',INT.ITEMS.every(a=>INT.ITEMS.every(b=>a===b||![a.corto,a.nombre,...a.altNombre].some(x=>[b.corto,b.nombre,...b.altNombre].some(y=>NORMT(x)===NORMT(y)))))&&!INT.item('buenosaires').altNombre.some(x=>NORMT(x)==='ciudad de buenos aires')&&!INT.CABA.altNombre.some(x=>NORMT(x)==='buenos aires'));
-chk('el área Sociales trae el tema «Provincias y capitales» con las 24 piezas y Naturales figura como «pronto» (sin temas todavía)',INT.AREAS.length===2&&INT.AREAS[0].id==='sociales'&&INT.AREAS[0].temas.length===1&&INT.AREAS[0].temas[0].items.length===24&&INT.AREAS[1].id==='naturales'&&INT.AREAS[1].pronto===true&&INT.AREAS[1].temas.length===0);
+chk('el área Sociales trae dos temas, «Provincias y capitales» (las 24 piezas) y «Países limítrofes» (los 5 países), y Naturales figura como «pronto» (sin temas todavía)',INT.AREAS.length===2&&INT.AREAS[0].id==='sociales'&&INT.AREAS[0].temas.length===2&&INT.AREAS[0].temas[0].id==='provincias'&&INT.AREAS[0].temas[0].items.length===24&&INT.AREAS[0].temas[1].id==='limitrofes'&&INT.AREAS[0].temas[1].items.length===5&&INT.AREAS[1].id==='naturales'&&INT.AREAS[1].pronto===true&&INT.AREAS[1].temas.length===0);
+// los países limítrofes (la Argentina limita con cinco países: Chile, Bolivia, Paraguay, Brasil y Uruguay)
+const ORO_PAISES={chile:['Chile','Santiago'],bolivia:['Bolivia','Sucre'],paraguay:['Paraguay','Asunción'],brasil:['Brasil','Brasilia'],uruguay:['Uruguay','Montevideo']};
+chk('los países limítrofes son exactamente Chile, Bolivia, Paraguay, Brasil y Uruguay, cada uno con su capital (contrastado con una tabla aparte)',INT.PAISES.length===5&&INT.PAISES.every(x=>x.tipo==='pais'&&ORO_PAISES[x.id]&&x.corto===ORO_PAISES[x.id][0]&&x.capital===ORO_PAISES[x.id][1])&&INT.TODOS.length===29&&INT.ITEMS.length===24,j(INT.PAISES.map(x=>x.id+':'+x.capital)));
+const bol=INT.item('bolivia'),TODAS_CAP=INT.TODOS.filter(x=>x.capital).map(x=>NORMT(x.capital));
+chk('Bolivia tiene dos capitales: se muestra Sucre (la constitucional) y al escribir se acepta también La Paz (la sede del gobierno); la nota lo explica y «La Paz» NUNCA aparece como ciudad «trampa»',bol.capital==='Sucre'&&bol.altCapital.includes('la paz')&&/Sucre/.test(bol.nota)&&/La Paz/.test(bol.nota)&&!bol.trampas.some(t=>NORMT(t)==='la paz')&&!INT.TODOS.some(x=>x.trampas.some(t=>NORMT(t)==='la paz'))&&bol.capitalTxt==='Sucre y La Paz');
+const CIUDAD_PAIS={'Valparaíso':'chile','Viña del Mar':'chile','Santa Cruz de la Sierra':'bolivia','Cochabamba':'bolivia','Ciudad del Este':'paraguay','Encarnación':'paraguay','Río de Janeiro':'brasil','San Pablo':'brasil','Punta del Este':'uruguay','Colonia del Sacramento':'uruguay'};
+chk('las ciudades «trampa» de los países (conocidas pero que NO son la capital) están en el país que dicen y ninguna es una capital ni una forma aceptada de escribirla',INT.PAISES.every(x=>x.trampas.length>=2&&x.trampas.every(t=>CIUDAD_PAIS[t]===x.id&&!TODAS_CAP.includes(NORMT(t))&&!x.altCapital.some(a=>NORMT(a)===NORMT(t)))),j(INT.PAISES.flatMap(x=>x.trampas.filter(t=>CIUDAD_PAIS[t]!==x.id).map(t=>x.id+':'+t))));
+chk('hay trampas en los países donde una ciudad conocida confunde (Brasil→Río de Janeiro, Uruguay→Punta del Este, Chile→Valparaíso) y la nota de Brasil explica que Río fue la capital hasta 1960',INT.item('brasil').trampas.includes('Río de Janeiro')&&INT.item('uruguay').trampas.includes('Punta del Este')&&INT.item('chile').trampas.includes('Valparaíso')&&/1960/.test(INT.item('brasil').nota)&&/Río de Janeiro/.test(INT.item('brasil').nota));
+chk('un país no se confunde con una provincia: los ids, los nombres y las formas de escribirlos son todos distintos (y «Santiago» de Chile NO es «Santiago del Estero»: no se aceptan entre sí)',INT.PAISES.every(x=>INT.ITEMS.every(y=>x.id!==y.id&&![x.corto,x.nombre,...x.altNombre].some(a=>[y.corto,y.nombre,...y.altNombre].some(b=>NORMT(a)===NORMT(b)))&&!(y.capital&&[x.capital,...x.altCapital].some(a=>NORMT(a)===NORMT(y.capital)))))&&!INT.item('santiago').altCapital.some(a=>NORMT(a)==='santiago'));
+chk('cada país dice por dónde limita con la Argentina, con los puntos cardinales y las provincias que corresponden (Chile al oeste y al sur, Bolivia al norte con Jujuy y Salta, Paraguay al norte, Brasil al noreste con Misiones y Corrientes, Uruguay al este)',/oeste/.test(INT.item('chile').limita)&&/sur/.test(INT.item('chile').limita)&&/norte/.test(bol.limita)&&/Jujuy/.test(bol.limita)&&/Salta/.test(bol.limita)&&/norte/.test(INT.item('paraguay').limita)&&/noreste/.test(INT.item('brasil').limita)&&/Misiones/.test(INT.item('brasil').limita)&&/Corrientes/.test(INT.item('brasil').limita)&&/este/.test(INT.item('uruguay').limita)&&/río Uruguay/.test(INT.item('uruguay').limita));
+
 // el mapa
 chk('el mapa trae las 23 provincias y la Ciudad de Buenos Aires (los mismos ids que el contenido), cada una con su trazado y su punto, todo dentro del dibujo',Object.keys(MAPA.prov).sort().join()===ids.slice().sort().join()&&Object.values(MAPA.prov).every(p=>/^M[\d. -]+(L[\d. -]+)+Z/.test(p.d)&&p.cx>0&&p.cx<MAPA.w&&p.cy>0&&p.cy<MAPA.h),j(Object.keys(MAPA.prov)));
 const caja=id=>{const n=(MAPA.prov[id].d.match(/-?\d+(?:\.\d+)?/g)||[]).map(Number),x=n.filter((_,i)=>i%2===0),y=n.filter((_,i)=>i%2===1);return {x0:Math.min(...x),x1:Math.max(...x),y0:Math.min(...y),y1:Math.max(...y)}};
@@ -51,6 +62,20 @@ chk('en el mapa cada provincia está donde corresponde: '+NS.length+' pares nort
 const cb=caja('buenosaires'),cc=P('caba');
 chk('el punto de la Ciudad de Buenos Aires cae sobre la costa nordeste de la provincia de Buenos Aires (el Río de la Plata) y al este de Entre Ríos y de Santa Fe',cc.cx>cb.x0&&cc.cx<cb.x1+6&&cc.cy>cb.y0-6&&cc.cy<cb.y0+35&&cc.cx>P('entrerios').cx&&cc.cy>P('entrerios').cy);
 chk('el país mide más de alto que de ancho (Argentina es larga y angosta) y las Malvinas (parte de Tierra del Fuego, Antártida e Islas del Atlántico Sur) están al este de la Patagonia, en el dibujo',MAPA.h>MAPA.w*1.8&&(MAPA.prov.tierradelfuego.d.match(/M/g)||[]).length>=3&&Math.max(...(MAPA.prov.tierradelfuego.d.match(/M[\d.]+/g)||[]).map(m=>+m.slice(1)))>P('santacruz').cx+80);
+// ---- el mapa de los vecinos: se comprueba con la GEOGRAFÍA de verdad (ciudades conocidas que tienen que caer dentro del país correcto)
+const RAD=Math.PI/180,A1=-30*RAD,A2=-50*RAD,A0=-40*RAD,L0=-64*RAD,NN=(Math.sin(A1)+Math.sin(A2))/2,CC=Math.cos(A1)**2+2*NN*Math.sin(A1),RHO0=Math.sqrt(CC-2*NN*Math.sin(A0))/NN;
+const proy=(lon,lat)=>{const rho=Math.sqrt(CC-2*NN*Math.sin(lat*RAD))/NN,th=NN*(lon*RAD-L0);return [rho*Math.sin(th),-(RHO0-rho*Math.cos(th))]};
+const ptDib=(lon,lat)=>{const [x,y]=proy(lon,lat);return [(x+0.1073188264620532)*1238.853632048909+14,(y+0.3172344058876646)*1238.853632048909+14]};   // las mismas constantes que usa tools/mapa_integradora.js (la escala sale del tamaño de la Argentina)
+const dentroD=(d,x,y)=>{let c=false;d.split('M').filter(Boolean).forEach(sp=>{const r=sp.replace(/Z$/,'').split('L').map(t=>t.trim().split(' ').map(Number));for(let i=0,k=r.length-1;i<r.length;k=i++){const [xi,yi]=r[i],[xk,yk]=r[k];if((yi>y)!==(yk>y)&&x<(xk-xi)*(y-yi)/(yk-yi)+xi)c=!c}});return c};
+const quienEs=(lon,lat)=>{const [x,y]=ptDib(lon,lat);for(const id of Object.keys(LIM.pais))if(dentroD(LIM.pais[id].d,x,y))return id;for(const id of Object.keys(MAPA.prov))if(dentroD(MAPA.prov[id].d,x,y))return 'ARG:'+id;return null};
+const CIUDADES=[['La Paz',-68.15,-16.5,'bolivia'],['Sucre',-65.26,-19.04,'bolivia'],['Santa Cruz de la Sierra',-63.18,-17.78,'bolivia'],['Asunción',-57.64,-25.28,'paraguay'],['Villarrica',-56.43,-25.75,'paraguay'],['Montevideo',-56.19,-34.9,'uruguay'],['Punta del Este',-54.95,-34.96,'uruguay'],
+  ['Santiago de Chile',-70.65,-33.45,'chile'],['Temuco',-72.59,-38.74,'chile'],['Calama',-68.93,-22.46,'chile'],['Punta Arenas',-70.91,-53.16,'chile'],['Porto Alegre',-51.23,-30.03,'brasil'],['Curitiba',-49.27,-25.43,'brasil'],
+  ['Buenos Aires',-58.4,-34.65,'ARG:'],['Mendoza',-68.84,-32.89,'ARG:mendoza'],['Salta',-65.41,-24.79,'ARG:salta'],['Posadas',-55.9,-27.37,'ARG:misiones'],['Rosario',-60.65,-32.95,'ARG:santafe'],['Bariloche',-71.31,-41.13,'ARG:rionegro'],['Tolhuin',-67.19,-54.51,'ARG:tierradelfuego'],['Resistencia',-59,-27.45,'ARG:chaco']];
+const malCiudad=CIUDADES.filter(([n,lo,la,esp])=>{const q=quienEs(lo,la);return !(esp==='ARG:'?String(q).startsWith('ARG:'):q===esp)}).map(([n,lo,la,esp])=>n+' → '+quienEs(lo,la)+' (debía ser '+esp+')');
+chk('el mapa de los vecinos está bien ubicado: '+CIUDADES.length+' ciudades conocidas caen en el país correcto (La Paz y Sucre en Bolivia, Asunción en Paraguay, Montevideo en Uruguay, Santiago en Chile, Porto Alegre en Brasil…) y las argentinas siguen en su provincia',malCiudad.length===0,j(malCiudad));
+chk('el mapa de los vecinos trae los 5 países (los mismos ids que el contenido) con su trazado y su punto bien adentro de lo que se ve de cada uno (y fuera de la Argentina), y su ventana incluye el dibujo entero de la Argentina',Object.keys(LIM.pais).sort().join()===INT.PAISES.map(x=>x.id).sort().join()&&Object.entries(LIM.pais).every(([id,p])=>/^M[\d. -]+(L[\d. -]+)+Z/.test(p.d)&&dentroD(p.d,p.cx,p.cy)&&!Object.values(MAPA.prov).some(a=>dentroD(a.d,p.cx,p.cy)))&&LIM.vb.length===4&&LIM.vb[0]<=0&&LIM.vb[1]<=0&&LIM.vb[0]+LIM.vb[2]>=MAPA.w&&LIM.vb[1]+LIM.vb[3]>=MAPA.h,j(LIM.vb));
+const limTxt=fs.readFileSync(path.join(RAIZ,'integradora','mapa-limitrofes.js'),'utf8');
+chk('el archivo del mapa de los vecinos es liviano ('+Math.round(limTxt.length/1024)+' KB) y dice de dónde salen los datos y que no se edita a mano',limTxt.length<60*1024&&/Natural Earth/.test(limTxt)&&/NO se edita a mano/.test(limTxt));
 const mapaTxt=fs.readFileSync(path.join(RAIZ,'integradora','mapa.js'),'utf8');
 chk('el archivo del mapa es liviano ('+Math.round(mapaTxt.length/1024)+' KB) y dice de dónde salen los datos y que no se edita a mano',mapaTxt.length<60*1024&&/Natural Earth/.test(mapaTxt)&&/NO se edita a mano/.test(mapaTxt));
 const html=fs.readFileSync(path.join(RAIZ,'integradora','index.html'),'utf8');
@@ -84,10 +109,10 @@ async function abrir(o){
 const cerrar=async p=>{await p.ctx.close()};
 const estado=p=>p.evaluate(()=>JSON.parse(localStorage.getItem('integradora_estado')||'null'));
 const visible=(p,sel)=>p.evaluate(s=>{const e=document.querySelector(s);if(!e)return false;const r=e.getBoundingClientRect(),c=getComputedStyle(e);return !e.closest('[hidden]')&&r.width>0&&r.height>0&&c.visibility!=='hidden'&&c.display!=='none'},sel);
-const irTema=async p=>{await p.click('.area[data-area="sociales"]');await p.waitForSelector('#bPracticar')};
+const irTema=async(p,tema)=>{await p.click('.tema-btn[data-tema="'+(tema||'provincias')+'"]');await p.waitForSelector('#bPracticar')};
 // toca de verdad el punto de una provincia en el mapa que está en pantalla (así se prueba que el trazado ESTÁ donde dice)
 async function tocarProv(p,id,cont){
-  const pos=await p.evaluate(([id,cont])=>{const sv=document.querySelector(cont+' svg.mapa');sv.scrollIntoView({block:'center'});const r=sv.getBoundingClientRect(),vb=sv.viewBox.baseVal,s=Math.min(r.width/vb.width,r.height/vb.height),ox=r.left+(r.width-vb.width*s)/2,oy=r.top+(r.height-vb.height*s)/2,pt=window.MAPA.prov[id];return {x:ox+pt.cx*s,y:oy+pt.cy*s}},[id,cont]);
+  const pos=await p.evaluate(([id,cont])=>{const sv=document.querySelector(cont+' svg.mapa');sv.scrollIntoView({block:'center'});const r=sv.getBoundingClientRect(),vb=sv.viewBox.baseVal,s=Math.min(r.width/vb.width,r.height/vb.height),ox=r.left+(r.width-vb.width*s)/2,oy=r.top+(r.height-vb.height*s)/2,pt=window.MAPA.prov[id]||window.MAPA_LIM.pais[id];return {x:ox+(pt.cx-vb.x)*s,y:oy+(pt.cy-vb.y)*s}},[id,cont]);
   await p.mouse.click(pos.x,pos.y);
 }
 // responde la pregunta que está en pantalla, bien o mal, tocando de verdad los botones (y el mapa)
@@ -95,7 +120,7 @@ async function responder(p,bien){
   const q=await p.evaluate(()=>{const q=INT.actual();return {tipo:q.tipo,tag:q.tag,ids:q.ids,ops:q.opciones&&q.opciones.map(o=>!!o.ok),aceptar:q.aceptar,izq:q.izq&&q.izq.map(x=>x.id),der:q.der&&q.der.map(x=>x.id)}});
   if(q.tipo==='mc'){const i=bien?q.ops.indexOf(true):q.ops.indexOf(false);await p.click('#pPreg .opcion[data-i="'+i+'"]')}
   else if(q.tipo==='tipear'){await p.fill('#resp',bien?q.aceptar[0]:'zzz');await p.click('#bCheck')}
-  else if(q.tipo==='mapa'){const lejos={jujuy:'santacruz'},malo=lejos[q.ids[0]]||(q.ids[0]==='mendoza'?'misiones':'jujuy');await tocarProv(p,bien?q.ids[0]:malo,'#pPreg')}
+  else if(q.tipo==='mapa'){const lejos={jujuy:'santacruz',chile:'brasil',brasil:'chile',bolivia:'uruguay',paraguay:'chile',uruguay:'bolivia'},malo=lejos[q.ids[0]]||(q.ids[0]==='mendoza'?'misiones':'jujuy');await tocarProv(p,bien?q.ids[0]:malo,'#pPreg')}
   else if(q.tipo==='unir'){
     const par=async(i,jx)=>{await p.click('#pPreg .par[data-lado="i"][data-i="'+i+'"]');await p.click('#pPreg .par[data-lado="d"][data-i="'+jx+'"]')};
     if(!bien){const jx=q.der.findIndex(id=>id!==q.izq[0]);await par(0,jx);await par(0,jx)}   // dos confusiones: se cuenta como mal
@@ -132,6 +157,7 @@ const probar=async()=>p.evaluate(oro=>{
     if(!Array.isArray(q.ids)||!q.ids.length||q.ids.some(id=>!I.item(id)))pr(ctx,'ids raros '+j(q.ids));
     const todo=strip((q.cuerpo||'')+' '+(q.opciones||[]).map(o=>o.t).join(' ')+' '+q.mostrar+' '+q.explic);
     if(/undefined|NaN|\[object|\bnull\b/.test(todo))pr(ctx,'texto con restos: '+todo.slice(0,80));
+    if(/la paz/i.test(strip(q.cuerpo||'')+' '+(q.opciones||[]).map(o=>o.t).join(' ')))pr(ctx,'«La Paz» no puede aparecer en el enunciado ni en las opciones: Bolivia tiene dos capitales y sería ambiguo');
     if(q.tipo==='mc'){
       const o=q.opciones;
       if(o.length<2||o.length>4)pr(ctx,o.length+' opciones');
@@ -144,45 +170,49 @@ const probar=async()=>p.evaluate(oro=>{
       const res=[...String(q.cuerpo).matchAll(/class="(?:prov|caba)[^"]*\bres\b[^"]*"[^>]*data-id="([a-z]+)"|data-id="([a-z]+)"[^>]*class="[^"]*\bres\b/g)].map(m=>m[1]||m[2]);
       const clases=[...String(q.cuerpo).matchAll(/<(?:path|g) class="((?:prov|caba)[^"]*)" data-id="([a-z]+)"/g)];
       const pintadas=clases.filter(m=>/\bres\b/.test(m[1])).map(m=>m[2]);
-      if(q.tipo==='mapa'){if(pintadas.length)pr(ctx,'«tocá en el mapa» no puede traer una provincia pintada');if(!/class="mapa clic"/.test(q.cuerpo))pr(ctx,'el mapa no se puede tocar')}
-      else if(pintadas.length!==1||pintadas[0]!==it.id)pr(ctx,'la provincia pintada no es la que se pregunta: '+j(pintadas)+' vs '+it.id);
-      if(clases.length!==24)pr(ctx,'el mapa no trae las 24 piezas ('+clases.length+')');
+      const esP=it.tipo==='pais';
+      if(q.tipo==='mapa'){if(pintadas.length)pr(ctx,'«tocá en el mapa» no puede traer una pieza pintada');if(!/class="mapa(?: mapa-lim)? clic"/.test(q.cuerpo))pr(ctx,'el mapa no se puede tocar')}
+      else if(pintadas.length!==1||pintadas[0]!==it.id)pr(ctx,'la pieza pintada no es la que se pregunta: '+j(pintadas)+' vs '+it.id);
+      if(clases.length!==(esP?5:24))pr(ctx,'el mapa no trae las '+(esP?5:24)+' piezas ('+clases.length+')');
+      if(esP!==/mapa-lim/.test(q.cuerpo))pr(ctx,'se usó el mapa equivocado ('+(esP?'un país con el mapa de provincias':'una provincia con el mapa de los vecinos')+')');
     }
   };
-  I.ITEMS.forEach(it=>TIPOS.forEach(tipo=>{
+  I.TODOS.forEach(it=>TIPOS.forEach(tipo=>{
     if(!I.ELEGIBLES[tipo].includes(it))return;
     [0,1,3].forEach(c=>{for(let k=0;k<(tipo==='unir'?4:8);k++){
       let q;try{q=I.gen(tipo,it.id,c)}catch(e){pr(it.id+'/'+tipo,'se rompió: '+e.message);continue}
       const ctx=it.id+'/'+tipo+'/c'+c,txt=strip(q.cuerpo||''),bien=q.opciones&&q.opciones.find(o=>o.ok);
       val(q,ctx,it,c);
       const [nombre,cap]=oro[it.id]||[];
-      if(tipo==='capEleg'){if(bien.t!==cap||!txt.includes(nombre))pr(ctx,'capEleg mal');if(c>=1&&it.trampas.length&&!q.opciones.some(o=>it.trampas.includes(o.t)))pr(ctx,'falta la trampa');if(q.opciones.some(o=>!o.ok&&oro[it.id]&&o.t===cap))pr(ctx,'una mala es la buena')}
-      if(tipo==='provEleg'){if(bien.t!==nombre||!txt.includes(cap))pr(ctx,'provEleg mal');if(it.id==='buenosaires'&&!q.opciones.some(o=>o.t==='Ciudad de Buenos Aires'))pr(ctx,'falta la Ciudad de Buenos Aires de trampa')}
+      if(tipo==='capEleg'){if(bien.t!==cap||!txt.includes(nombre))pr(ctx,'capEleg mal');if(c>=1&&it.trampas.length&&!q.opciones.some(o=>it.trampas.includes(o.t)))pr(ctx,'falta la trampa');if(q.opciones.some(o=>!o.ok&&oro[it.id]&&(o.t===cap||it.altCapital.some(a=>N(a)===N(o.t)))))pr(ctx,'una mala es la buena');if(it.tipo==='pais'&&q.opciones.some(o=>!o.ok&&!I.PAISES.some(x=>x.capital===o.t)&&!it.trampas.includes(o.t)&&o.t!=='Buenos Aires'&&o.t!=='Santiago del Estero'))pr(ctx,'capEleg de un país con una opción rara: '+j(q.opciones.map(o=>o.t)))}
+      if(tipo==='provEleg'){if(bien.t!==nombre||!txt.includes(cap))pr(ctx,'provEleg mal');if(it.id==='buenosaires'&&!q.opciones.some(o=>o.t==='Ciudad de Buenos Aires'))pr(ctx,'falta la Ciudad de Buenos Aires de trampa');if(it.tipo==='pais'&&(q.opciones.length!==4||q.opciones.some(o=>!I.PAISES.some(x=>x.corto===o.t))))pr(ctx,'provEleg de un país: las opciones tienen que ser países: '+j(q.opciones.map(o=>o.t)))}
       if(tipo==='vf'){
         if(it.tipo==='ciudad'){const verdad=/capital de la Argentina/.test(txt);if(bien.t!==(verdad?'Verdadero':'Falso')||!/Ciudad de Buenos Aires es la capital de (la Argentina|la provincia de Buenos Aires)\.$/.test(txt))pr(ctx,'vf de la Ciudad mal: «'+txt+'»')}
-        else{const m=txt.match(/^La capital de la provincia de (.+) es (.+)\.$/);if(!m||m[1]!==nombre)pr(ctx,'vf: no habla de la provincia: «'+txt+'»');else if(bien.t!==(m[2]===cap?'Verdadero':'Falso'))pr(ctx,'vf: la respuesta no coincide con la realidad: «'+txt+'» → '+bien.t);
-          if(m&&m[2]!==cap&&oro[Object.keys(oro).find(k=>oro[k][1]===m[2])||'']===undefined&&!it.trampas.includes(m[2]))pr(ctx,'vf: la capital falsa «'+m[2]+'» no es ni una capital ni una trampa')}
+        else{const m=txt.match(it.tipo==='pais'?/^La capital de (.+) es (.+)\.$/:/^La capital de la provincia de (.+) es (.+)\.$/);if(!m||m[1]!==nombre)pr(ctx,'vf: no habla de «'+nombre+'»: «'+txt+'»');else if(bien.t!==(m[2]===cap?'Verdadero':'Falso'))pr(ctx,'vf: la respuesta no coincide con la realidad: «'+txt+'» → '+bien.t);
+          if(m&&m[2]!==cap&&oro[Object.keys(oro).find(k=>oro[k][1]===m[2])||'']===undefined&&!it.trampas.includes(m[2])&&!(it.tipo==='pais'&&m[2]==='Buenos Aires'))pr(ctx,'vf: la capital falsa «'+m[2]+'» no es ni una capital ni una trampa')}
       }
-      if(tipo==='capTipear'){if(q.aceptar[0]!==cap||!txt.includes(nombre))pr(ctx,'capTipear mal');if(INT_OTRAS(I,it,q.aceptar,'capital'))pr(ctx,'capTipear acepta la capital de otra provincia')}
+      if(tipo==='capTipear'){if(q.aceptar[0]!==cap||!txt.includes(nombre))pr(ctx,'capTipear mal');if(INT_OTRAS(I,it,q.aceptar,'capital'))pr(ctx,'capTipear acepta la capital de otra provincia o de otro país')}
       if(tipo==='provTipear'){if(q.aceptar[0]!==nombre||!txt.includes(cap))pr(ctx,'provTipear mal')}
       if(tipo==='mapaEleg'){if(bien.t!==(it.tipo==='ciudad'?'Ciudad de Buenos Aires':nombre))pr(ctx,'mapaEleg: la correcta no es '+nombre)}
       if(tipo==='mapaTipear'){if(!q.aceptar.some(a=>N(a)===N(it.tipo==='ciudad'?'Ciudad de Buenos Aires':nombre)))pr(ctx,'mapaTipear mal')}
       if(tipo==='mapaToca'){if(q.mostrar!==nombre||!txt.includes(nombre))pr(ctx,'mapaToca mal')}
       if(tipo==='unir'){
         if(q.izq.length!==5||new Set(q.ids).size!==5||q.ids.join()!==q.izq.map(x=>x.id).join())pr(ctx,'unir: no son 5 distintas');
+        if((it.tipo==='pais')!==q.ids.every(id=>I.PAISES.some(x=>x.id===id)))pr(ctx,'unir: mezcla países con provincias');
+        if(it.tipo==='pais'&&q.colA!=='Países')pr(ctx,'unir de países: la columna dice «'+q.colA+'»');
         q.izq.forEach(x=>{const d=q.der.find(y=>y.id===x.id);if(!oro[x.id]||x.t!==oro[x.id][0]||!d||d.t!==oro[x.id][1])pr(ctx,'unir: par mal '+x.id)});
         if(q.izq.map(x=>x.id).join()===q.der.map(x=>x.id).join())pr(ctx,'unir: la derecha ya viene en el mismo orden');
         if(!q.ids.includes(it.id))pr(ctx,'unir: no incluye a la provincia elegida');
       }
     }});
   }));
-  function INT_OTRAS(I,it,aceptar,campo){return I.PROVINCIAS.some(o=>o!==it&&aceptar.some(a=>I.NORM(a)===I.NORM(o.capital)))}
+  function INT_OTRAS(I,it,aceptar,campo){return I.TODOS.some(o=>o!==it&&o.capital&&aceptar.some(a=>I.NORM(a)===I.NORM(o.capital)))}
   // el simulacro entero
   for(let k=0;k<20;k++){const qs=I.armarSimulacro();qs.forEach((q,i)=>val(q,'simulacro/'+i,I.item(q.ids[0]),1))}
   return out;
-},ORO);
+},Object.assign({},ORO,ORO_PAISES));
 const pr1=await probar();
-chk('TODAS las preguntas (9 tipos × las 24 piezas × 3 niveles de caja, muchas veces) salen bien armadas: UNA sola correcta, opciones distintas, coherentes con los datos, la provincia pintada es la que se pregunta, las trampas aparecen y los verdadero/falso dicen la verdad',pr1.length===0,pr1.slice(0,8).join(' | '));
+chk('TODAS las preguntas (9 tipos × las 24 piezas y los 5 países × 3 niveles de caja, muchas veces) salen bien armadas: UNA sola correcta, opciones distintas, coherentes con los datos, la pieza pintada es la que se pregunta (con el mapa que corresponde), las trampas aparecen, «La Paz» no se ofrece nunca y los verdadero/falso dicen la verdad',pr1.length===0,pr1.slice(0,8).join(' | '));
 chk('armar preguntas no rompió la página',p.errs.length===0,j(p.errs));
 await cerrar(p);
 }
@@ -191,7 +221,7 @@ await cerrar(p);
 {
 const p=await abrir({fecha:'2026-11-16T12:00:00',estado:{fecha:'2026-11-19'}});
 const inicio=await p.innerText('#pInicio');
-chk('el inicio muestra el nombre del módulo, la cuenta regresiva («Faltan 3 días», «Jueves 19 de noviembre»), Sociales con su progreso y Naturales como «Pronto»',/Prueba final integradora/.test(inicio)&&/Faltan 3 días/.test(inicio)&&/Jueves,? 19 de noviembre/.test(inicio)&&/Sociales[\s\S]*Provincias y capitales[\s\S]*0 de 24 aprendidas/.test(inicio)&&/Naturales[\s\S]*Pronto/.test(inicio),inicio);
+chk('el inicio muestra el nombre del módulo, la cuenta regresiva («Faltan 3 días», «Jueves 19 de noviembre»), Sociales con su progreso y Naturales como «Pronto»',/Prueba final integradora/.test(inicio)&&/Faltan 3 días/.test(inicio)&&/Jueves,? 19 de noviembre/.test(inicio)&&/Sociales[\s\S]*Provincias y capitales[\s\S]*0 de 24 aprendidas[\s\S]*Países limítrofes[\s\S]*0 de 5 aprendidas/.test(inicio)&&/Naturales[\s\S]*Pronto/.test(inicio),inicio);
 chk('Naturales no se puede tocar todavía (no es un botón) y el simulacro está prendido mientras «Repasar lo que me salió mal» está apagado',await p.evaluate(()=>!document.querySelector('.area.pronto').matches('button')&&document.getElementById('bErrores').disabled&&!document.getElementById('bSim').disabled));
 await irTema(p);
 const tema=await p.evaluate(()=>({acts:[...document.querySelectorAll('.act')].map(a=>a.querySelector('b').textContent),filas:[...document.querySelectorAll('.fila-prov')].map(f=>f.innerText.replace(/\s+/g,' ').trim()),txt:document.getElementById('pTema').innerText}));
@@ -272,25 +302,151 @@ chk('salir del memotest pide confirmar con un cartel propio y vuelve al tema',aw
 await cerrar(p);
 }
 
-// ---------- 4) el simulacro: 30 preguntas, sin ver si estuvo bien hasta el final, con resultado por parte
+// ---------- 3b) el tema «Países limítrofes»
+{
+const p=await abrir();
+const temasIni=await p.evaluate(()=>[...document.querySelectorAll('#pInicio .tema-btn')].map(b=>b.innerText.replace(/\s+/g,' ').trim()));
+chk('el inicio muestra los dos temas de Sociales con su progreso cada uno («0 de 24 aprendidas» y «0 de 5 aprendidas»)',temasIni.length===2&&/Provincias y capitales 0 de 24 aprendidas/.test(temasIni[0])&&/Países limítrofes 0 de 5 aprendidas/.test(temasIni[1]),j(temasIni));
+await irTema(p,'limitrofes');
+const tp=await p.evaluate(()=>({titulo:document.querySelector('#pTema .titulo').innerText,acts:[...document.querySelectorAll('.act')].map(a=>a.querySelector('b').textContent),filas:[...document.querySelectorAll('.fila-prov')].map(f=>f.innerText.replace(/\s+/g,' ').trim()),txt:document.getElementById('pTema').innerText.replace(/\s+/g,' ')}));
+chk('la pantalla de «Países limítrofes» trae las 8 actividades con las palabras de un país, el memotest, el mapa para estudiar, el aviso de las DOS capitales de Bolivia y la lista de los 5 países con su capital (sin el aviso de la Ciudad de Buenos Aires)',/Países limítrofes/.test(tp.titulo)&&tp.acts.join('|')==='Elegir la capital|Elegir el país|¿Cuál está en el mapa?|Tocá en el mapa|Escribir la capital|Mapa mudo|Unir|Verdadero o falso|Memotest'&&tp.filas.join('|')==='Chile Santiago|Bolivia Sucre y La Paz|Paraguay Asunción|Brasil Brasilia|Uruguay Montevideo'&&/Bolivia tiene dos capitales/.test(tp.txt)&&/Valen las dos/.test(tp.txt)&&!/Ciudad de Buenos Aires/.test(tp.txt),j(tp));
+// una fila de la lista abre el mapa con ESE país elegido
+await p.click('.fila-prov[data-ver="bolivia"]');await p.waitForSelector('#pMapa svg.mapa-lim');
+chk('tocar una fila de la lista de países abre el mapa de los vecinos con ese país elegido (Bolivia: sus dos capitales y pintada en el mapa)',/Bolivia/.test(await p.innerText('#pMapa .info'))&&/Sucre y La Paz/.test(await p.innerText('#pMapa .info'))&&await p.evaluate(()=>document.querySelector('#pMapa .res').dataset.id==='bolivia'));
+await p.click('#pMapa .atras');await p.waitForSelector('#bPracticar');
+chk('«⬅» del mapa vuelve al tema de los países (no al de las provincias)',/Países limítrofes/.test(await p.innerText('#pTema .titulo')));
+// el mapa para estudiar de los vecinos: se toca de verdad el punto de cada país
+await p.click('#bMapaEst');await p.waitForSelector('#pMapa svg.mapa-lim');
+const malLim=[];
+for(const it of INT.PAISES){
+  await tocarProv(p,it.id,'#pMapa');await p.waitForTimeout(25);
+  const info=await p.innerText('#pMapa .info'),pintada=await p.evaluate(()=>[...document.querySelectorAll('#pMapa .res')].map(e=>e.dataset.id).join());
+  if(!(info.includes(it.nombre)&&info.includes('Capital: '+it.capitalTxt)&&info.includes(it.limita)&&(!it.nota||info.includes(it.nota))&&pintada===it.id))malLim.push(it.id+' → '+info.replace(/\s+/g,' ').slice(0,70)+' ['+pintada+']');
+}
+chk('mapa de los vecinos para estudiar: tocando el punto de cada uno de los 5 países aparece SU nombre, SU capital (Bolivia: «Sucre y La Paz»), por dónde limita con la Argentina y su nota, y queda pintado',malLim.length===0,malLim.join(' | '));
+const antes=await p.innerText('#pMapa .info');await tocarProv(p,'mendoza','#pMapa');await p.waitForTimeout(25);
+chk('tocar la Argentina en ese mapa no cambia nada (no es un país para elegir)',(await p.innerText('#pMapa .info'))===antes&&await p.evaluate(()=>document.querySelectorAll('#pMapa .res').length===1));
+await p.click('#mEtq');
+chk('«Mostrar los nombres» escribe el nombre de los 5 países y «ARGENTINA»',await p.evaluate(()=>[...document.querySelectorAll('#pMapa svg.mapa-lim .et')].map(e=>e.textContent).sort().join()==='ARGENTINA,Bolivia,Brasil,Chile,Paraguay,Uruguay'));
+await p.click('#mEtq');await p.click('#pMapa .atras');await p.waitForSelector('#bPracticar');
+// cada actividad arma una ronda sólo de países y se puede jugar entera
+for(const [k,n] of [['capEleg',10],['provEleg',10],['mapaEleg',10],['mapaToca',10],['capTipear',10],['mapaTipear',10],['unir',2],['vf',10]]){
+  await p.click('.act[data-act="'+k+'"]');await p.waitForSelector('#pPreg .consigna');
+  const r=await p.evaluate(()=>({n:INT.ronda().qs.length,tags:[...new Set(INT.ronda().qs.map(q=>q.tag))],pais:INT.ronda().qs.every(q=>q.ids.every(id=>INT.PAISES.some(x=>x.id===id)))}));
+  await jugar(p,()=>true);const fin=await textoFin(p);
+  chk('países · actividad «'+k+'»: una ronda de '+n+' preguntas de ese tipo, todas de países, todas bien → «'+n+' de '+n+'»',r.n===n&&r.tags.join()===k&&r.pais&&new RegExp(n+' de '+n+'\\b').test(fin)&&/Sin errores/.test(fin),j(r)+fin.slice(0,100));
+  await p.click('#bInicioFin');await p.waitForSelector('#pInicio .area');await irTema(p,'limitrofes');
+}
+const stP=await estado(p);
+chk('lo contestado bien sube la caja de los países (y de ninguna provincia) y se anota en «Hoy» como PREGUNTAS (72 = 7 actividades de 10 + un «unir» de 2 tableros)',Object.keys(stP.items).sort().join()==='bolivia,brasil,chile,paraguay,uruguay'&&Object.values(stP.items).every(e=>e.c>=1&&e.mal===0)&&stP.rondas===8&&j(stP.dias['2026-11-16'])===j([72,0]),j(stP.dias)+j(Object.keys(stP.items)));
+// practicar: 10 mezcladas de países; con errores; «Otra ronda» sigue siendo de países
+await p.click('#bPracticar');await p.waitForSelector('#pPreg .consigna');
+const rp=await p.evaluate(()=>({n:INT.ronda().qs.length,pais:INT.ronda().qs.every(q=>q.ids.every(id=>INT.PAISES.some(x=>x.id===id)))}));
+await jugar(p,i=>i>=3);
+chk('«Practicar» en «Países limítrofes» arma 10 preguntas sólo de países y se puede jugar con errores (3 mal → «7 de 10»)',rp.n===10&&rp.pais&&/7 de 10/.test(await textoFin(p)));
+await p.click('#bOtraMezcla');await p.waitForSelector('#pPreg .consigna');
+chk('«Otra ronda» sigue siendo de países',await p.evaluate(()=>INT.ronda().qs.every(q=>q.ids.every(id=>INT.PAISES.some(x=>x.id===id)))&&INT.ronda().qs.length===10));
+await cerrar(p);
+}
+// los dos temas no se mezclan aunque se pase de uno a otro (la ronda anterior no decide la siguiente)
+{
+const p=await abrir();
+await irTema(p,'provincias');await p.click('.fila-prov[data-ver="tucuman"]');await p.waitForSelector('#pMapa svg.mapa');
+chk('tocar una fila de la lista de provincias abre el mapa de las provincias con esa elegida (Tucumán, San Miguel de Tucumán)',/San Miguel de Tucumán/.test(await p.innerText('#pMapa .info'))&&await p.evaluate(()=>!document.querySelector('#pMapa svg.mapa').classList.contains('mapa-lim')&&document.querySelector('#pMapa .res').dataset.id==='tucuman'));
+await p.click('#pMapa .atras');await p.waitForSelector('#bPracticar');await p.click('#pTema .atras');await p.waitForSelector('#pInicio .area');
+await irTema(p,'provincias');await p.click('.act[data-act="capEleg"]');await p.waitForSelector('#pPreg .consigna');await jugar(p,()=>true);
+await p.click('#bInicioFin');await p.waitForSelector('#pInicio .area');await irTema(p,'limitrofes');
+await p.click('.act[data-act="capEleg"]');await p.waitForSelector('#pPreg .consigna');
+const a1=await p.evaluate(()=>INT.ronda().qs.every(q=>INT.PAISES.some(x=>x.id===q.ids[0])));await jugar(p,()=>true);
+await p.click('#bOtra');await p.waitForSelector('#pPreg .consigna');
+const a2=await p.evaluate(()=>INT.ronda().qs.every(q=>INT.PAISES.some(x=>x.id===q.ids[0])));await jugar(p,()=>true);
+await p.click('#bInicioFin');await p.waitForSelector('#pInicio .area');await irTema(p,'provincias');
+await p.click('#bPracticar');await p.waitForSelector('#pPreg .consigna');
+const a3=await p.evaluate(()=>INT.ronda().qs.every(q=>INT.PROVINCIAS.some(x=>x.id===q.ids[0])||q.ids[0]==='caba'));
+chk('después de jugar uno de los temas, el otro pregunta SÓLO lo suyo (países ↔ provincias), y «Otra ronda» se queda en el mismo tema',a1&&a2&&a3,j([a1,a2,a3]));
+await cerrar(p);
+}
+// lo que se escribe en los países
+{
+const p=await abrir();
+const tipear=async(tipo,id,texto)=>{
+  await p.evaluate(([t,i])=>{INT.rondaCon([INT.gen(t,i,3)],false)},[tipo,id]);await p.waitForSelector('#resp');
+  await p.fill('#resp',texto);await p.press('#resp','Enter');await p.waitForSelector('#feedback:not([hidden])');
+  return {ok:await p.evaluate(()=>INT.ronda().ok===1),fb:await p.innerText('#feedback')};
+};
+let r=await tipear('capTipear','bolivia','Sucre');chk('la capital de Bolivia se acepta como «Sucre»',r.ok,r.fb);
+r=await tipear('capTipear','bolivia','la paz');chk('y también como «La Paz» (la sede del gobierno): no se corrige como error',r.ok,r.fb);
+r=await tipear('capTipear','bolivia','Sucre y La Paz');chk('o con las dos («Sucre y La Paz»)',r.ok,r.fb);
+r=await tipear('capTipear','bolivia','Santiago');chk('pero «Santiago» está mal para Bolivia, y la corrección dice que Bolivia tiene dos capitales (Sucre y La Paz)',!r.ok&&/Sucre/.test(r.fb)&&/La Paz/.test(r.fb)&&/dos capitales/.test(r.fb),r.fb);
+r=await tipear('capTipear','chile','Santiago de Chile');chk('la capital de Chile vale como «Santiago» o «Santiago de Chile»',r.ok,r.fb);
+r=await tipear('capTipear','chile','Santiago del Estero');chk('«Santiago del Estero» está mal para Chile y la corrección aclara que es una provincia argentina',!r.ok&&/Santiago del Estero/.test(r.fb)&&/provincia argentina/.test(r.fb),r.fb);
+r=await tipear('capTipear','brasil','Brasília');chk('«Brasília» (con tilde) vale para la capital de Brasil',r.ok,r.fb);
+r=await tipear('capTipear','brasil','Rio de Janeiro');chk('«Río de Janeiro» está mal y la corrección explica que fue la capital hasta 1960',!r.ok&&/1960/.test(r.fb)&&/Brasilia/.test(r.fb),r.fb);
+r=await tipear('provTipear','brasil','Brazil');chk('«Brazil» (en inglés) vale como nombre del país',r.ok,r.fb);
+r=await tipear('mapaTipear','uruguay','URUGUAY');chk('en el mapa, el país pintado se acepta con mayúsculas («URUGUAY»)',r.ok,r.fb);
+r=await tipear('mapaTipear','paraguay','Bolivia');chk('y otro país está mal',!r.ok&&/Paraguay/.test(r.fb),r.fb);
+// «Tocá en el mapa» con un país
+await p.evaluate(()=>{INT.rondaCon([INT.gen('mapaToca','uruguay',1)],false)});await p.waitForSelector('#pPreg svg.mapa-lim.clic');
+await tocarProv(p,'chile','#pPreg');await p.waitForSelector('#feedback:not([hidden])');
+const mal=await p.evaluate(()=>({ok:INT.ronda().ok,mal:INT.ronda().mal,verde:document.querySelector('#pPreg .prov.ok').dataset.id,rojo:document.querySelector('#pPreg .prov.mal').dataset.id,clic:document.querySelector('#pPreg svg.mapa').classList.contains('clic')}));
+chk('«Tocá en el mapa» con un país: tocar otro se cuenta mal (en rojo), se muestra en verde el correcto y ya no se puede tocar más',mal.ok===0&&mal.mal===1&&mal.verde==='uruguay'&&mal.rojo==='chile'&&!mal.clic&&/Montevideo/.test(await p.innerText('#feedback')),j(mal));
+await p.evaluate(()=>{INT.rondaCon([INT.gen('mapaToca','paraguay',1)],false)});await p.waitForSelector('#pPreg svg.mapa-lim.clic');
+await tocarProv(p,'mendoza','#pPreg');await p.waitForTimeout(80);
+chk('tocar la Argentina (que está en el mapa pero no es una respuesta) no corrige nada y se puede seguir probando',await p.evaluate(()=>INT.ronda().ok===0&&INT.ronda().mal===0&&document.getElementById('feedback').hidden&&document.querySelector('#pPreg svg.mapa').classList.contains('clic')));
+await tocarProv(p,'paraguay','#pPreg');await p.waitForSelector('#feedback:not([hidden])');
+chk('y tocar el país correcto se cuenta bien',await p.evaluate(()=>INT.ronda().ok===1&&document.querySelector('#pPreg .prov.ok').dataset.id==='paraguay'));
+await cerrar(p);
+}
+// el memotest de los países: 5 pares, 10 cartas
+{
+const p=await abrir();await irTema(p,'limitrofes');
+await p.click('#bMemo');await p.waitForSelector('#pMemo .cm');
+const m5=await p.evaluate(()=>({n:document.querySelectorAll('#pMemo .cm').length,pares:new Set(INT.memo().cartas.map(c=>c.id)).size,todosPaises:INT.memo().cartas.every(c=>INT.PAISES.some(x=>x.id===c.id)),sub:document.querySelector('#pMemo .sub').innerText,cols:getComputedStyle(document.querySelector('#pMemo .memo')).gridTemplateColumns.split(' ').length}));
+chk('el memotest de los países arma 10 cartas de 5 pares (un país y su capital), en dos columnas, y dice «un país y su capital»',m5.n===10&&m5.pares===5&&m5.todosPaises&&/un país y su capital/.test(m5.sub)&&m5.cols===2,j(m5));
+const malos=await p.evaluate(()=>{const c=INT.memo().cartas;for(let i=0;i<10;i++)for(let k=i+1;k<10;k++)if(c[i].id!==c[k].id)return [i,k]});
+await p.click('#pMemo .cm[data-c="'+malos[0]+'"]');await p.click('#pMemo .cm[data-c="'+malos[1]+'"]');await p.waitForTimeout(1100);
+const pares=await p.evaluate(()=>{const c=INT.memo().cartas,m={};c.forEach((x,i)=>(m[x.id]=m[x.id]||[]).push(i));return Object.values(m)});
+for(const [a,c] of pares){await p.click('#pMemo .cm[data-c="'+a+'"]');await p.click('#pMemo .cm[data-c="'+c+'"]')}
+await p.waitForSelector('#pFin:not([hidden])',{timeout:5000});
+const fin=await textoFin(p),stm=await estado(p);
+chk('al encontrar las 5 parejas termina: «6 intentos» (uno equivocado y cinco bien), «lo mejor posible son 5», y se anota en las cajas de los 5 países',/6\s+intentos/.test(fin)&&/lo mejor posible son 5/.test(fin)&&Object.keys(stm.items).sort().join()==='bolivia,brasil,chile,paraguay,uruguay',fin.slice(0,200)+j(Object.keys(stm.items)));
+await p.click('#bOtraMemo');await p.waitForSelector('#pMemo .cm');
+chk('«Otro memotest» sigue siendo de países (10 cartas)',await p.evaluate(()=>document.querySelectorAll('#pMemo .cm').length===10&&INT.memo().cartas.every(c=>INT.PAISES.some(x=>x.id===c.id))));
+await cerrar(p);
+}
+// repasar lo que salió mal mezcla los dos temas
+{
+const p=await abrir({estado:{items:{mendoza:{c:0,ok:0,mal:2,u:'2026-11-15'},bolivia:{c:1,ok:1,mal:1,u:'2026-11-15'},chile:{c:3,ok:3,mal:1,u:'2026-11-15'}}}});
+const t=await p.innerText('#bErrores');
+chk('«Repasar lo que me salió mal» junta lo de los dos temas: una provincia y un país (2 cosas; Chile ya lleva 3 en la caja y no cuenta)',/2 cosas/.test(t),t);
+await p.click('#bErrores');await p.waitForSelector('#pPreg .consigna');
+const rep=await p.evaluate(()=>({n:INT.ronda().qs.length,prot:[...new Set(INT.ronda().qs.map(q=>q.ids[0]))].sort().join()}));
+chk('el repaso arma una ronda de 5 a 10 preguntas con esas dos protagonistas (mendoza y bolivia), cada una con el tipo de pregunta de lo suyo',rep.n>=5&&rep.n<=10&&rep.prot==='bolivia,mendoza',j(rep));
+await jugar(p,()=>true);
+const st=await estado(p);
+chk('contestar bien sube las cajas de las dos (mendoza y bolivia) y no baja la de Chile',st.items.mendoza.c>=1&&st.items.bolivia.c>=2&&st.items.chile.c>=3,j(st.items));
+await cerrar(p);
+}
+
+// ---------- 4) el simulacro: 35 preguntas (30 de provincias y 5 de países), sin ver si estuvo bien hasta el final, con resultado por parte
 {
 const p=await abrir();
 await p.click('#bSim');await p.waitForSelector('#pPreg .consigna');
 const sim=await p.evaluate(()=>{const R=INT.ronda(),por={};R.qs.forEach(q=>{por[q.parte]=(por[q.parte]||0)+1});return {n:R.qs.length,test:R.test,por,parte:document.querySelector('.parte')&&document.querySelector('.parte').textContent}});
-chk('el simulacro tiene 30 preguntas en 6 partes (A · Elegí la capital 7, B · Uní provincias y capitales 2, C · Verdadero o falso 4, D · Escribí la capital 5, E · Mirá el mapa 8, F · ¿De qué provincia es capital? 4) y muestra la parte en cada pregunta',sim.n===30&&sim.test&&sim.por['A · Elegí la capital']===7&&sim.por['B · Uní provincias y capitales']===2&&sim.por['C · Verdadero o falso']===4&&sim.por['D · Escribí la capital']===5&&sim.por['E · Mirá el mapa']===8&&sim.por['F · ¿De qué provincia es capital?']===4&&/^A · /.test(sim.parte||''),j(sim));
+chk('el simulacro tiene 35 preguntas en 7 partes (A · Elegí la capital 7, B · Uní provincias y capitales 2, C · Verdadero o falso 4, D · Escribí la capital 5, E · Mirá el mapa 8, F · ¿De qué provincia es capital? 4, G · Países limítrofes 5) y muestra la parte en cada pregunta',sim.n===35&&sim.test&&sim.por['G · Países limítrofes']===5&&sim.por['A · Elegí la capital']===7&&sim.por['B · Uní provincias y capitales']===2&&sim.por['C · Verdadero o falso']===4&&sim.por['D · Escribí la capital']===5&&sim.por['E · Mirá el mapa']===8&&sim.por['F · ¿De qué provincia es capital?']===4&&/^A · /.test(sim.parte||''),j(sim));
 await responder(p,true);await p.waitForTimeout(80);
 chk('en el simulacro no se ve si estuvo bien o mal hasta el final (ni cartel, ni colores, ni «Siguiente»)',!(await visible(p,'#feedback'))&&!(await p.evaluate(()=>!!document.querySelector('#pPreg .opcion.si, #pPreg .opcion.no, #pPreg .resp.si, #pPreg .resp.no, #pPreg #bSig'))));
 await p.waitForFunction(()=>INT.ronda().i===1);
 const tipos=await jugar(p,()=>true,true);
 const fin=await textoFin(p),st=await estado(p);
-chk('simulacro todo bien: «30 de 30», 100 %, «Por parte» con las 6 partes, sin errores, y queda guardado el resultado ('+[...new Set(tipos)].join('/')+')',/30 de 30/.test(fin)&&/100 %/.test(fin)&&/Por parte/.test(fin)&&(await p.locator('#pFin .pt').count())===6&&st.sims.length===1&&st.sims[0].p===30&&st.sims[0].t===30&&!/Para repasar/.test(fin),fin.slice(0,260)+j(st.sims));
-chk('el resultado por parte muestra cuántas salieron bien en cada una (7 / 7, 2 / 2, 4 / 4, 5 / 5, 8 / 8, 4 / 4)',await p.evaluate(()=>[...document.querySelectorAll('#pFin .pt b')].map(x=>x.textContent).join()==='7 / 7,2 / 2,4 / 4,5 / 5,8 / 8,4 / 4'));
+chk('simulacro todo bien: «35 de 35», 100 %, «Por parte» con las 7 partes, sin errores, y queda guardado el resultado ('+[...new Set(tipos)].join('/')+')',/35 de 35/.test(fin)&&/100 %/.test(fin)&&/Por parte/.test(fin)&&(await p.locator('#pFin .pt').count())===7&&st.sims.length===1&&st.sims[0].p===35&&st.sims[0].t===35&&!/Para repasar/.test(fin),fin.slice(0,260)+j(st.sims));
+chk('el resultado por parte muestra cuántas salieron bien en cada una (7 / 7, 2 / 2, 4 / 4, 5 / 5, 8 / 8, 4 / 4, 5 / 5)',await p.evaluate(()=>[...document.querySelectorAll('#pFin .pt b')].map(x=>x.textContent).join()==='7 / 7,2 / 2,4 / 4,5 / 5,8 / 8,4 / 4,5 / 5'));
 await p.click('#bInicioFin');await p.waitForSelector('#pInicio .area');
 chk('el inicio muestra «tu mejor resultado: 100 %»',/tu mejor resultado: 100 %/.test(await p.innerText('#bSim')));
 await p.click('#bSim');await p.waitForSelector('#pPreg .consigna');
 await jugar(p,()=>false,true);
 const finM=await textoFin(p),stM=await estado(p);
-chk('simulacro todo mal: «0 de 30», muchas cosas «para repasar» y el mejor resultado sigue siendo el de antes',/0 de 30/.test(finM)&&/Para repasar \(30\)/.test(finM)&&stM.sims.length===2&&stM.sims[1].p===0&&Math.max(...stM.sims.map(s=>s.p))===30,finM.slice(0,200));
+chk('simulacro todo mal: «0 de 35», muchas cosas «para repasar» y el mejor resultado sigue siendo el de antes',/0 de 35/.test(finM)&&/Para repasar \(35\)/.test(finM)&&stM.sims.length===2&&stM.sims[1].p===0&&Math.max(...stM.sims.map(s=>s.p))===35,finM.slice(0,200));
 await p.click('#bInicioFin');await p.waitForSelector('#pInicio .area');
 chk('después de fallar el simulacro hay muchas cosas para repasar (botón prendido)',await p.evaluate(()=>!document.getElementById('bErrores').disabled&&/\d+ cosas/.test(document.getElementById('bErrores').innerText)));
 chk('el simulacro no produjo errores de página',p.errs.length===0,j(p.errs));
@@ -370,7 +526,7 @@ const j2=JSON.stringify;
 const casos=[['no es JSON','esto no es json{'],['es una lista','[1,2,3]'],['es un número','42'],['es null','null'],
   ['campos del tipo equivocado',j2({v:'x',fecha:42,etq:'sí',items:[1,2],dias:'hoy',sims:{a:1},rondas:'muchas'})],
   ['fecha imposible',j2({fecha:'2026-13-45'})],
-  ['valores locos (también «__proto__» y «constructor»)',j2({fecha:'2026-11-19',items:{mendoza:{c:99,ok:-5,mal:'x',u:'mañana'},salta:{c:1e12,ok:1e12,mal:NaN},'__proto__':{c:3},constructor:{c:1},toString:{c:2}},dias:{hoy:[1,2],'2026-11-09':[3,'x'],'2026-11-08':'no'},sims:[{f:'x',p:999,t:0},null,5],rondas:-3})]];
+  ['valores locos (también «__proto__» y «constructor»)',j2({fecha:'2026-11-19',items:{mendoza:{c:99,ok:-5,mal:'x',u:'mañana'},chile:{c:77,ok:'1',mal:-3,u:'ayer'},bolivia:{c:1e12,ok:1e12,mal:NaN},salta:{c:1e12,ok:1e12,mal:NaN},'__proto__':{c:3},constructor:{c:1},toString:{c:2}},dias:{hoy:[1,2],'2026-11-09':[3,'x'],'2026-11-08':'no'},sims:[{f:'x',p:999,t:0},null,5],rondas:-3})]];
 for(const [n,e] of casos){
   const p=await abrir({estado:e});
   const ok=await p.evaluate(()=>{const ST=INT.estado(),it=Object.values(ST.items);return it.every(x=>x.c>=0&&x.c<=4&&x.ok>=0&&x.mal>=0&&Number.isFinite(x.ok)&&(x.u===''||/^\d{4}-\d{2}-\d{2}$/.test(x.u)))&&ST.sims.every(s=>s.p>=0&&s.t>=1)&&Object.values(ST.dias).every(d=>Array.isArray(d)&&d.length===2&&d.every(Number.isFinite))&&Number.isFinite(ST.rondas)&&(ST.fecha===''||/^\d{4}-\d{2}-\d{2}$/.test(ST.fecha))&&!Array.isArray(ST.items)});
@@ -415,8 +571,8 @@ const medir=()=>{
     if(e.matches('svg.mapa')&&(c.h<150||c.w<70))out.push('el mapa quedó muy chico: '+Math.round(c.w)+'×'+Math.round(c.h));
     if(e.matches('button,input')&&!e.matches('input[type=checkbox]')&&(c.w<34||c.h<34))out.push('muy chico para el dedo: '+desc(e)+' '+Math.round(c.w)+'×'+Math.round(c.h));
     if(e.matches('input[type=checkbox]')){const fila=e.closest('label');if(!fila||fila.getBoundingClientRect().height<44)out.push('casillero sin una fila grande para tocar: '+desc(e))}
-    if(e.matches('.opcion,.par,.btn,.act,.fila-prov,.cm,.area,.resp')&&e.scrollWidth>e.clientWidth+1)out.push('texto cortado: '+desc(e)+' '+e.scrollWidth+'>'+e.clientWidth);
-    if(e.matches('.opcion,.par,.btn,.act,.cm,.area')&&e.scrollHeight>e.clientHeight+2)out.push('texto cortado (alto): '+desc(e))});
+    if(e.matches('.opcion,.par,.btn,.act,.fila-prov,.cm,.area,.tema-btn,.resp')&&e.scrollWidth>e.clientWidth+1)out.push('texto cortado: '+desc(e)+' '+e.scrollWidth+'>'+e.clientWidth);
+    if(e.matches('.opcion,.par,.btn,.act,.cm,.area,.tema-btn')&&e.scrollHeight>e.clientHeight+2)out.push('texto cortado (alto): '+desc(e))});
   const bs=scrollY>2?[]:todos.filter(e=>e.matches('button,input'));
   for(let i=0;i<bs.length;i++)for(let k=i+1;k<bs.length;k++){if(bs[i].contains(bs[k])||bs[k].contains(bs[i]))continue;const a=caja(bs[i]),c=caja(bs[k]);const ix=Math.min(a.r,c.r)-Math.max(a.l,c.l),iy=Math.min(a.b,c.b)-Math.max(a.t,c.t);if(ix>2&&iy>2)out.push('se pisan: '+desc(bs[i])+' y '+desc(bs[k]))}
   [...pant.querySelectorAll('*:not(svg *)')].forEach(e=>{if(!vis(e))return;const r=e.getBoundingClientRect();if(r.right>vw+1||r.left<-1){if(!out.some(x=>x.includes(desc(e))))out.push('contenido fuera de la pantalla: '+desc(e))}});
@@ -433,6 +589,12 @@ for(const [nombre,w,h] of (RAPIDO?TAMANOS.slice(3,4):TAMANOS)){
   await tocarProv(p,'tierradelfuego','#pMapa');await m('mapa para estudiar (Tierra del Fuego elegida: nombre largo)');
   await p.click('#mEtq');await m('mapa con nombres');await p.click('#mEtq');
   await p.click('#pMapa .atras');
+  await p.click('#pTema .atras');
+  await irTema(p,'limitrofes');await m('tema: países limítrofes');
+  await p.click('#bMapaEst');await p.waitForSelector('#pMapa svg.mapa-lim');await m('mapa de los vecinos');
+  await tocarProv(p,'bolivia','#pMapa');await m('mapa de los vecinos (Bolivia elegida: la nota más larga)');
+  await p.click('#mEtq');await m('mapa de los vecinos con nombres');await p.click('#mEtq');
+  await p.click('#pMapa .atras');
   await p.click('#pTema .atras');await p.click('#pInicio .barra .atras');await p.waitForSelector('#aFecha');await m('ajustes');await p.click('#pAjustes .atras');
   // las preguntas: cada tipo, con la provincia de nombres más largos
   const lote=await p.evaluate(()=>{
@@ -440,6 +602,7 @@ for(const [nombre,w,h] of (RAPIDO?TAMANOS.slice(3,4):TAMANOS)){
     const largo=q=>(q.cuerpo||'').replace(/<svg[\s\S]*?<\/svg>/g,'').replace(/<[^>]*>/g,'').length+(q.opciones||[]).reduce((s,o)=>s+o.t.length,0)+(q.izq||[]).reduce((s,x)=>s+x.t.length,0)+(q.der||[]).reduce((s,x)=>s+x.t.length,0);
     tipos.forEach(tipo=>{const qs=[];I.ITEMS.filter(it=>I.ELEGIBLES[tipo].includes(it)).forEach(it=>{for(let k=0;k<3;k++){try{qs.push(I.gen(tipo,it.id,1))}catch(e){}}});qs.sort((a,b)=>largo(b)-largo(a));qs.slice(0,3).forEach(q=>window.__lote.push(q))});
     ['catamarca','tierradelfuego','santiago','tucuman','jujuy'].forEach(id=>{window.__lote.push(I.gen('capEleg',id,1));window.__lote.push(I.gen('mapaEleg',id,1))});window.__lote.push(I.gen('mapaEleg','caba',1));window.__lote.push(I.gen('vf','caba',1));
+    [['capEleg','bolivia'],['capEleg','chile'],['provEleg','brasil'],['vf','bolivia'],['capTipear','bolivia'],['provTipear','paraguay'],['mapaEleg','paraguay'],['mapaEleg','chile'],['mapaTipear','uruguay'],['mapaToca','brasil'],['mapaToca','chile'],['unir','chile']].forEach(([t,id])=>window.__lote.push(I.gen(t,id,1)));
     return window.__lote.length;
   });
   for(let i=0;i<lote;i++){
@@ -462,10 +625,13 @@ for(const [nombre,w,h] of (RAPIDO?TAMANOS.slice(3,4):TAMANOS)){
   await p.waitForSelector('#pInicio:not([hidden])');await irTema(p);
   await p.click('#bMemo');await p.waitForSelector('#pMemo .cm');await m('memotest (boca abajo)');
   await p.evaluate(()=>document.querySelectorAll('#pMemo .cm').forEach(c=>c.classList.add('abierta')));await m('memotest (todas abiertas)');
+  await p.click('#bSalirMemo');await p.click('#mSi');await p.waitForSelector('#bPracticar');await p.click('#pTema .atras');await p.waitForSelector('#bSim');
+  await irTema(p,'limitrofes');await p.click('#bMemo');await p.waitForSelector('#pMemo .cm');await m('memotest de países (boca abajo)');
+  await p.evaluate(()=>document.querySelectorAll('#pMemo .cm').forEach(c=>c.classList.add('abierta')));await m('memotest de países (todas abiertas)');
   // el resultado del simulacro
   await p.click('#bSalirMemo');await p.click('#mSi');await p.waitForSelector('#bPracticar');await p.click('#pTema .atras');await p.waitForSelector('#bSim');
   await p.click('#bSim');await p.waitForSelector('#pPreg .consigna');await jugar(p,i=>i%3===0,true);await m('resultado del simulacro (con errores)');
-  chk('diseño '+nombre+': inicio, tema, mapa para estudiar (con y sin nombres), ajustes, '+lote+' preguntas (sin corregir y corregidas), memotest y resultado — nada se sale, se pisa ni se corta, y el mapa se ve',falla.length===0&&p.errs.length===0,falla.slice(0,6).join(' | ')+j(p.errs));
+  chk('diseño '+nombre+': inicio, los dos temas, los dos mapas para estudiar (con y sin nombres), ajustes, '+lote+' preguntas (sin corregir y corregidas), los dos memotest y el resultado del simulacro — nada se sale, se pisa ni se corta, y los mapas se ven',falla.length===0&&p.errs.length===0,falla.slice(0,6).join(' | ')+j(p.errs));
   await cerrar(p);
 }
 
@@ -500,8 +666,10 @@ for(const oscuro of (RAPIDO?[false]:[false,true])){
     return out}) ;r.forEach(x=>malos.push(que+' → '+x))};
   await medirContraste('inicio');
   await irTema(p);await medirContraste('tema');
+  await p.click('#pTema .atras');await irTema(p,'limitrofes');await medirContraste('tema: países limítrofes');
+  await p.click('#bMapaEst');await p.waitForSelector('#pMapa svg.mapa-lim');await tocarProv(p,'bolivia','#pMapa');await p.click('#mEtq');await medirContraste('mapa de los vecinos');await p.click('#mEtq');await p.click('#pMapa .atras');await p.click('#pTema .atras');await irTema(p);
   await p.click('#bMapaEst');await p.waitForSelector('#pMapa svg.mapa');await tocarProv(p,'mendoza','#pMapa');await medirContraste('mapa para estudiar');await p.click('#pMapa .atras');
-  for(const [tipo,id] of [['capEleg','santafe'],['capTipear','salta'],['mapaEleg','cordoba'],['mapaToca','jujuy'],['unir','mendoza'],['vf','chaco']]){
+  for(const [tipo,id] of [['capEleg','santafe'],['capTipear','salta'],['mapaEleg','cordoba'],['mapaToca','jujuy'],['unir','mendoza'],['vf','chaco'],['mapaEleg','paraguay'],['mapaToca','chile'],['unir','brasil'],['capEleg','bolivia']]){
     await p.evaluate(([t,i])=>{INT.rondaCon([INT.gen(t,i,1)],false)},[tipo,id]);await p.waitForSelector('#pPreg .consigna');
     await medirContraste('pregunta '+tipo);
     await responder(p,false);await p.waitForSelector('#feedback:not([hidden])');await medirContraste('corregida (mal) '+tipo);

@@ -1,6 +1,7 @@
 // Arma integradora/mapa.js (el mapa de la Argentina que usa el módulo «Prueba final integradora») a partir de los datos públicos de Natural Earth
 // (https://www.naturalearthdata.com, dominio público): el archivo «ne_10m_admin_1_states_provinces.geojson» (las provincias) y, de ahí mismo, las Islas Malvinas.
-// Uso:  node tools/mapa_integradora.js ruta/a/ne_10m_admin_1_states_provinces.geojson
+// Uso:  node tools/mapa_integradora.js ruta/a/ne_10m_admin_1_states_provinces.geojson [ruta/a/ne_10m_admin_0_countries.geojson]
+// Con el segundo archivo (los países, también de Natural Earth) arma además integradora/mapa-limitrofes.js: Chile, Bolivia, Paraguay, Brasil y Uruguay en el MISMO sistema de coordenadas que las provincias (así el contorno de la Argentina se reutiliza tal cual).
 // Qué hace: se queda con las 23 provincias y la Ciudad de Buenos Aires, las proyecta (cónica equivalente de Albers, centrada en la Argentina), simplifica los bordes
 // (Douglas–Peucker) y las escribe como trazados SVG listos para pintar, junto con un punto para ubicar cada una (el lugar más «adentro» de la provincia).
 // Las Islas Malvinas se dibujan como parte de «Tierra del Fuego, Antártida e Islas del Atlántico Sur» (así figuran en los mapas oficiales de la escuela argentina).
@@ -66,3 +67,40 @@ const salida='// El mapa de la Argentina (23 provincias y la Ciudad de Buenos Ai
 const destino=path.join(__dirname,'..','integradora','mapa.js');
 fs.mkdirSync(path.dirname(destino),{recursive:true});fs.writeFileSync(destino,salida);
 console.log('mapa.js: '+Math.round(salida.length/1024)+' KB | dibujo '+W+'×'+H+' | trazados '+Math.round(total/1024)+' KB | CABA en',cab.cx,cab.cy);
+
+// ---- los países limítrofes (sólo si se pasó el segundo archivo)
+if(process.argv[3]){
+  const gp=JSON.parse(fs.readFileSync(process.argv[3],'utf8'));
+  const A3={CHL:'chile',BOL:'bolivia',PRY:'paraguay',BRA:'brasil',URY:'uruguay'};
+  const polisPais={};
+  gp.features.forEach(f=>{const a3=f.properties.ADM0_A3||f.properties.adm0_a3;if(!A3[a3])return;const g=f.geometry;(polisPais[A3[a3]]=polisPais[A3[a3]]||[]).push(...(g.type==='Polygon'?[g.coordinates]:g.coordinates))});
+  const faltanP=Object.values(A3).filter(i=>!polisPais[i]);
+  if(faltanP.length){console.log('FALTAN países en el archivo:',faltanP);process.exit(1)}
+  // la ventana que se ve: la Argentina entera y lo que la rodea (Bolivia entera; Brasil y Chile, hasta donde alcanza el dibujo). En unidades del dibujo (el mismo sistema que las provincias)
+  const V={x0:-36,y0:-246,x1:446,y1:766};
+  // recorte de un anillo contra el rectángulo de la ventana (Sutherland–Hodgman, un borde por vez)
+  const bordes=[
+    [p=>p[0]>=V.x0,(a,b)=>{const t=(V.x0-a[0])/(b[0]-a[0]);return [V.x0,a[1]+t*(b[1]-a[1])]}],
+    [p=>p[0]<=V.x1,(a,b)=>{const t=(V.x1-a[0])/(b[0]-a[0]);return [V.x1,a[1]+t*(b[1]-a[1])]}],
+    [p=>p[1]>=V.y0,(a,b)=>{const t=(V.y0-a[1])/(b[1]-a[1]);return [a[0]+t*(b[0]-a[0]),V.y0]}],
+    [p=>p[1]<=V.y1,(a,b)=>{const t=(V.y1-a[1])/(b[1]-a[1]);return [a[0]+t*(b[0]-a[0]),V.y1]}]];
+  const recortar=pts=>{let r=pts;for(const [dentro,inter] of bordes){const o=[];for(let i=0;i<r.length;i++){const a=r[i],b=r[(i+1)%r.length],da=dentro(a),db=dentro(b);if(da&&db)o.push(b);else if(da&&!db)o.push(inter(a,b));else if(!da&&db){o.push(inter(a,b));o.push(b)}}r=o;if(!r.length)break}return r};
+  const ETQ_P={};   // si hiciera falta mover el nombre de algún país: {id:[x,y]} (sale como lx / ly)
+  const TOL_P=1.0,MIN_P=5;   // los vecinos son contexto: se simplifican más que las provincias (los fiordos de Chile pesaban 40 KB) y se descartan las islas de menos de ~130 km²
+  const anilloP=r=>{let p=r.map(pt);if(p.length>1&&p[0][0]===p[p.length-1][0]&&p[0][1]===p[p.length-1][1])p=p.slice(0,-1);p=recortar(p);return p.length>=3?dp(p,TOL_P):[]};
+  const salidaP={};let totalP=0;
+  Object.keys(polisPais).sort().forEach(id=>{
+    const polis=polisPais[id].map(pl=>pl.map(anilloP)).filter(pl=>pl[0].length>=3&&Math.abs(area(pl[0]))>MIN_P).map(pl=>pl.filter((r,k)=>k===0||(r.length>=3&&Math.abs(area(r))>MIN_P)));
+    const principal=polis.slice().sort((a,b)=>Math.abs(area(b[0]))-Math.abs(area(a[0])))[0];
+    const d=polis.map(pl=>pl.map(trazo).join('')).join('');
+    const [cx,cy]=adentro(principal[0],principal.slice(1));
+    salidaP[id]={d,cx:Math.round(cx*10)/10,cy:Math.round(cy*10)/10};totalP+=d.length;
+    if(ETQ_P[id]){salidaP[id].lx=ETQ_P[id][0];salidaP[id].ly=ETQ_P[id][1]}
+  });
+  const txt='// Los países limítrofes de la Argentina (Chile, Bolivia, Paraguay, Brasil y Uruguay) como trazados SVG, en el MISMO sistema de coordenadas que mapa.js (el contorno de la Argentina sale de ahí). NO se edita a mano: lo arma tools/mapa_integradora.js con datos públicos de Natural Earth (dominio público).\n'+
+   '// «vb» es la ventana que se ve (x, y, ancho, alto); lo que sobra de Brasil, Bolivia y Chile se recortó en el borde. «cx / cy» es un punto bien adentro de lo que se ve de cada país.\n'+
+   'window.MAPA_LIM='+JSON.stringify({vb:[V.x0,V.y0,V.x1-V.x0,V.y1-V.y0],pais:salidaP})+';\n';
+  const dest2=path.join(__dirname,'..','integradora','mapa-limitrofes.js');
+  fs.writeFileSync(dest2,txt);
+  console.log('mapa-limitrofes.js: '+Math.round(txt.length/1024)+' KB | ventana',V.x1-V.x0,'×',V.y1-V.y0,'| puntos interiores',JSON.stringify(Object.fromEntries(Object.entries(salidaP).map(([k,v])=>[k,[v.cx,v.cy]]))));
+}

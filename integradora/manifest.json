@@ -1,7 +1,7 @@
 {
   "name": "Prueba final integradora · Felipe",
   "short_name": "Integradora",
-  "description": "Estudiar y practicar para la prueba final integradora: Sociales (provincias argentinas y sus capitales, con mapa) y, más adelante, Naturales.",
+  "description": "Estudiar y practicar para la prueba final integradora: Sociales (provincias argentinas y países limítrofes, con sus capitales y mapas) y, más adelante, Naturales.",
   "lang": "es",
   "start_url": "./",
   "scope": "../",

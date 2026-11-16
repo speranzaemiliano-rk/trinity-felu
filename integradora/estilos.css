@@ -3,7 +3,7 @@
   --bg:#f1f6ff;--card:#fff;--ink:#1c2447;--muted:#566090;--line:#d9e4fb;
   --prim:#2459d6;--prim-sombra:#17399b;--prim-ink:#fff;--acento:#ffb300;
   --verde:#0d6b40;--verde-bg:#e0f6ea;--rojo:#c63a33;--rojo-bg:#fdeceb;--azul:#2a63d4;--azul-bg:#e6eeff;
-  --tierra:#c9daf7;--borde-mapa:#fff;--res:#ffb300;--res-borde:#8a5800;--ok-mapa:#3fb97b;--mal-mapa:#e0605a;--hueco:#8a5800;
+  --tierra:#c9daf7;--arg:#8fb0ee;--borde-mapa:#fff;--res:#ffb300;--res-borde:#8a5800;--ok-mapa:#3fb97b;--mal-mapa:#e0605a;--hueco:#8a5800;
   --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif;--body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
   --sombra:0 2px 0 rgba(20,40,110,.07),0 6px 16px rgba(20,40,110,.09);
 }
@@ -11,7 +11,7 @@
   --bg:#10162e;--card:#1b2347;--ink:#eef1ff;--muted:#aeb7e3;--line:#2e3768;
   --prim:#7da2ff;--prim-sombra:#4d6fc4;--prim-ink:#0b1330;--acento:#ffc83d;
   --verde:#5ad79a;--verde-bg:#12392c;--rojo:#ff8a82;--rojo-bg:#43211f;--azul:#8fb3ff;--azul-bg:#1d2b55;
-  --tierra:#34437a;--borde-mapa:#10162e;--res:#ffc83d;--res-borde:#fff3c4;--ok-mapa:#3fb97b;--mal-mapa:#e0605a;--hueco:#ffc83d;
+  --tierra:#34437a;--arg:#5a70c4;--borde-mapa:#10162e;--res:#ffc83d;--res-borde:#fff3c4;--ok-mapa:#3fb97b;--mal-mapa:#e0605a;--hueco:#ffc83d;
   --sombra:0 2px 0 rgba(0,0,0,.25),0 6px 16px rgba(0,0,0,.25);
 }}
 *{box-sizing:border-box}
@@ -55,10 +55,18 @@ h2{font:800 1.3rem var(--display);margin:22px 0 10px;line-height:1.2}
 .area.a-verde{background:linear-gradient(135deg,#0a7048,#10865a)}
 .area.pronto{background:linear-gradient(135deg,#3a6150,#477562);cursor:default}
 .area:active:not(.pronto){transform:scale(.985)}
+.area[data-area]{align-items:flex-start}   /* con sus temas adentro: el ícono arriba y los temas debajo del nombre */
+.area[data-area]:active{transform:none}
 .aico{font-size:2.6rem;line-height:1;flex:none}
 .atxt{display:grid;gap:4px;min-width:0;flex:1}
 .atxt b{font:800 1.55rem var(--display);line-height:1.05}
 .atxt small{font-weight:700;opacity:.96;font-size:.9rem;overflow-wrap:anywhere}
+.temas{display:grid;gap:8px;margin-top:6px}
+.tema-btn{display:grid;gap:6px;width:100%;text-align:left;border:1px solid rgba(255,255,255,.3);background:rgba(8,20,70,.3);color:#fff;border-radius:14px;padding:10px 12px;font:inherit;min-height:56px}
+.tema-btn:active{transform:scale(.985)}
+.tb-t{display:flex;justify-content:space-between;align-items:baseline;gap:4px 10px;flex-wrap:wrap}
+.atxt .tb-t b{font:800 1.1rem var(--display);line-height:1.15}
+.atxt .tb-t small{font-weight:700;opacity:.96;font-size:.85rem}
 .area .prog{background:rgba(255,255,255,.38)}
 .area .prog i{background:#fff}
 .pie{margin:22px 0 0;text-align:center;color:var(--muted);font-weight:700;font-size:.9rem}
@@ -97,9 +105,14 @@ svg.mapa .caba.ok .cabah{fill:rgba(63,185,123,.3);stroke:var(--ok-mapa)}
 svg.mapa .caba.mal .cabah{fill:rgba(224,96,90,.3);stroke:var(--mal-mapa)}
 svg.mapa .caba.ok .cabar{fill:var(--ok-mapa)}
 svg.mapa .caba.mal .cabar{fill:var(--mal-mapa)}
+svg.mapa .arg{fill:var(--arg);stroke:var(--arg);stroke-width:.6;stroke-linejoin:round;pointer-events:none}
+svg.mapa-lim .prov{stroke-width:1.1}
+svg.mapa.mapa-lim .et{font-size:22px;stroke-width:4.6px}
+svg.mapa.mapa-lim .arg-et{font-size:19px;letter-spacing:.12em;opacity:.75}
 svg.mapa .et{font:800 9px var(--body);fill:var(--ink);text-anchor:middle;dominant-baseline:middle;paint-order:stroke;stroke:var(--bg);stroke-width:2.4px;stroke-linejoin:round;pointer-events:none}
 svg.mapa .caba-et{text-anchor:start}
 .cuerpo.conmapa svg.mapa{height:min(40vh,380px)}
+.cuerpo.conmapa svg.mapa-lim{height:min(40vh,380px);height:clamp(220px,calc(100dvh - 430px),440px)}   /* el mapa de los vecinos es más alto: los países se ven más grandes */
 .cuerpo.conmapa.toca svg.mapa{height:min(60vh,580px);height:clamp(300px,calc(100dvh - 236px),720px)}   /* al tocar, el mapa usa todo el alto que queda (las provincias chicas, como Tucumán, se tocan mejor) */
 .mapa-est{display:grid;gap:10px;justify-items:center}
 .mapa-est svg.mapa{height:clamp(400px,calc(100dvh - 300px),800px)}
@@ -150,6 +163,7 @@ svg.mapa .caba-et{text-anchor:start}
 
 /* ---- memotest */
 .memo{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.memo.n10{grid-template-columns:repeat(2,minmax(0,1fr))}
 .cm{position:relative;min-height:96px;border:0;border-radius:14px;padding:6px;background:var(--prim);color:var(--prim-ink);box-shadow:0 4px 0 var(--prim-sombra);display:grid;place-items:center;text-align:center}
 .cm-f{font:800 2rem var(--display)}
 .cm-b{display:none;font:800 .92rem var(--display);line-height:1.15;overflow-wrap:anywhere}
@@ -196,6 +210,7 @@ svg.mapa .caba-et{text-anchor:start}
   .acts{grid-template-columns:repeat(3,1fr)}
   .opciones.n4:not(.largas){grid-template-columns:1fr 1fr}
   .memo{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .memo.n10{grid-template-columns:repeat(5,minmax(0,1fr))}
 }
 /* ---- celular de costado (poco alto): el mapa a la izquierda y lo demás a la derecha */
 @media (max-height:520px) and (orientation:landscape){
@@ -209,6 +224,7 @@ svg.mapa .caba-et{text-anchor:start}
   .opcion{min-height:48px;padding:8px}
   .btn{padding:10px 14px;min-height:46px;margin:8px 0}
   .memo{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .memo.n10{grid-template-columns:repeat(5,minmax(0,1fr))}
   .cm{min-height:74px}
   .acts{grid-template-columns:repeat(4,1fr)}
   #pPreg.pmapa{display:grid;grid-template-columns:minmax(150px,.7fr) minmax(0,1.3fr);column-gap:14px;align-items:start}

@@ -1,10 +1,12 @@
-// «Prueba final integradora · Felipe» (carpeta integradora/): Sociales → las 23 provincias argentinas y la Ciudad de Buenos Aires con sus capitales, con un mapa. Naturales todavía no tiene temas.
+// «Prueba final integradora · Felipe» (carpeta integradora/): Sociales → las 23 provincias argentinas y la Ciudad de Buenos Aires con sus capitales, con un mapa; y los TEMAS DE IDEAS (Naturales: páginas 122 a 127 del libro; Sociales: las colonias, páginas 100 a 105), con resúmenes, cuadros, dibujos, mapas conceptuales y ejercicios.
 // Cubre: que los DATOS estén bien (provincias, países limítrofes, capitales, nombres para escribir y ciudades «trampa», contrastados con una tabla aparte); que los MAPAS sean los de la Argentina (las 24 piezas, cada una
 // donde corresponde: se comprueba tocando de verdad el punto de cada provincia, y que cada una esté al norte / sur / este / oeste de sus vecinas); que TODAS las preguntas que arma el programa (cada tipo ×
 // cada provincia, muchas veces) tengan UNA sola respuesta correcta, opciones distintas y coherentes con los datos; el recorrido (inicio, tema, mapa para estudiar, cada actividad, el memotest, el simulacro de 30
 // en 6 partes, el repaso de lo que salió mal, ajustes); que lo escrito valga sin tildes ni mayúsculas; que lo guardado roto no rompa nada y que ande con el almacenamiento bloqueado; que no pida nada a
 // otros sitios (sólo las fuentes de Google); y el DISEÑO: nada se sale de la pantalla ni se pisa ni se corta, en 12 tamaños (de celular chico a compu, de pie y de costado), con el mapa y todos los tipos de
 // pregunta (sin corregir y corregidos), y con contraste suficiente en claro y en oscuro.
+// Los temas de ideas (integradora/ideas.js, nat-*.js, soc-*.js) se prueban TODOS con las mismas pruebas: que cada dato esté completo y contrastado con una tabla aparte, que cada pregunta que arma el programa tenga una sola respuesta
+// correcta, el recorrido (estudiar, practicar, cada actividad, el memotest, el simulacro de Naturales) y el diseño y el contraste de sus pantallas. Sumar un tema nuevo no obliga a tocar estas pruebas.
 // Se puede probar el sitio publicado:  URL=https://speranzaemiliano-rk.github.io/trinity-felu/integradora/ node tests/integradora.js
 // Con  RAPIDO=1  el diseño se mira sólo en un tamaño (iPhone 14) y el contraste sólo en claro.
 const {chromium}=require('playwright');const fs=require('fs');const path=require('path');const http=require('http');const vm=require('vm');
@@ -24,6 +26,8 @@ const j=o=>JSON.stringify(o);
 // ---------- 1) los datos, contrastados con una tabla aparte (si alguien cambia una capital mal, esto lo agarra)
 const sb={window:{}};vm.createContext(sb);
 vm.runInContext(fs.readFileSync(path.join(RAIZ,'integradora','contenido.js'),'utf8'),sb);vm.runInContext(fs.readFileSync(path.join(RAIZ,'integradora','mapa.js'),'utf8'),sb);vm.runInContext(fs.readFileSync(path.join(RAIZ,'integradora','mapa-limitrofes.js'),'utf8'),sb);
+const SCRIPTS=[...fs.readFileSync(path.join(RAIZ,'integradora','index.html'),'utf8').matchAll(/<script src="([^"?]+)/g)].map(m=>m[1]).filter(f=>f!=='app.js'&&!['contenido.js','mapa.js','mapa-limitrofes.js'].includes(f));
+SCRIPTS.forEach(f=>vm.runInContext(fs.readFileSync(path.join(RAIZ,'integradora',f),'utf8'),sb));   // dibujos.js, ideas.js y los temas (nat-*.js, soc-*.js), en el orden de la página
 const INT=sb.window.INT,MAPA=sb.window.MAPA,LIM=sb.window.MAPA_LIM;
 const NORMT=s=>String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
 const ORO={buenosaires:['Buenos Aires','La Plata'],catamarca:['Catamarca','San Fernando del Valle de Catamarca'],chaco:['Chaco','Resistencia'],chubut:['Chubut','Rawson'],cordoba:['Córdoba','Córdoba'],corrientes:['Corrientes','Corrientes'],entrerios:['Entre Ríos','Paraná'],formosa:['Formosa','Formosa'],jujuy:['Jujuy','San Salvador de Jujuy'],lapampa:['La Pampa','Santa Rosa'],larioja:['La Rioja','La Rioja'],mendoza:['Mendoza','Mendoza'],misiones:['Misiones','Posadas'],neuquen:['Neuquén','Neuquén'],rionegro:['Río Negro','Viedma'],salta:['Salta','Salta'],sanjuan:['San Juan','San Juan'],sanluis:['San Luis','San Luis'],santacruz:['Santa Cruz','Río Gallegos'],santafe:['Santa Fe','Santa Fe'],santiago:['Santiago del Estero','Santiago del Estero'],tierradelfuego:['Tierra del Fuego','Ushuaia'],tucuman:['Tucumán','San Miguel de Tucumán']};
@@ -40,7 +44,7 @@ chk('lo que se escribe vale de varias formas: «San Fernando» o «Catamarca», 
 const formas=x=>[x.corto,x.nombre,x.abrev,...x.altNombre];
 chk('ninguna forma de escribir una provincia (ni su abreviatura del mapa) es el nombre de otra: no hay respuestas ambiguas (la única coincidencia a propósito es «Buenos Aires», que vale para la provincia pintada y para el punto de la Ciudad: son preguntas distintas)',INT.ITEMS.every(a=>INT.ITEMS.every(b=>a===b||(a.id==='caba'&&b.id==='buenosaires')||(a.id==='buenosaires'&&b.id==='caba')||!formas(a).some(x=>formas(b).some(y=>NORMT(x)===NORMT(y)))))&&!INT.item('buenosaires').altNombre.some(x=>NORMT(x)==='ciudad de buenos aires')&&INT.CABA.altNombre.some(x=>NORMT(x)==='buenos aires'));
 chk('las notas no afirman superlativos discutibles («la provincia más chica del país»: Tierra del Fuego, sin la Antártida ni las islas, es menor que Tucumán)',!INT.TODOS.some(x=>/más chic|más peque|más grande del país/i.test(x.nota)));
-chk('el área Sociales trae dos temas, «Provincias y capitales» (las 24 piezas) y «Países limítrofes» (los 5 países), y Naturales figura como «pronto» (sin temas todavía)',INT.AREAS.length===2&&INT.AREAS[0].id==='sociales'&&INT.AREAS[0].temas.length===2&&INT.AREAS[0].temas[0].id==='provincias'&&INT.AREAS[0].temas[0].items.length===24&&INT.AREAS[0].temas[1].id==='limitrofes'&&INT.AREAS[0].temas[1].items.length===5&&INT.AREAS[1].id==='naturales'&&INT.AREAS[1].pronto===true&&INT.AREAS[1].temas.length===0);
+chk('el área Sociales trae dos temas, «Provincias y capitales» (las 24 piezas) y «Países limítrofes» (los 5 países), y Naturales ya no figura como «pronto»',INT.AREAS.length===2&&INT.AREAS[0].id==='sociales'&&INT.AREAS[0].temas.length===2&&INT.AREAS[0].temas[0].id==='provincias'&&INT.AREAS[0].temas[0].items.length===24&&INT.AREAS[0].temas[1].id==='limitrofes'&&INT.AREAS[0].temas[1].items.length===5&&INT.AREAS[1].id==='naturales'&&INT.AREAS[1].pronto===false&&INT.AREAS[1].temas.length>=3);
 // los países limítrofes (la Argentina limita con cinco países: Chile, Bolivia, Paraguay, Brasil y Uruguay)
 const ORO_PAISES={chile:['Chile','Santiago'],bolivia:['Bolivia','Sucre'],paraguay:['Paraguay','Asunción'],brasil:['Brasil','Brasilia'],uruguay:['Uruguay','Montevideo']};
 chk('los países limítrofes son exactamente Chile, Bolivia, Paraguay, Brasil y Uruguay, cada uno con su capital (contrastado con una tabla aparte)',INT.PAISES.length===5&&INT.PAISES.every(x=>x.tipo==='pais'&&ORO_PAISES[x.id]&&x.corto===ORO_PAISES[x.id][0]&&x.capital===ORO_PAISES[x.id][1])&&INT.TODOS.length===29&&INT.ITEMS.length===24,j(INT.PAISES.map(x=>x.id+':'+x.capital)));
@@ -51,6 +55,82 @@ chk('las ciudades «trampa» de los países (conocidas pero que NO son la capita
 chk('hay trampas en los países donde una ciudad conocida confunde (Brasil→Río de Janeiro, Uruguay→Punta del Este, Chile→Valparaíso) y la nota de Brasil explica que Río fue la capital hasta 1960',INT.item('brasil').trampas.includes('Río de Janeiro')&&INT.item('uruguay').trampas.includes('Punta del Este')&&INT.item('chile').trampas.includes('Valparaíso')&&/1960/.test(INT.item('brasil').nota)&&/Río de Janeiro/.test(INT.item('brasil').nota));
 chk('un país no se confunde con una provincia: los ids, los nombres y las formas de escribirlos son todos distintos (y «Santiago» de Chile NO es «Santiago del Estero»: no se aceptan entre sí)',INT.PAISES.every(x=>INT.ITEMS.every(y=>x.id!==y.id&&![x.corto,x.nombre,...x.altNombre].some(a=>[y.corto,y.nombre,...y.altNombre].some(b=>NORMT(a)===NORMT(b)))&&!(y.capital&&[x.capital,...x.altCapital].some(a=>NORMT(a)===NORMT(y.capital)))))&&!INT.item('santiago').altCapital.some(a=>NORMT(a)==='santiago'));
 chk('cada país dice por dónde limita con la Argentina, con los puntos cardinales y las provincias que corresponden (Chile al oeste y al sur, Bolivia al norte con Jujuy y Salta, Paraguay al norte, Brasil al noreste con Misiones y Corrientes, Uruguay al este)',/oeste/.test(INT.item('chile').limita)&&/sur/.test(INT.item('chile').limita)&&/norte/.test(bol.limita)&&/Jujuy/.test(bol.limita)&&/Salta/.test(bol.limita)&&/norte/.test(INT.item('paraguay').limita)&&/noreste/.test(INT.item('brasil').limita)&&/Misiones/.test(INT.item('brasil').limita)&&/Corrientes/.test(INT.item('brasil').limita)&&/este/.test(INT.item('uruguay').limita)&&/río Uruguay/.test(INT.item('uruguay').limita));
+
+// ---- los temas de ideas (Naturales: páginas 122 a 127 del libro; Sociales: las colonias, páginas 100 a 105): los datos. Todos los textos son PROPIOS (con otras palabras), el repositorio es público
+const IDE=INT.IDEAS,DIBS=sb.window.DIB,ideC=IDE.conceptos,ideT=IDE.temas;
+const piezasDe=d=>d==='arboles'||!DIBS[d]?[]:[...new Set([...DIBS[d]({clic:true}).matchAll(/data-id="([^"]+)"/g)].map(m=>m[1]))];
+const natT=ideT.filter(t=>t.area==='naturales');
+chk('Naturales trae los 3 temas de las páginas 122 a 127 (El Sol sobre el horizonte · página 122, Las estaciones del año · 123 a 126, Observación y registro: el gnomon · 127) con 14, 20 y 10 ideas, y figura en el inicio con esos mismos temas',
+  INT.AREAS[1].id==='naturales'&&INT.AREAS[1].pronto===false&&natT.map(t=>t.id).join()==='sol,estaciones,gnomon'&&natT.map(t=>t.conceptos.length).join()==='14,20,10'&&natT.map(t=>t.paginas).join('|')==='página 122|páginas 123 a 126|página 127'&&INT.AREAS[1].temas.map(t=>t.id).join()==='sol,estaciones,gnomon'&&INT.AREAS[1].temas.every(t=>t.tipo==='ciencia'&&t.items.length===t.def.conceptos.length));
+const idsI=ideC.map(c=>c.id);
+chk('los ids de las ideas no se repiten ni chocan con los de provincias y países, cada idea es de su tema y de un grupo que existe, y cada grupo tiene ideas; cada tema está en el área que dice',new Set(idsI).size===idsI.length&&idsI.every(id=>!INT.TODOS.some(x=>x.id===id)&&/^[a-z0-9_]+$/.test(id))&&ideT.every(t=>['naturales','sociales'].includes(t.area)&&t.conceptos.every(c=>c.tema===t.id&&t.grupos.some(g=>g.id===c.grupo)&&c.tipo==='concepto')&&t.grupos.every(g=>t.conceptos.some(c=>c.grupo===g.id))&&INT.AREAS.find(a=>a.id===t.area).temas.some(x=>x.id===t.id)));
+const malI=[];const pn=(c,m)=>{if(malI.length<30)malI.push(c+': '+m)};
+const preguntasVistas=new Map();
+ideC.forEach(c=>{
+  const x=c.id,rep=(q,w)=>{const k=NORMT(q);if(preguntasVistas.has(k))pn(x,w+': la misma pregunta que '+preguntasVistas.get(k));preguntasVistas.set(k,x+' '+w)};
+  if(typeof c.resumen!=='string'||c.resumen.length<40||c.resumen.length>520)pn(x,'resumen de '+(c.resumen&&c.resumen.length)+' letras');
+  if(!c.ico||!c.titulo)pn(x,'sin ícono o título');
+  if(!c.mc.length)pn(x,'sin pregunta de elegir');
+  if(c.mc.length+c.vf.length+c.tipear.length+c.ordenar.length+c.tocar.length+(c.estacion?1:0)<2)pn(x,'menos de 2 preguntas');
+  c.mc.forEach((m,i)=>{const [q,ok,mal]=m;rep(q,'mc'+i);
+    if(typeof q!=='string'||q.length<12||q.length>140)pn(x,'mc'+i+': enunciado de '+(q&&q.length)+' letras');
+    if(typeof ok!=='string'||!ok||ok.length>90)pn(x,'mc'+i+': correcta rara');
+    if(!Array.isArray(mal)||mal.length<3)pn(x,'mc'+i+': menos de 3 malas');
+    else{if(new Set(mal.concat([ok]).map(NORMT)).size!==mal.length+1)pn(x,'mc'+i+': opciones repetidas (o una mala igual a la correcta)');if(mal.some(t=>typeof t!=='string'||!t||t.length>90))pn(x,'mc'+i+': mala rara');
+      if(mal.concat([ok]).some(t=>/todas las anteriores|ninguna de las anteriores|\bambas\b/i.test(t)))pn(x,'mc'+i+': opción «todas/ninguna/ambas»')}});
+  c.vf.forEach((v,i)=>{rep(v[0],'vf'+i);if(typeof v[0]!=='string'||v[0].length<12||typeof v[1]!=='boolean'||typeof v[2]!=='string'||v[2].length<10)pn(x,'vf'+i+' incompleto')});
+  c.tipear.forEach((t,i)=>{rep(t[0],'tipear'+i);if(typeof t[0]!=='string'||!Array.isArray(t[1])||!t[1].length||t[1].some(a=>typeof a!=='string'||!NORMT(a))||typeof t[2]!=='string'||!t[2])pn(x,'tipear'+i+' incompleto')});
+  c.ordenar.forEach((o,i)=>{const pasos=o[1];if(typeof o[0]!=='string'||!Array.isArray(pasos)||pasos.length<3||pasos.length>7||new Set(pasos.map(NORMT)).size!==pasos.length||pasos.some(t=>typeof t!=='string'||t.length>120))pn(x,'ordenar'+i+' mal (3 a 7 pasos distintos de hasta 120 letras)')});
+  c.tocar.forEach((t,i)=>{const [d,cons,pieza]=t;rep(cons,'tocar'+i);if(typeof cons!=='string'||!DIBS[d]||d==='arboles'||!piezasDe(d).includes(pieza)||!IDE.info[d]||!IDE.info[d][pieza]||!IDE.info[d][pieza].t||!IDE.info[d][pieza].d)pn(x,'tocar'+i+': el dibujo o la pieza no existen, o la pieza no tiene su explicación ('+d+'/'+pieza+')')});
+  if(typeof c.estacion!=='boolean')pn(x,'estacion no es booleano');
+});
+chk('cada una de las '+ideC.length+' ideas trae su resumen y al menos una pregunta de elegir, y TODAS las preguntas escritas están completas y sin repetirse: de elegir con 3 o más opciones malas distintas de la correcta, verdadero/falso con su explicación, de escribir con sus respuestas y su pista, de ordenar con 3 a 7 pasos distintos, y de tocar en un dibujo que existe y en una pieza que existe (con su explicación)',malI.length===0,malI.join(' | '));
+const malT=[];const pt=(c,m)=>{if(malT.length<20)malT.push(c+': '+m)};
+ideT.forEach(t=>{
+  if(!t.nombre||!t.ico||!t.es||!t.paginas)pt(t.id,'falta nombre, ícono, descripción o páginas');
+  t.tableros.forEach((tb,n)=>{const c=t.id+'#'+n,ps=tb.pares;
+    if(typeof tb.titulo!=='string'||!Array.isArray(tb.cols)||tb.cols.length!==2||tb.cols.some(x=>typeof x!=='string'||!x))pt(c,'sin título o sin los 2 títulos de columna');
+    if(ps.length<4||ps.length>5)pt(c,ps.length+' pares (tienen que ser 4 o 5)');
+    if(new Set(ps.map(p=>p[0])).size!==ps.length)pt(c,'una idea repetida');
+    if(new Set(ps.map(p=>NORMT(p[1]))).size!==ps.length||new Set(ps.map(p=>NORMT(p[2]))).size!==ps.length)pt(c,'textos repetidos en una columna');
+    ps.forEach(p=>{if(!t.conceptos.find(x=>x.id===p[0]))pt(c,p[0]+' no es una idea de este tema');if(typeof p[1]!=='string'||typeof p[2]!=='string'||!p[1]||!p[2]||p[1].length>46||p[2].length>56)pt(c,'textos vacíos o largos en '+p[0])})});
+  const est=t.estudio||[];
+  if(!est.length||est[0].id!=='resumen')pt(t.id,'el estudio tiene que empezar por el resumen');
+  est.forEach(e=>{if(e.id==='cuadro'&&!(t.cuadro&&t.cuadro.cols.length>=2&&t.cuadro.filas.length>=3&&t.cuadro.filas.every(f=>typeof f.t==='string'&&f.v.length===t.cuadro.cols.length&&f.v.every(v=>typeof v==='string'&&v))))pt(t.id,'cuadro roto');
+    if(e.id==='dibujos'&&!(e.dibujos&&e.dibujos.length&&e.dibujos.every(d=>d==='arboles'||(DIBS[d]&&IDE.info[d]&&piezasDe(d).length>0&&piezasDe(d).every(pz=>IDE.info[d][pz]&&IDE.info[d][pz].t&&IDE.info[d][pz].d)))))pt(t.id,'dibujos rotos o con piezas sin explicación');
+    if(e.id==='mapa'&&!(t.mapa&&typeof t.mapa.raiz==='string'&&t.mapa.ramas.length>=4&&t.mapa.ramas.every(r=>typeof r.t==='string'&&r.h.length>=2&&r.h.every(h=>typeof h==='string'&&h))))pt(t.id,'mapa conceptual roto');
+    if(!['resumen','cuadro','dibujos','mapa'].includes(e.id))pt(t.id,'pestaña rara '+e.id)});
+});
+chk('los tableros de «unir» (4 o 5 pares cada uno, con sus dos títulos de columna, ideas y textos sin repetir, de ideas de su tema) y las pestañas de estudio (resumen, cuadro, dibujos con todas sus piezas explicadas, mapa conceptual) de cada tema están completos',malT.length===0,malT.join(' | '));
+// los DATOS CLAVE de Naturales, contrastados con una tabla aparte (lo que dicen las páginas del libro, tomado a mano): si alguien cambia una fecha, una hora o un punto cardinal mal, esto lo agarra
+const resumenDe=id=>(ideC.find(c=>c.id===id)||{resumen:''}).resumen;
+const ORO_NAT={
+  sol_verano:[/entre el 20 y el 23 de diciembre/,/casi 14 horas y media/,/5:37/,/sureste/,/20:06/,/suroeste/,/más grande/,/más largo/,/más cortas/],
+  eq_otono:[/entre el 20 y el 23 de marzo/,/casi por el este/,/casi por el oeste/,/12 horas/,/6:57/,/19:05/,/acortando/],
+  sol_invierno:[/entre el 20 y el 23 de junio/,/noreste/,/noroeste/,/más baja/,/más chico/,/más corto/,/8:00/,/17:50/,/14 horas y 10 minutos de noche/],
+  eq_primavera:[/entre el 20 y el 23 de septiembre/,/casi por el este/,/casi por el oeste/,/12 horas/,/6:43/,/18:50/,/alargando/],
+  puntos_sale_pone:[/verano sale por el sureste y se pone por el suroeste/,/casi por el este y se pone casi por el oeste/,/invierno sale por el noreste y se pone por el noroeste/],
+  altura_mediodia:[/más alta del año es el primer día del verano/,/más baja es el primer día del invierno/],
+  dia_noche_duracion:[/verano y en primavera los días duran más que las noches/,/otoño y en invierno los días duran menos que las noches/,/12 horas/],
+  cambio_diario:[/2 minutos/,/verano y en otoño[^.]*menos/,/invierno y en primavera[^.]*más/],
+  mediodia_solar:[/posición más alta/,/norte/,/13 horas, no a las 12/],
+  mismo_tiempo:[/mismo tiempo/,/mitad/],
+  un_dia:[/24 horas/],
+  sombra_mediodia:[/sombra más corta/,/posición más alta/,/13 h/,/sur/,/norte/],
+  sombra_manana:[/oeste/,/corta/],
+  sombra_tarde:[/este/,/larga/],
+  gnomon:[/varilla vertical/,/fija/],
+  shamash:[/Mesopotamia/,/dios del Sol/,/carro de fuego/],
+  ano:[/cuatro estaciones/,/entre el 20 y el 23/]
+};
+const malO=[];Object.keys(ORO_NAT).forEach(id=>ORO_NAT[id].forEach(re=>{if(!re.test(resumenDe(id)))malO.push(id+' no dice '+re)}));
+const estT=ideT.find(t=>t.id==='estaciones'),cu=estT.cuadro;
+const ORO_CUADRO=[[/Empieza/,[/21 de diciembre/,/20 de marzo/,/21 de junio/,/22 de septiembre/]],[/se llama/,[/Solsticio de verano/,/Equinoccio de otoño/,/Solsticio de invierno/,/Equinoccio de primavera/]],[/sale por/,[/sureste/,/casi el este/,/noreste/,/casi el este/]],[/se pone por/,[/suroeste/,/casi el oeste/,/noroeste/,/casi el oeste/]],
+  [/Cuánto dura/,[/14 h y media/,/12 h/,/Menos de 10 h/,/12 h/]],[/arco/,[/más grande/,/achicando/,/más chico/,/agrandando/]],[/mediodía/,[/más alta/,/bajando/,/más baja/,/subiendo/]],[/sombras/,[/más cortas/,/más largas que en verano/,/más largas del año/,/acortando/]],
+  [/Días y noches/,[/duran más que las noches/,/duran menos que las noches/,/duran menos que las noches/,/duran más que las noches/]],[/temperaturas/,[/Elevadas/,/Menores que en verano/,/Bajas/,/Mayores que en invierno/]],[/Cada día/,[/2 minutos menos/,/2 minutos menos/,/2 minutos más/,/2 minutos más/]]];
+if(cu.cols.join()!=='Verano,Otoño,Invierno,Primavera'||cu.filas.length!==ORO_CUADRO.length)malO.push('el cuadro de las estaciones no tiene las 4 columnas y las '+ORO_CUADRO.length+' filas');
+ORO_CUADRO.forEach(([re,vals],i)=>{const f=cu.filas[i];if(!f||!re.test(f.t))return malO.push('cuadro fila '+i+': el título no es el esperado '+re);vals.forEach((v,k)=>{if(!new RegExp(v.source,'i').test(f.v[k]))malO.push('cuadro «'+f.t+'» / '+cu.cols[k]+': «'+f.v[k]+'» no dice '+v)})});
+chk('los datos clave de Naturales coinciden con una tabla aparte (las fechas de cada estación, las horas de salida y puesta del Sol, dónde sale y se pone, la duración del día, el mediodía solar a las 13 h, la sombra que apunta al sur, el gnomon…) y el cuadro de las estaciones tiene sus 11 filas × 4 estaciones bien',malO.length===0,malO.slice(0,6).join(' | '));
 
 // el mapa
 chk('el mapa trae las 23 provincias y la Ciudad de Buenos Aires (los mismos ids que el contenido), cada una con su trazado y su punto, todo dentro del dibujo',Object.keys(MAPA.prov).sort().join()===ids.slice().sort().join()&&Object.values(MAPA.prov).every(p=>/^M[\d. -]+(L[\d. -]+)+Z/.test(p.d)&&p.cx>0&&p.cx<MAPA.w&&p.cy>0&&p.cy<MAPA.h),j(Object.keys(MAPA.prov)));
@@ -119,11 +199,20 @@ async function tocarProv(p,id,cont){
   const pos=await p.evaluate(([id,cont])=>{const sv=document.querySelector(cont+' svg.mapa');sv.scrollIntoView({block:'center'});const r=sv.getBoundingClientRect(),vb=sv.viewBox.baseVal,s=Math.min(r.width/vb.width,r.height/vb.height),ox=r.left+(r.width-vb.width*s)/2,oy=r.top+(r.height-vb.height*s)/2,pt=window.MAPA.prov[id]||window.MAPA_LIM.pais[id];return {x:ox+(pt.cx-vb.x)*s,y:oy+(pt.cy-vb.y)*s}},[id,cont]);
   await p.mouse.click(pos.x,pos.y);
 }
-// responde la pregunta que está en pantalla, bien o mal, tocando de verdad los botones (y el mapa)
+// toca de verdad una pieza de un dibujo: el centro de su zona sensible (el círculo «hit», la línea ancha o el rectángulo) o, si trae data-px/data-py, su punto interior en las coordenadas del dibujo
+async function tocarPieza(p,cont,id){
+  const pos=await p.evaluate(([cont,id])=>{const sv=document.querySelector(cont+' svg.dibujo'),g=sv.querySelector('[data-id="'+id+'"]');sv.scrollIntoView({block:'center'});
+    if(g.dataset.px!==undefined){const r=sv.getBoundingClientRect(),vb=sv.viewBox.baseVal,s=Math.min(r.width/vb.width,r.height/vb.height),ox=r.left+(r.width-vb.width*s)/2,oy=r.top+(r.height-vb.height*s)/2;return {x:ox+(+g.dataset.px-vb.x)*s,y:oy+(+g.dataset.py-vb.y)*s}}
+    const h=g.querySelector('.hit')||g.querySelector('.som-hit')||g.querySelector('rect,circle,line,path')||g,r=h.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2}},[cont,id]);
+  await p.mouse.click(pos.x,pos.y);
+}
+// responde la pregunta que está en pantalla, bien o mal, tocando de verdad los botones (y el mapa o el dibujo)
 async function responder(p,bien){
-  const q=await p.evaluate(()=>{const q=INT.actual();return {tipo:q.tipo,tag:q.tag,ids:q.ids,ops:q.opciones&&q.opciones.map(o=>!!o.ok),aceptar:q.aceptar,izq:q.izq&&q.izq.map(x=>x.id),der:q.der&&q.der.map(x=>x.id)}});
+  const q=await p.evaluate(()=>{const q=INT.actual();return {tipo:q.tipo,tag:q.tag,ids:q.ids,ops:q.opciones&&q.opciones.map(o=>!!o.ok),aceptar:q.aceptar,izq:q.izq&&q.izq.map(x=>x.id),der:q.der&&q.der.map(x=>x.id),dib:q.dib,objetivo:q.objetivo,pasos:q.pasos,correcto:q.correcto}});
   if(q.tipo==='mc'){const i=bien?q.ops.indexOf(true):q.ops.indexOf(false);await p.click('#pPreg .opcion[data-i="'+i+'"]')}
   else if(q.tipo==='tipear'){await p.fill('#resp',bien?q.aceptar[0]:'zzz');await p.click('#bCheck')}
+  else if(q.tipo==='mapa'&&q.dib){const otra=await p.evaluate(o=>[...document.querySelectorAll('#pPreg svg.dibujo [data-id]')].map(e=>e.dataset.id).find(x=>x!==o),q.objetivo);await tocarPieza(p,'#pPreg',bien?q.objetivo:otra)}
+  else if(q.tipo==='ordenar'){const orden=q.correcto.map(t=>q.pasos.indexOf(t));for(const k of (bien?orden:orden.slice().reverse()))await p.click('#pPreg .paso[data-p="'+k+'"]');await p.click('#bOrdenListo')}
   else if(q.tipo==='mapa'){const lejos={jujuy:'santacruz',chile:'brasil',brasil:'chile',bolivia:'uruguay',paraguay:'chile',uruguay:'bolivia'},malo=lejos[q.ids[0]]||(q.ids[0]==='mendoza'?'misiones':'jujuy');await tocarProv(p,bien?q.ids[0]:malo,'#pPreg')}
   else if(q.tipo==='unir'){
     const par=async(i,jx)=>{await p.click('#pPreg .par[data-lado="i"][data-i="'+i+'"]');await p.click('#pPreg .par[data-lado="d"][data-i="'+jx+'"]')};
@@ -227,12 +316,81 @@ chk('armar preguntas no rompió la página',p.errs.length===0,j(p.errs));
 await cerrar(p);
 }
 
+// ---------- 2b) todas las preguntas de los temas de ideas: completas, con UNA sola respuesta correcta y coherentes con sus datos
+{
+const p=await abrir();
+const probar2=async()=>p.evaluate(()=>{
+  const I=window.INT,N=I.NORM,out=[],pr=(c,m)=>{if(out.length<40)out.push(c+': '+m)};
+  const strip=h=>String(h||'').replace(/<svg[\s\S]*?<\/svg>/g,' [dibujo] ').replace(/<[^>]*>/g,' ').replace(/&#39;/g,"'").replace(/&quot;/g,'"').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/\s+/g,' ').trim();
+  const TN=['cnMc','cnVf','cnTipear','cnOrdenar','cnUnir','cnTocar','cnEstacion'];
+  const val=(q,ctx)=>{
+    if(!q||typeof q!=='object')return pr(ctx,'no hay pregunta');
+    if(!['mc','tipear','unir','mapa','ordenar'].includes(q.tipo))pr(ctx,'tipo raro '+q.tipo);
+    if(!q.consigna||!q.ayuda||!q.mostrar||!q.explic||!q.resumen||!q.clave)pr(ctx,'falta consigna, ayuda, respuesta, explicación, resumen o clave');
+    if(!Array.isArray(q.ids)||!q.ids.length||q.ids.some(id=>!I.item(id)))pr(ctx,'ids raros '+JSON.stringify(q.ids));
+    const todo=strip((q.cuerpo||'')+' '+(q.opciones||[]).map(o=>o.t).join(' ')+' '+q.mostrar+' '+q.explic+' '+q.consigna);
+    if(/undefined|NaN|\[object|\bnull\b/.test(todo))pr(ctx,'texto con restos: '+todo.slice(0,80));
+    if(q.tipo==='mc'){const o=q.opciones;if(o.length<2||o.length>4)pr(ctx,o.length+' opciones');if(o.filter(x=>x.ok).length!==1)pr(ctx,'hay '+o.filter(x=>x.ok).length+' correctas');if(new Set(o.map(x=>N(x.t))).size!==o.length)pr(ctx,'opciones repetidas');if(!o.find(x=>x.ok)||o.find(x=>x.ok).t!==q.mostrar)pr(ctx,'«mostrar» no es la correcta')}
+    if(q.tipo==='tipear'&&(!q.aceptar||!q.aceptar.some(a=>N(a)===N(q.mostrar))))pr(ctx,'«mostrar» no está entre las aceptadas');
+    if(q.tipo==='ordenar'){
+      if(!Array.isArray(q.pasos)||!Array.isArray(q.correcto)||q.pasos.length!==q.correcto.length||[...q.pasos].sort().join('|')!==[...q.correcto].sort().join('|'))pr(ctx,'ordenar: los pasos no son los mismos que el orden correcto');
+      if(q.pasos.join('|')===q.correcto.join('|'))pr(ctx,'ordenar: ya vienen en orden');
+      if(q.mostrar.split('  ·  ').length!==q.correcto.length)pr(ctx,'ordenar: «mostrar» no lista todos los pasos');
+    }
+    if(q.tipo==='unir'){const ids=q.izq.map(x=>x.id);
+      if(new Set(ids).size!==ids.length||ids.join()!==q.ids.join()||q.der.map(x=>x.id).sort().join()!==ids.slice().sort().join())pr(ctx,'unir: los ids no coinciden');
+      if(ids.join()===q.der.map(x=>x.id).join())pr(ctx,'unir: la derecha ya viene en orden');
+      if(new Set(q.izq.map(x=>N(x.t))).size!==ids.length||new Set(q.der.map(x=>N(x.t))).size!==ids.length)pr(ctx,'unir: textos repetidos');
+      if(!q.colA||!q.colB)pr(ctx,'unir: sin títulos de columna');if(ids.length<4||ids.length>5)pr(ctx,'unir: '+ids.length+' pares');
+    }
+    if(q.tipo==='mapa'){const cu=String(q.cuerpo);
+      if(!q.dib||!q.objetivo)pr(ctx,'tocar: sin dibujo u objetivo');
+      if(!/<svg class="dibujo [^"]*clic"/.test(cu))pr(ctx,'tocar: el dibujo no se puede tocar');
+      if(cu.indexOf('data-id="'+q.objetivo+'"')<0)pr(ctx,'tocar: el dibujo no trae la pieza '+q.objetivo);
+      if(/class="[^"]*\b(?:res|ok|mal)\b[^"]*"\s+data-id/.test(cu))pr(ctx,'tocar: hay una pieza ya pintada');
+    }
+  };
+  I.IDEAS.conceptos.forEach(it=>TN.forEach(tipo=>{
+    const elegible=I.ELEGIBLES[tipo].includes(it);
+    const trae={cnMc:it.mc.length>0,cnVf:it.vf.length>0,cnTipear:it.tipear.length>0,cnOrdenar:it.ordenar.length>0,cnTocar:it.tocar.length>0,cnEstacion:!!it.estacion,cnUnir:I.tablerosDe(it).length>0}[tipo];
+    if(elegible!==trae)pr(it.id+'/'+tipo,'ELEGIBLES dice '+elegible+' pero la idea '+(trae?'sí':'no')+' trae preguntas de ese tipo');
+    if(!elegible)return;
+    const vistas=new Set();
+    for(let k=0;k<60;k++){let q;try{q=I.gen(tipo,it.id,k%4)}catch(e){pr(it.id+'/'+tipo,'se rompió: '+e.message);return}
+      val(q,it.id+'/'+tipo);vistas.add(q.clave);
+      if(tipo==='cnUnir'?!q.ids.includes(it.id):q.ids[0]!==it.id)pr(it.id+'/'+tipo,'la pregunta no es de esa idea');
+      if(q.tag!==tipo)pr(it.id+'/'+tipo,'la marca «tag» es '+q.tag);
+    }
+    const esperadas={cnMc:it.mc.length,cnVf:it.vf.length,cnTipear:it.tipear.length,cnOrdenar:it.ordenar.length,cnTocar:it.tocar.length,cnEstacion:4,cnUnir:I.tablerosDe(it).length}[tipo];
+    if(vistas.size!==esperadas)pr(it.id+'/'+tipo,'salieron '+vistas.size+' variantes distintas y se escribieron '+esperadas);
+  }));
+  // lo que no se puede preguntar tiene que fallar clarito (no devolver algo roto)
+  const sinMc=I.IDEAS.conceptos.find(c=>!c.ordenar.length);try{I.gen('cnOrdenar',sinMc.id,0);pr('cnOrdenar','una idea sin pasos para ordenar no falló')}catch(e){}
+  // el simulacro de Naturales entero
+  const nat=I.IDEAS.temas.filter(t=>t.area==='naturales');
+  for(let k=0;k<30;k++){const qs=I.armarSimulacroNat();
+    if(qs.length!==I.N_SIM_NAT)pr('simulacro de Naturales','tiene '+qs.length+' preguntas y N_SIM_NAT dice '+I.N_SIM_NAT);
+    const por={};qs.forEach(q=>{por[q.parte]=(por[q.parte]||0)+1});
+    if(JSON.stringify(por)!==JSON.stringify({'A · Elegí la respuesta':6,'B · Verdadero o falso':4,'C · Mirá el dibujo':4,'D · Ordená':2,'E · Uní las ideas':2,'F · Escribí':3}))pr('simulacro de Naturales','partes '+JSON.stringify(por));
+    qs.forEach((q,i)=>{val(q,'simulacro de Naturales/'+i);if(!q.ids.every(id=>nat.some(t=>t.conceptos.some(c=>c.id===id))))pr('simulacro de Naturales/'+i,'trae una idea que no es de Naturales')});
+    const claves=qs.map(q=>q.clave);if(new Set(claves).size!==claves.length)pr('simulacro de Naturales','hay una pregunta repetida');
+    const prot=qs.filter(q=>q.tipo!=='unir').map(q=>q.ids[0]);if(new Set(prot).size<prot.length-4)pr('simulacro de Naturales','demasiadas ideas repetidas: '+prot.length+' preguntas con '+new Set(prot).size+' ideas');
+    const tabs=qs.filter(q=>q.tipo==='unir').map(q=>q.clave.split('|')[0]);if(new Set(tabs).size!==tabs.length)pr('simulacro de Naturales','los dos tableros son del mismo tema');
+  }
+  return out;
+});
+const pr2=await probar2();
+chk('TODAS las preguntas de las ideas (7 tipos × cada idea que las trae × 4 niveles de caja, 60 veces cada una) salen bien armadas: UNA sola correcta, opciones distintas, ordenar con los mismos pasos mezclados, unir con sus ids, tocar con un dibujo que se puede tocar y trae la pieza; salen TODAS las variantes que se escribieron; y el simulacro de Naturales sale siempre completo, sin preguntas repetidas',pr2.length===0,pr2.slice(0,8).join(' | '));
+chk('armar las preguntas de las ideas no rompió la página',p.errs.length===0,j(p.errs));
+await cerrar(p);
+}
+
 // ---------- 3) el recorrido, de verdad, tocando los botones
 {
 const p=await abrir({fecha:'2026-11-16T12:00:00',estado:{fecha:'2026-11-19'}});
 const inicio=await p.innerText('#pInicio');
-chk('el inicio muestra el nombre del módulo, la cuenta regresiva («Faltan 3 días», «Jueves 19 de noviembre»), Sociales con su progreso y Naturales como «Pronto»',/Prueba final integradora/.test(inicio)&&/Faltan 3 días/.test(inicio)&&/Jueves,? 19 de noviembre/.test(inicio)&&/Sociales[\s\S]*Provincias y capitales[\s\S]*0 de 24 aprendidas[\s\S]*Países limítrofes[\s\S]*0 de 5 aprendidas/.test(inicio)&&/Naturales[\s\S]*Pronto/.test(inicio),inicio);
-chk('Naturales no se puede tocar todavía (no es un botón) y el simulacro está prendido mientras «Repasar lo que me salió mal» está apagado',await p.evaluate(()=>!document.querySelector('.area.pronto').matches('button')&&document.getElementById('bErrores').disabled&&!document.getElementById('bSim').disabled));
+chk('el inicio muestra el nombre del módulo, la cuenta regresiva («Faltan 3 días», «Jueves 19 de noviembre»), Sociales y Naturales con su progreso (los temas son botones) y sin ningún «Pronto»',/Prueba final integradora/.test(inicio)&&/Faltan 3 días/.test(inicio)&&/Jueves,? 19 de noviembre/.test(inicio)&&/Sociales[\s\S]*Provincias y capitales[\s\S]*0 de 24 aprendidas[\s\S]*Países limítrofes[\s\S]*0 de 5 aprendidas/.test(inicio)&&/Naturales[\s\S]*El Sol sobre el horizonte[\s\S]*0 de 14 aprendidas[\s\S]*Las estaciones del año[\s\S]*0 de 20 aprendidas[\s\S]*Observación y registro: el gnomon[\s\S]*0 de 10 aprendidas/.test(inicio)&&!/Pronto/.test(inicio),inicio);
+chk('el inicio ofrece un simulacro de cada materia («Simulacro de Sociales» y «Simulacro de Naturales»), prendidos, mientras «Repasar lo que me salió mal» está apagado; cada tarjeta de materia trae sus temas como botones',await p.evaluate(()=>!document.querySelector('.area.pronto')&&document.getElementById('bErrores').disabled&&!document.getElementById('bSim').disabled&&!document.getElementById('bSimNat').disabled&&/Simulacro de Sociales/.test(document.getElementById('bSim').innerText)&&/Simulacro de Naturales/.test(document.getElementById('bSimNat').innerText)&&document.querySelectorAll('.area[data-area="naturales"] .tema-btn').length===3&&document.querySelectorAll('.area[data-area="sociales"] .tema-btn').length>=2));
 await irTema(p);
 const tema=await p.evaluate(()=>({acts:[...document.querySelectorAll('.act')].map(a=>a.querySelector('b').textContent),filas:[...document.querySelectorAll('.fila-prov')].map(f=>f.innerText.replace(/\s+/g,' ').trim()),txt:document.getElementById('pTema').innerText}));
 chk('la pantalla del tema trae las 8 actividades y el memotest, el mapa para estudiar, la advertencia de la Ciudad de Buenos Aires y la lista de las 24 piezas con su capital',tema.acts.length===9&&['Elegir la capital','Elegir la provincia','¿Cuál está en el mapa?','Tocá en el mapa','Escribir la capital','Mapa mudo','Unir','Verdadero o falso','Memotest'].every(a=>tema.acts.includes(a))&&tema.filas.length===24&&/Buenos Aires La Plata/.test(tema.filas[0])&&/Tierra del Fuego Ushuaia/.test(tema.filas.join('|'))&&/Ciudad de Buenos Aires capital del país/.test(tema.filas[23])&&/no es una provincia/.test(tema.txt)&&/La Plata/.test(tema.txt));
@@ -312,11 +470,94 @@ chk('salir del memotest pide confirmar con un cartel propio y vuelve al tema',aw
 await cerrar(p);
 }
 
+// ---------- 3a) los temas de ideas: estudiar (resumen, cuadro, dibujos, mapa conceptual), practicar, cada actividad y el memotest — en CADA tema de Naturales y de Sociales
+{
+const p0=await abrir();const temasIds=await p0.evaluate(()=>INT.IDEAS.temas.map(t=>t.id));await cerrar(p0);
+const ACT_IDEAS=['cnMc','cnVf','cnTipear','cnOrdenar','cnUnir','cnTocar','cnEstacion'];
+for(const tid of temasIds){
+  const p=await abrir({fecha:'2026-11-16T12:00:00'});
+  const def=await p.evaluate(id=>{const t=INT.IDEAS.temas.find(x=>x.id===id);return {id:t.id,area:t.area,nombre:t.nombre,paginas:t.paginas,grupos:t.grupos.map(g=>g.titulo),conceptos:t.conceptos.map(c=>({id:c.id,titulo:c.titulo,resumen:c.resumen,mc:c.mc.length,vf:c.vf.length,tipear:c.tipear.length,ordenar:c.ordenar.length,tocar:c.tocar.length,estacion:c.estacion})),tableros:t.tableros.map(tb=>tb.pares.map(x=>x[0])),estudio:t.estudio.map(e=>({id:e.id,titulo:e.titulo,dibujos:e.dibujos||null})),cuadro:t.cuadro||null,mapa:t.mapa||null}},tid);
+  const hay={cnMc:c=>c.mc>0,cnVf:c=>c.vf>0,cnTipear:c=>c.tipear>0,cnOrdenar:c=>c.ordenar>0,cnTocar:c=>c.tocar>0,cnEstacion:c=>c.estacion,cnUnir:c=>def.tableros.some(tb=>tb.includes(c.id))};
+  const esperadas=ACT_IDEAS.filter(k=>def.conceptos.some(hay[k]));
+  const distintas={cnMc:def.conceptos.reduce((s,c)=>s+c.mc,0),cnVf:def.conceptos.reduce((s,c)=>s+c.vf,0),cnTipear:def.conceptos.reduce((s,c)=>s+c.tipear,0),cnOrdenar:def.conceptos.reduce((s,c)=>s+c.ordenar,0),cnTocar:def.conceptos.reduce((s,c)=>s+c.tocar,0),cnEstacion:4,cnUnir:def.tableros.length};
+  const NT='«'+def.nombre+'»: ';
+  await irTema(p,tid);
+  // la pantalla del tema
+  const tema=await p.evaluate(()=>({titulo:document.querySelector('#pTema .barra .titulo').innerText,acts:[...document.querySelectorAll('#pTema .act')].map(a=>a.dataset.act||a.id),filas:[...document.querySelectorAll('#pTema .fila-con')].map(f=>f.innerText.replace(/\s+/g,' ').trim()),estudiar:!!document.getElementById('bEstudiar'),practicar:!!document.getElementById('bPracticar')}));
+  chk(NT+'la pantalla del tema trae «Practicar», «Estudiar este tema», las actividades que tienen preguntas ('+esperadas.length+') y el memotest, y la lista con sus '+def.conceptos.length+' ideas',tema.practicar&&tema.estudiar&&tema.acts.join()===esperadas.concat(['bMemo']).join()&&tema.filas.length===def.conceptos.length&&def.conceptos.every((c,i)=>tema.filas[i].includes(c.titulo))&&tema.titulo.includes(def.nombre),j(tema).slice(0,300));
+  // estudiar: las pestañas
+  await p.click('#bEstudiar');await p.waitForSelector('#pEst .tab');
+  const tabs=await p.evaluate(()=>[...document.querySelectorAll('#pEst .tab')].map(b=>({id:b.dataset.tab,t:b.innerText.trim(),on:b.classList.contains('on')})));
+  chk(NT+'la pantalla de estudio trae sus pestañas ('+def.estudio.map(e=>e.id).join(', ')+') con sus títulos y en orden, y arranca en el resumen',tabs.map(t=>t.id).join()===def.estudio.map(e=>e.id).join()&&tabs[0].on&&tabs.slice(1).every(t=>!t.on)&&tabs.every((t,i)=>t.t===def.estudio[i].titulo),j(tabs));
+  const res=await p.evaluate(()=>({grupos:[...document.querySelectorAll('#pEst .grupo h2')].map(h=>h.innerText.trim()),cards:[...document.querySelectorAll('#pEst .con')].map(c=>({id:c.id,t:c.querySelector('h3').innerText.trim(),p:c.querySelector('p').innerText.trim()})),nota:(document.querySelector('#pEst .nota-aj')||{innerText:''}).innerText}));
+  chk(NT+'el resumen es una tarjeta por idea con SU resumen exacto, agrupadas con los títulos de los grupos, y al pie dice las páginas del libro y que si algo no coincide vale el libro',res.cards.length===def.conceptos.length&&def.conceptos.every(c=>res.cards.some(k=>k.id==='c-'+c.id&&k.p===c.resumen&&k.t.includes(c.titulo)))&&res.grupos.join('|')===def.grupos.join('|')&&res.nota.includes(def.paginas)&&/vale el libro/.test(res.nota),j({g:res.grupos,n:res.cards.length,nota:res.nota}).slice(0,300));
+  if(def.cuadro){
+    await p.click('#pEst .tab[data-tab="cuadro"]');
+    const cu=await p.evaluate(()=>({cabeza:[...document.querySelectorAll('#pEst .cuadro thead th')].map(h=>h.innerText.trim()),filas:[...document.querySelectorAll('#pEst .cuadro tbody tr')].map(tr=>({t:tr.querySelector('th').innerText.trim(),v:[...tr.querySelectorAll('td')].map(td=>td.innerText.trim()),rot:[...tr.querySelectorAll('td')].map(td=>getComputedStyle(td,'::before').content.replace(/^"|"$/g,''))}))}));
+    chk(NT+'el cuadro comparativo tiene sus '+def.cuadro.filas.length+' filas con los valores exactos y, en el celular, cada valor lleva el rótulo de su columna',cu.filas.length===def.cuadro.filas.length&&def.cuadro.filas.every((f,i)=>cu.filas[i].t===f.t&&cu.filas[i].v.join('|')===f.v.join('|')&&cu.filas[i].rot.join('|')===def.cuadro.cols.join('|'))&&cu.cabeza.slice(1).join('|')===def.cuadro.cols.join('|'),j(cu.filas[0]));
+  }
+  const dibs=(def.estudio.find(e=>e.id==='dibujos')||{}).dibujos||[];
+  if(dibs.length){
+    await p.click('#pEst .tab[data-tab="dibujos"]');await p.waitForSelector('#pEst .dib-est');
+    const sec=await p.evaluate(()=>[...document.querySelectorAll('#pEst .dib-est')].map(s=>s.dataset.dib));
+    chk(NT+'la pestaña de dibujos trae '+dibs.join(', ')+' en ese orden',sec.join()===dibs.join(),j(sec));
+    for(const d of dibs){
+      const info=await p.evaluate(d=>({piezas:[...new Set([...document.querySelectorAll('#pEst [data-dib="'+d+'"] svg.dibujo [data-id]')].map(e=>e.dataset.id))],inf:INT.IDEAS.info[d]||null}),d);
+      if(!info.inf)continue;   // los árboles no se tocan
+      const malos=[];
+      for(const id of info.piezas){
+        await tocarPieza(p,'#pEst [data-dib="'+d+'"]',id);await p.waitForTimeout(15);
+        const r=await p.evaluate(([d,id])=>({box:document.getElementById('info-'+d).innerText.replace(/\s+/g,' '),res:[...document.querySelectorAll('#pEst [data-dib="'+d+'"] svg.dibujo .res')].map(e=>e.dataset.id).join()}),[d,id]);
+        const esp=info.inf[id];if(!esp||!r.box.includes(esp.t)||!r.box.includes(esp.d.replace(/\s+/g,' '))||r.res!==id)malos.push(id+' → '+r.box.slice(0,60)+' ['+r.res+']');
+      }
+      chk(NT+'dibujo «'+d+'»: tocando de verdad cada una de sus '+info.piezas.length+' piezas aparece SU explicación y queda marcada sólo esa',malos.length===0&&info.piezas.length>=3,malos.slice(0,4).join(' | '));
+    }
+  }
+  await p.click('#pEst .tab[data-tab="mapa"]');
+  const mc=await p.evaluate(()=>({raiz:document.querySelector('#pEst .mc-raiz').innerText.trim(),ramas:[...document.querySelectorAll('#pEst .mc-rama')].map(r=>({t:r.querySelector('h3').innerText.trim(),h:[...r.querySelectorAll('li')].map(l=>l.innerText.trim())}))}));
+  chk(NT+'el mapa conceptual muestra la idea central y sus '+def.mapa.ramas.length+' ramas con todas sus frases',mc.raiz===def.mapa.raiz&&mc.ramas.length===def.mapa.ramas.length&&def.mapa.ramas.every((r,i)=>mc.ramas[i].t===r.t&&mc.ramas[i].h.join('|')===r.h.join('|')),j(mc.raiz));
+  // desde la lista de ideas se abre el resumen en esa idea
+  await p.click('#pEst .atras');await p.waitForSelector('#bPracticar');
+  const ult=def.conceptos[def.conceptos.length-1];
+  await p.click('#pTema .fila-con[data-ver="'+ult.id+'"]');await p.waitForSelector('#pEst .con.foco');
+  chk(NT+'tocar una idea de la lista abre el resumen y la deja marcada (la última: «'+ult.titulo+'»)',await p.evaluate(id=>document.querySelector('#pEst .tab.on').dataset.tab==='resumen'&&document.querySelector('#pEst .con.foco').id==='c-'+id&&document.querySelectorAll('#pEst .con.foco').length===1,ult.id));
+  await p.click('#pEst .atras');await p.waitForSelector('#bPracticar');
+  // practicar
+  await p.click('#bPracticar');await p.waitForSelector('#pPreg .consigna');
+  const r0=await p.evaluate(()=>({n:INT.ronda().qs.length,claves:INT.ronda().qs.map(q=>q.clave),ids:INT.ronda().qs.map(q=>q.ids[0])}));
+  await jugar(p,()=>true);const fin=await textoFin(p),st=await estado(p),idsT=def.conceptos.map(c=>c.id);
+  chk(NT+'«Practicar» arma 10 preguntas mezcladas sin repetir ninguna y todas de ideas de este tema; todo bien → «10 de 10», sin errores, y sube la caja de lo que apareció',r0.n===10&&new Set(r0.claves).size===10&&r0.ids.every(id=>idsT.includes(id))&&/10 de 10/.test(fin)&&/Sin errores/.test(fin)&&Object.keys(st.items).length>=5&&Object.keys(st.items).every(id=>idsT.includes(id))&&Object.values(st.items).every(e=>e.c>=1&&e.mal===0),j(r0.claves)+fin.slice(0,100)+j(st.items).slice(0,200));
+  // cada actividad
+  for(const k of esperadas){
+    await p.click('#bInicioFin');await p.waitForSelector('#pInicio .area');await irTema(p,tid);
+    await p.click('#pTema .act[data-act="'+k+'"]');await p.waitForSelector('#pPreg .consigna');
+    const r=await p.evaluate(()=>({n:INT.ronda().qs.length,tags:[...new Set(INT.ronda().qs.map(q=>q.tag))],claves:INT.ronda().qs.map(q=>q.clave)}));
+    const n=Math.max(1,Math.min(k==='cnUnir'?3:10,distintas[k]));
+    const t=await jugar(p,()=>true);const f2=await textoFin(p);
+    chk(NT+'actividad «'+k+'»: una ronda de '+n+' preguntas de ese tipo (hay '+distintas[k]+' distintas), sin repetir ninguna, todas bien → «'+n+' de '+n+'»',r.n===n&&r.tags.join()===k&&new Set(r.claves).size===r.claves.length&&new RegExp(n+' de '+n+'\\b').test(f2)&&/Sin errores/.test(f2),j(r)+f2.slice(0,100));
+  }
+  // el memotest: 5 parejas de un tablero (con alguna de otros), una equivocada y después todas bien
+  await p.click('#bInicioFin');await p.waitForSelector('#pInicio .area');await irTema(p,tid);
+  await p.click('#bMemo');await p.waitForSelector('#pMemo .cm');
+  const mm=await p.evaluate(()=>({n:document.querySelectorAll('#pMemo .cm').length,largo:document.querySelector('#pMemo .memo').classList.contains('largo'),ids:[...new Set(INT.memo().cartas.map(c=>c.id))],cartas:INT.memo().cartas.map(c=>c.id+'|'+c.lado+'|'+c.t),txt:document.querySelector('#pMemo .sub').innerText}));
+  chk(NT+'el memotest arma 10 cartas de 5 parejas (una idea y lo que le corresponde) de este tema, sin textos repetidos, todas boca abajo',mm.n===10&&mm.largo&&mm.ids.length===5&&mm.ids.every(id=>idsT.includes(id))&&new Set(mm.cartas.map(x=>NORMT(x.split('|')[2]))).size===10&&/una idea y lo que le corresponde/.test(mm.txt),j(mm).slice(0,300));
+  const malos=await p.evaluate(()=>{const c=INT.memo().cartas;for(let i=0;i<c.length;i++)for(let k=i+1;k<c.length;k++)if(c[i].id!==c[k].id)return [i,k]});
+  await p.click('#pMemo .cm[data-c="'+malos[0]+'"]');await p.click('#pMemo .cm[data-c="'+malos[1]+'"]');await p.waitForTimeout(1100);
+  const pares=await p.evaluate(()=>{const c=INT.memo().cartas,m={};c.forEach((x,i)=>(m[x.id]=m[x.id]||[]).push(i));return Object.values(m)});
+  for(const [a,c] of pares){await p.click('#pMemo .cm[data-c="'+a+'"]');await p.click('#pMemo .cm[data-c="'+c+'"]')}
+  await p.waitForSelector('#pFin:not([hidden])',{timeout:5000});
+  const fm=await textoFin(p),sm=await estado(p);
+  chk(NT+'al encontrar las 5 parejas termina: dice los intentos (6: uno equivocado y cinco bien) y se anota en las cajas',/6\s+intentos/.test(fm)&&sm.rondas>=2&&idsT.filter(id=>sm.items[id]).length>=5,fm.slice(0,160));
+  chk(NT+'no hubo errores de página',p.errs.length===0,j(p.errs));
+  await cerrar(p);
+}
+}
+
 // ---------- 3b) el tema «Países limítrofes»
 {
 const p=await abrir();
-const temasIni=await p.evaluate(()=>[...document.querySelectorAll('#pInicio .tema-btn')].map(b=>b.innerText.replace(/\s+/g,' ').trim()));
-chk('el inicio muestra los dos temas de Sociales con su progreso cada uno («0 de 24 aprendidas» y «0 de 5 aprendidas»)',temasIni.length===2&&/Provincias y capitales 0 de 24 aprendidas/.test(temasIni[0])&&/Países limítrofes 0 de 5 aprendidas/.test(temasIni[1]),j(temasIni));
+const temasIni=await p.evaluate(()=>[...document.querySelectorAll('#pInicio .area[data-area="sociales"] .tema-btn')].slice(0,2).map(b=>b.innerText.replace(/\s+/g,' ').trim()));
+chk('el inicio muestra los dos primeros temas de Sociales con su progreso cada uno («0 de 24 aprendidas» y «0 de 5 aprendidas»)',temasIni.length===2&&/Provincias y capitales 0 de 24 aprendidas/.test(temasIni[0])&&/Países limítrofes 0 de 5 aprendidas/.test(temasIni[1]),j(temasIni));
 await irTema(p,'limitrofes');
 const tp=await p.evaluate(()=>({titulo:document.querySelector('#pTema .titulo').innerText,acts:[...document.querySelectorAll('.act')].map(a=>a.querySelector('b').textContent),filas:[...document.querySelectorAll('.fila-prov')].map(f=>f.innerText.replace(/\s+/g,' ').trim()),txt:document.getElementById('pTema').innerText.replace(/\s+/g,' ')}));
 chk('la pantalla de «Países limítrofes» trae las 8 actividades con las palabras de un país, el memotest, el mapa para estudiar, el aviso de las DOS capitales de Bolivia y la lista de los 5 países con su capital (sin el aviso de la Ciudad de Buenos Aires)',/Países limítrofes/.test(tp.titulo)&&tp.acts.join('|')==='Elegir la capital|Elegir el país|¿Cuál está en el mapa?|Tocá en el mapa|Escribir la capital|Mapa mudo|Unir|Verdadero o falso|Memotest'&&tp.filas.join('|')==='Chile Santiago|Bolivia Sucre y La Paz|Paraguay Asunción|Brasil Brasilia|Uruguay Montevideo'&&/Bolivia tiene dos capitales/.test(tp.txt)&&/Valen las dos/.test(tp.txt)&&!/Ciudad de Buenos Aires/.test(tp.txt),j(tp));
@@ -594,6 +835,32 @@ chk('el simulacro no produjo errores de página',p.errs.length===0,j(p.errs));
 await cerrar(p);
 }
 
+// ---------- 4b) el simulacro de Naturales: 21 preguntas en 6 partes, sin ver si estuvo bien hasta el final, con su resultado por parte (y no se mezcla con el de Sociales)
+{
+const p=await abrir();
+await p.click('#bSimNat');await p.waitForSelector('#pPreg .consigna');
+const sim=await p.evaluate(()=>{const R=INT.ronda(),por={};R.qs.forEach(q=>{por[q.parte]=(por[q.parte]||0)+1});return {n:R.qs.length,test:R.test,area:R.area,por,parte:document.querySelector('.parte')&&document.querySelector('.parte').textContent}});
+chk('el simulacro de Naturales tiene 21 preguntas en 6 partes (A · Elegí la respuesta 6, B · Verdadero o falso 4, C · Mirá el dibujo 4, D · Ordená 2, E · Uní las ideas 2, F · Escribí 3), es de Naturales y muestra la parte en cada pregunta',sim.n===21&&sim.test&&sim.area==='naturales'&&JSON.stringify(sim.por)===JSON.stringify({'A · Elegí la respuesta':6,'B · Verdadero o falso':4,'C · Mirá el dibujo':4,'D · Ordená':2,'E · Uní las ideas':2,'F · Escribí':3})&&/^A · /.test(sim.parte||''),j(sim));
+await responder(p,true);await p.waitForTimeout(80);
+chk('en el simulacro de Naturales no se ve si estuvo bien o mal hasta el final (ni cartel, ni colores, ni «Siguiente»)',!(await visible(p,'#feedback'))&&!(await p.evaluate(()=>!!document.querySelector('#pPreg .opcion.si, #pPreg .opcion.no, #pPreg .resp.si, #pPreg .resp.no, #pPreg #bSig, #pPreg .paso.si, #pPreg .paso.no'))));
+await p.waitForFunction(()=>INT.ronda().i===1);
+const tipos=await jugar(p,()=>true,true);
+const fin=await textoFin(p),st=await estado(p);
+chk('simulacro de Naturales todo bien: «21 de 21», 100 %, «Por parte» con las 6 partes, sin errores, y queda guardado como un simulacro de Naturales ('+[...new Set(tipos)].join('/')+')',/21 de 21/.test(fin)&&/100 %/.test(fin)&&(await p.locator('#pFin .pt').count())===6&&st.sims.length===1&&st.sims[0].a==='naturales'&&st.sims[0].p===21&&st.sims[0].t===21&&!/Para repasar/.test(fin),fin.slice(0,200)+j(st.sims));
+chk('el resultado por parte muestra cuántas salieron bien en cada una (6 / 6, 4 / 4, 4 / 4, 2 / 2, 2 / 2, 3 / 3)',await p.evaluate(()=>[...document.querySelectorAll('#pFin .pt b')].map(x=>x.textContent).join()==='6 / 6,4 / 4,4 / 4,2 / 2,2 / 2,3 / 3'));
+await p.click('#bInicioFin');await p.waitForSelector('#pInicio .area');
+chk('el inicio muestra «tu mejor resultado: 100 %» en el simulacro de Naturales, y el de Sociales sigue sin resultado propio',/tu mejor resultado: 100 %/.test(await p.innerText('#bSimNat'))&&/preguntas como las de una prueba/.test(await p.innerText('#bSim')));
+await p.click('#bSimNat');await p.waitForSelector('#pPreg .consigna');
+await jugar(p,()=>false,true);
+const finM=await textoFin(p),stM=await estado(p);
+chk('simulacro de Naturales todo mal: «0 de 21», «Para repasar (21)», y el mejor resultado sigue siendo el de antes',/0 de 21/.test(finM)&&/Para repasar \(21\)/.test(finM)&&stM.sims.length===2&&stM.sims[1].p===0&&Math.max(...stM.sims.map(s=>s.p))===21,finM.slice(0,200));
+chk('cada error del simulacro de Naturales dice qué se preguntaba, la respuesta buena (✔) y qué contestó (✘), sin repetir la pregunta dos veces',await p.evaluate(()=>{const e=[...document.querySelectorAll('#pFin .err')];return e.length===21&&e.every(x=>x.querySelector('.er')&&x.querySelector('.ee').textContent.length>5)&&e.every(x=>{const q=x.querySelector('.eq').textContent.trim(),pp=x.querySelector('.ep');return !pp||pp.textContent.trim()!==q})}));
+await p.click('#bRepetirErr');await p.waitForSelector('#pPreg .consigna');
+chk('«Repasar lo que falló» después del simulacro de Naturales arma una ronda de 5 a 10 preguntas de ideas de Naturales',await p.evaluate(()=>{const R=INT.ronda();return R.qs.length>=5&&R.qs.length<=10&&R.qs.every(q=>q.ids.every(id=>INT.IDEAS.temas.some(t=>t.area==='naturales'&&t.conceptos.some(c=>c.id===id))))}));
+chk('el simulacro de Naturales no produjo errores de página',p.errs.length===0,j(p.errs));
+await cerrar(p);
+}
+
 // ---------- 5) lo que se escribe, doble toque, mapa, salir, ajustes y borrar
 {
 const p=await abrir();
@@ -678,6 +945,15 @@ for(const [n,e] of casos){
   await irTema(p);await p.click('#bPracticar');await p.waitForSelector('#pPreg .consigna');await responder(p,true);
   await cerrar(p);
 }
+// lo guardado de los temas de ideas: los simulacros recuerdan de qué materia son (los viejos, sin materia, cuentan como de Sociales) y las ideas guardadas se conservan (con el mismo filtro de ids raros)
+{
+  const p=await abrir({estado:j2({fecha:'2026-11-19',sims:[{f:'2026-11-10',p:20,t:30},{f:'2026-11-11',p:15,t:21,a:'naturales'},{f:'2026-11-12',p:3,t:21,a:'otra cosa'},{f:'2026-11-13',p:5,t:21,a:{x:1}},null],items:{verano:{c:2,ok:3,mal:1,u:'2026-11-15'},sol_verano:{c:1,ok:1,mal:0,u:'2026-11-15'},arco:{c:99,ok:-5,mal:'x',u:'mañana'},constructor:{c:4},toString:{c:1},idea_que_no_existe:{c:3}}})});
+  const st=await p.evaluate(()=>INT.estado());
+  chk('los simulacros guardados recuerdan su materia: sin materia o con una rara cuentan como de Sociales, «naturales» se conserva',st.sims.map(x=>x.a).join()==='sociales,naturales,sociales,sociales',j(st.sims));
+  chk('las ideas de los temas de ideas guardadas se conservan con sus cajas sanas, y los ids que no son ideas ni provincias («constructor», «toString», uno inventado) se descartan',Object.keys(st.items).sort().join()==='arco,sol_verano,verano'&&st.items.verano.c===2&&st.items.sol_verano.c===1&&st.items.arco.c===4&&st.items.arco.ok===0&&st.items.arco.mal===0&&st.items.arco.u==='',j(st.items));
+  chk('el inicio muestra el mejor resultado de CADA materia por separado (Sociales 67 %, Naturales 71 %)',/tu mejor resultado: 67 %/.test(await p.innerText('#bSim'))&&/tu mejor resultado: 71 %/.test(await p.innerText('#bSimNat')));
+  await cerrar(p);
+}
 const p=await abrir({storageRoto:true});
 await irTema(p);await p.click('.act[data-act="capEleg"]');await p.waitForSelector('#pPreg .consigna');
 await jugar(p,()=>true);
@@ -709,14 +985,15 @@ const medir=()=>{
   const de=document.documentElement;if(de.scrollWidth>vw+1)out.push('scroll horizontal: '+de.scrollWidth+' > '+vw);
   const vis=e=>{const r=e.getBoundingClientRect(),c=getComputedStyle(e);return r.width>0&&r.height>0&&c.visibility!=='hidden'&&c.display!=='none'};
   const caja=e=>{const r=e.getBoundingClientRect();return {l:r.left,r:r.right,t:r.top+scrollY,b:r.bottom+scrollY,w:r.width,h:r.height}};
-  const todos=[...pant.querySelectorAll('button,input,svg.mapa')].filter(vis);
+  const todos=[...pant.querySelectorAll('button,input,svg.mapa,svg.dibujo')].filter(vis);
   todos.forEach(e=>{const c=caja(e);
     if(c.l<-0.5||c.r>vw+0.5)out.push('se sale de la pantalla: '+desc(e)+' ['+Math.round(c.l)+','+Math.round(c.r)+']');
     if(e.matches('svg.mapa')&&(c.h<150||c.w<70))out.push('el mapa quedó muy chico: '+Math.round(c.w)+'×'+Math.round(c.h));
+    if(e.matches('svg.dibujo')&&!e.matches('svg.arbol')&&(c.h<60||c.w<110))out.push('el dibujo quedó muy chico: '+Math.round(c.w)+'×'+Math.round(c.h));
     if(e.matches('button,input')&&!e.matches('input[type=checkbox]')&&(c.w<34||c.h<34))out.push('muy chico para el dedo: '+desc(e)+' '+Math.round(c.w)+'×'+Math.round(c.h));
     if(e.matches('input[type=checkbox]')){const fila=e.closest('label');if(!fila||fila.getBoundingClientRect().height<44)out.push('casillero sin una fila grande para tocar: '+desc(e))}
-    if(e.matches('.opcion,.par,.btn,.act,.fila-prov,.cm,.area,.tema-btn,.resp')&&e.scrollWidth>e.clientWidth+1)out.push('texto cortado: '+desc(e)+' '+e.scrollWidth+'>'+e.clientWidth);
-    if(e.matches('.opcion,.par,.btn,.act,.cm,.area,.tema-btn')&&e.scrollHeight>e.clientHeight+2)out.push('texto cortado (alto): '+desc(e))});
+    if(e.matches('.opcion,.par,.btn,.act,.fila-prov,.cm,.area,.tema-btn,.resp,.paso,.tab')&&e.scrollWidth>e.clientWidth+1)out.push('texto cortado: '+desc(e)+' '+e.scrollWidth+'>'+e.clientWidth);
+    if(e.matches('.opcion,.par,.btn,.act,.cm,.area,.tema-btn,.paso,.tab')&&e.scrollHeight>e.clientHeight+2)out.push('texto cortado (alto): '+desc(e))});
   const bs=scrollY>2?[]:todos.filter(e=>e.matches('button,input'));
   for(let i=0;i<bs.length;i++)for(let k=i+1;k<bs.length;k++){if(bs[i].contains(bs[k])||bs[k].contains(bs[i]))continue;const a=caja(bs[i]),c=caja(bs[k]);const ix=Math.min(a.r,c.r)-Math.max(a.l,c.l),iy=Math.min(a.b,c.b)-Math.max(a.t,c.t);if(ix>2&&iy>2)out.push('se pisan: '+desc(bs[i])+' y '+desc(bs[k]))}
   [...pant.querySelectorAll('*:not(svg *)')].forEach(e=>{if(!vis(e))return;const r=e.getBoundingClientRect();if(r.right>vw+1||r.left<-1){if(!out.some(x=>x.includes(desc(e))))out.push('contenido fuera de la pantalla: '+desc(e))}});
@@ -784,6 +1061,75 @@ for(const [nombre,w,h] of (RAPIDO?TAMANOS.slice(3,4):TAMANOS)){
   await cerrar(p);
 }
 
+
+// ---------- 8b) DISEÑO de los temas de ideas (resumen, cuadro, dibujos, mapa conceptual, cada tipo de pregunta, el memotest de ideas y el resultado del simulacro de Naturales), en 12 tamaños
+for(const [nombre,w,h] of (RAPIDO?TAMANOS.slice(3,4):TAMANOS)){
+  const p=await abrir({vp:{width:w,height:h}});
+  const falla=[];
+  const m=async(que)=>{const o=await p.evaluate(medir);o.forEach(x=>falla.push(que+' → '+x))};
+  const temas=await p.evaluate(()=>INT.IDEAS.temas.map(t=>({id:t.id,tabs:t.estudio.map(e=>e.id),dibs:(t.estudio.find(e=>e.id==='dibujos')||{}).dibujos||[]})));
+  await m('inicio (con Naturales)');
+  for(const t of temas){
+    await irTema(p,t.id);await m('tema '+t.id);
+    await p.click('#bEstudiar');await p.waitForSelector('#pEst .tab');
+    for(const tab of t.tabs){
+      await p.click('#pEst .tab[data-tab="'+tab+'"]');await p.waitForTimeout(40);await m('estudio '+t.id+' · '+tab);
+      if(tab==='dibujos')for(const d of t.dibs){
+        const pz=await p.evaluate(d=>{const ids=[...new Set([...document.querySelectorAll('#pEst [data-dib="'+d+'"] svg.dibujo [data-id]')].map(e=>e.dataset.id))],inf=INT.IDEAS.info[d];if(!inf)return null;return ids.sort((a,b)=>(inf[b].t+inf[b].d).length-(inf[a].t+inf[a].d).length)[0]},d);
+        if(pz){await tocarPieza(p,'#pEst [data-dib="'+d+'"]',pz);await m('estudio '+t.id+' · dibujo '+d+' con la explicación más larga ('+pz+')')}
+      }
+    }
+    await p.click('#pEst .atras');await p.click('#pTema .atras');await p.waitForSelector('#bSimNat');
+  }
+  // las preguntas: de cada tipo, las de enunciado y opciones más largos (y una de cada dibujo en «tocar»)
+  const lote=await p.evaluate(()=>{
+    const I=window.INT,tipos=['cnMc','cnVf','cnTipear','cnOrdenar','cnUnir','cnTocar','cnEstacion'];window.__lote=[];
+    const largo=q=>(q.consigna||'').length+(q.cuerpo||'').replace(/<svg[\s\S]*?<\/svg>/g,'').replace(/<[^>]*>/g,'').length+(q.opciones||[]).reduce((s,o)=>s+o.t.length,0)+(q.izq||[]).reduce((s,x)=>s+x.t.length,0)+(q.der||[]).reduce((s,x)=>s+x.t.length,0)+(q.pasos||[]).reduce((s,x)=>s+x.length,0);
+    tipos.forEach(tipo=>{const qs=[];I.IDEAS.conceptos.filter(it=>I.ELEGIBLES[tipo].includes(it)).forEach(it=>{for(let k=0;k<6;k++){try{qs.push(I.gen(tipo,it.id,1))}catch(e){}}});
+      qs.sort((a,b)=>largo(b)-largo(a));qs.slice(0,3).forEach(q=>window.__lote.push(q));
+      if(tipo==='cnTocar')[...new Set(qs.map(q=>q.dib))].forEach(d=>{const q=qs.find(x=>x.dib===d);if(q&&!window.__lote.includes(q))window.__lote.push(q)})});
+    return window.__lote.length;
+  });
+  for(let i=0;i<lote;i++){
+    await p.evaluate(i=>{INT.rondaCon([window.__lote[i]],false)},i);
+    await p.waitForSelector('#pPreg .consigna');
+    const info=await p.evaluate(()=>INT.actual().tag+(INT.actual().dib?'/'+INT.actual().dib:''));
+    await m('pregunta '+i+' '+info);
+    let colocado=false;
+    if(info.startsWith('cnOrdenar')){   // con todos los pasos puestos (numerados, en el orden al revés) y el botón «Listo» prendido
+      const orden=await p.evaluate(()=>{const q=INT.actual();return q.correcto.map(t=>q.pasos.indexOf(t))});
+      for(const k of orden.slice().reverse())await p.click('#pPreg .paso[data-p="'+k+'"]');
+      await m('ordenar con todos los pasos puestos '+i);colocado=true;
+    }
+    if(i%2===0||colocado){
+      if(colocado)await p.click('#bOrdenListo');else await responder(p,false);
+      await p.waitForSelector('#feedback:not([hidden])');
+      await p.evaluate(()=>{window.scrollTo(0,0)});await p.waitForTimeout(20);
+      await m('corregida '+i+' '+info);
+      const sig=await p.evaluate(()=>{const e=document.getElementById('bSig');if(!e)return 'no hay «Siguiente»';e.scrollIntoView({block:'nearest'});const r=e.getBoundingClientRect(),bar=document.querySelector('#pPreg .barra').getBoundingClientRect();return r.top>=bar.bottom-1&&r.bottom<=innerHeight+1&&r.left>=0&&r.right<=innerWidth+1?'':'«Siguiente» no se ve entero (o queda bajo la barra de arriba): '+Math.round(r.top)+'–'+Math.round(r.bottom)+' de '+innerHeight+', barra hasta '+Math.round(bar.bottom)});
+      if(sig)falla.push('corregida '+i+' '+info+' → '+sig);
+    }
+  }
+  // «unir» del simulacro de Naturales, con las parejas numeradas y «Listo»
+  await p.evaluate(()=>{INT.rondaCon([INT.armarSimulacroNat().find(x=>x.tipo==='unir')],true)});await p.waitForSelector('#bUnirListo');
+  const qu=await p.evaluate(()=>({izq:INT.actual().izq.map(x=>x.id),der:INT.actual().der.map(x=>x.id)}));
+  for(let i=0;i<qu.izq.length;i++){await p.click('#pPreg .par[data-lado="i"][data-i="'+i+'"]');await p.click('#pPreg .par[data-lado="d"][data-i="'+qu.der.indexOf(qu.izq[i])+'"]')}
+  await m('unir del simulacro de Naturales (parejas numeradas y «Listo»)');
+  // el memotest de ideas (cartas con frases): boca abajo y con todas abiertas
+  await p.evaluate(()=>{window.scrollTo(0,0)});await p.click('#pPreg .barra .atras').catch(()=>{});
+  await p.waitForSelector('#modal:not([hidden])').then(()=>p.click('#mSi')).catch(()=>{});
+  await p.waitForSelector('#pInicio:not([hidden])');
+  for(const t of temas){
+    await irTema(p,t.id);await p.click('#bMemo');await p.waitForSelector('#pMemo .cm');await m('memotest de ideas '+t.id+' (boca abajo)');
+    await p.evaluate(()=>document.querySelectorAll('#pMemo .cm').forEach(c=>c.classList.add('abierta')));await m('memotest de ideas '+t.id+' (todas abiertas)');
+    await p.click('#bSalirMemo');await p.click('#mSi');await p.waitForSelector('#bPracticar');await p.click('#pTema .atras');await p.waitForSelector('#bSimNat');
+  }
+  // el resultado del simulacro de Naturales, con errores
+  await p.click('#bSimNat');await p.waitForSelector('#pPreg .consigna');await jugar(p,i=>i%3===0,true);await m('resultado del simulacro de Naturales (con errores)');
+  chk('diseño de los temas de ideas '+nombre+': inicio, '+temas.length+' temas con todas sus pestañas de estudio (y cada dibujo con una pieza elegida), '+lote+' preguntas (sin corregir y corregidas), unir del simulacro, el memotest de ideas y el resultado del simulacro de Naturales — nada se sale, se pisa ni se corta, y los dibujos se ven',falla.length===0&&p.errs.length===0,falla.slice(0,6).join(' | ')+j(p.errs));
+  await cerrar(p);
+}
+
 // ---------- 9) contraste de los colores (WCAG AA = 4,5 a 1 para texto normal) en claro y en oscuro
 for(const oscuro of (RAPIDO?[false]:[false,true])){
   const p=await abrir({oscuro,estado:{fecha:'2026-11-19',items:{mendoza:{c:2,ok:2,mal:1,u:'2026-11-15'}}}});
@@ -795,15 +1141,16 @@ for(const oscuro of (RAPIDO?[false]:[false,true])){
     const out=[];const pant=document.querySelector('.pantalla:not([hidden])');
     [...pant.querySelectorAll('*:not(svg *)')].filter(e=>e.children.length===0||e.matches('button,.frase,.fbt,.fbr,.fbe,.pal,.fp-n,.fp-c')).forEach(e=>{
       const r=e.getBoundingClientRect();if(!r.width||!r.height)return;const t=(e.childNodes.length&&[...e.childNodes].some(n=>n.nodeType===3&&n.textContent.trim()));if(!t)return;
-      if(e.closest('.cuenta,.area'))return;   // blanco sobre degradé: se mide aparte
+      if(e.closest('.cuenta,.area,.mc-raiz'))return;   // blanco sobre degradé: se mide aparte
       const cs=getComputedStyle(e),a=lum(cs.color),b=lum(fondo(e)),ratio=(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
       const grande=parseFloat(cs.fontSize)>=24||(parseFloat(cs.fontSize)>=18.66&&+cs.fontWeight>=700);
       if(ratio<(grande?3:4.5))out.push(e.className.split(' ')[0]+'«'+(e.innerText||'').slice(0,20).replace(/\n/g,' ')+'» '+ratio.toFixed(2)+' (color '+cs.color+' sobre '+fondo(e)+')')});
+    [...pant.querySelectorAll('.cuadro td')].forEach(td=>{const cs=getComputedStyle(td,'::before');if(cs.content==='none'||cs.content==='normal')return;const a=lum(cs.color),b=lum(fondo(td)),ratio=(Math.max(a,b)+.05)/(Math.min(a,b)+.05);if(ratio<4.5)out.push('rótulo del cuadro «'+td.dataset.col+'» '+ratio.toFixed(2)+' (color '+cs.color+' sobre '+fondo(td)+')')});
     // lo que va sobre un degradé (la cuenta regresiva y las tarjetas de las materias): se mide contra CADA color del degradé que dice el CSS de verdad (el peor caso), con la transparencia del texto y de lo que lo contiene
     const rgb=c=>num(c).slice(0,3),lumRGB=a=>.2126*lin(a[0])+.7152*lin(a[1])+.0722*lin(a[2]);
     const ratioRGB=(a,b)=>{const x=lumRGB(a),y=lumRGB(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)};
     const opac=(e,tope)=>{let o=1;while(e){o*=+getComputedStyle(e).opacity;if(e===tope)break;e=e.parentElement}return o};
-    pant.querySelectorAll('.cuenta,.area').forEach(cont=>{
+    pant.querySelectorAll('.cuenta,.area,.mc-raiz').forEach(cont=>{
       let st=(getComputedStyle(cont).backgroundImage.match(/rgba?\([^)]*\)/g)||[]).map(rgb);
       if(!st.length)st=[rgb(fondo(cont))];
       [cont,...cont.querySelectorAll('*')].forEach(e=>{
@@ -825,8 +1172,31 @@ for(const oscuro of (RAPIDO?[false]:[false,true])){
   }
   await p.evaluate(()=>{INT.rondaCon([INT.gen('capEleg','chaco',0)],false)});await p.waitForSelector('#pPreg .opcion');await responder(p,true);await p.waitForSelector('#feedback:not([hidden])');await medirContraste('corregida (bien)');
   await p.evaluate(()=>{INT.rondaCon([INT.gen('capEleg','chaco',0),INT.gen('capEleg','salta',0)],false)});await p.waitForSelector('#pPreg .opcion');await jugar(p,i=>i>0);await medirContraste('resultado');
+  // los temas de ideas: cada tema, todas sus pestañas de estudio (con una pieza de cada dibujo elegida), cada tipo de pregunta (sin corregir, con los pasos puestos y corregida) y el memotest
+  await p.click('#bInicioFin');await p.waitForSelector('#pInicio .area');await medirContraste('inicio (con Naturales)');
+  const temasC=await p.evaluate(()=>INT.IDEAS.temas.map(t=>({id:t.id,tabs:t.estudio.map(e=>e.id),dibs:(t.estudio.find(e=>e.id==='dibujos')||{}).dibujos||[]})));
+  for(const t of temasC){
+    await irTema(p,t.id);await medirContraste('tema '+t.id);
+    await p.click('#bEstudiar');await p.waitForSelector('#pEst .tab');
+    for(const tab of t.tabs){
+      await p.click('#pEst .tab[data-tab="'+tab+'"]');await p.waitForTimeout(30);
+      if(tab==='dibujos')for(const d of t.dibs){const pz=await p.evaluate(d=>(INT.IDEAS.info[d]?[...new Set([...document.querySelectorAll('#pEst [data-dib="'+d+'"] svg.dibujo [data-id]')].map(e=>e.dataset.id))][0]:null)||null,d);if(pz)await tocarPieza(p,'#pEst [data-dib="'+d+'"]',pz)}
+      await medirContraste('estudio '+t.id+' · '+tab);
+    }
+    await p.click('#pEst .atras');await p.click('#pTema .atras');
+  }
+  for(const [tipo,id] of [['cnMc','verano'],['cnVf','arco'],['cnTipear','gnomon'],['cnOrdenar','estaciones'],['cnUnir','verano'],['cnTocar','sombra_mediodia'],['cnEstacion','estaciones']]){
+    await p.evaluate(([t,i])=>{INT.rondaCon([INT.gen(t,i,1)],false)},[tipo,id]);await p.waitForSelector('#pPreg .consigna');await medirContraste('pregunta '+tipo);
+    if(tipo==='cnOrdenar'){const orden=await p.evaluate(()=>{const q=INT.actual();return q.correcto.map(t=>q.pasos.indexOf(t))});for(const k of orden.slice().reverse())await p.click('#pPreg .paso[data-p="'+k+'"]');await medirContraste('ordenar con los pasos puestos (al revés)');await p.click('#bOrdenListo')}
+    else await responder(p,false);
+    await p.waitForSelector('#feedback:not([hidden])');await medirContraste('corregida (mal) '+tipo);
+  }
+  await p.evaluate(()=>{INT.rondaCon([INT.gen('cnOrdenar','estaciones',1)],false)});await p.waitForSelector('#pPreg .paso');await responder(p,true);await p.waitForSelector('#feedback:not([hidden])');await medirContraste('ordenar corregida (bien)');
+  await p.click('#pPreg .barra .atras');await p.click('#mSi');await p.waitForSelector('#pInicio:not([hidden])');
+  await irTema(p,'sol');await p.click('#bMemo');await p.waitForSelector('#pMemo .cm');await p.evaluate(()=>document.querySelectorAll('#pMemo .cm').forEach(c=>c.classList.add('abierta')));await medirContraste('memotest de ideas (abiertas)');await p.click('#bSalirMemo');await p.click('#mSi');await p.waitForSelector('#bPracticar');await p.click('#pTema .atras');
+  await p.click('#bSimNat');await p.waitForSelector('#pPreg .consigna');await jugar(p,i=>i%3===0,true);await medirContraste('resultado del simulacro de Naturales');
   await p.click('#bInicioFin');await p.click('#pInicio .barra .atras');await p.waitForSelector('#aFecha');await medirContraste('ajustes');
-  chk('contraste de los textos en modo '+(oscuro?'oscuro':'claro')+' (4,5 a 1; 3 a 1 en texto grande) en inicio, tema, mapa, preguntas, corregidas, resultado y ajustes',malos.length===0,malos.slice(0,6).join(' | '));
+  chk('contraste de los textos en modo '+(oscuro?'oscuro':'claro')+' (4,5 a 1; 3 a 1 en texto grande) en inicio, tema, mapa, preguntas, corregidas, resultado, ajustes, y en los temas de ideas (resumen, cuadro, dibujos, mapa conceptual, cada tipo de pregunta, memotest y resultado del simulacro de Naturales)',malos.length===0,malos.slice(0,6).join(' | '));
   await cerrar(p);
 }
 

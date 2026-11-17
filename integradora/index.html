@@ -14,16 +14,18 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@400;600;800&display=swap">
-<link rel="stylesheet" href="estilos.css?b=2026-11-16-integradora-arreglos-de-la-revision-doble-toque-unir-en-el-simulacro-fechas">
+<link rel="stylesheet" href="estilos.css?b=2026-11-17-integradora-naturales-paginas-122-a-127">
 </head>
 <body>
 <main class="app">
-  <!-- Inicio: las materias (Sociales; Naturales todavía no), el simulacro y el repaso de lo que salió mal -->
+  <!-- Inicio: las materias (Sociales y Naturales), un simulacro de cada una y el repaso de lo que salió mal -->
   <section id="pInicio" class="pantalla" hidden></section>
-  <!-- Un tema: practicar, las actividades, el mapa para estudiar y la lista de provincias con sus capitales -->
+  <!-- Un tema: practicar, las actividades, para estudiar (el mapa, o el resumen de Naturales) y la lista de lo que se estudia -->
   <section id="pTema" class="pantalla" hidden></section>
   <!-- El mapa para estudiar: se toca una provincia y se ve su nombre y su capital -->
   <section id="pMapa" class="pantalla" hidden></section>
+  <!-- Estudio de un tema de Naturales: resumen, cuadro comparativo, dibujos y mapa conceptual -->
+  <section id="pEst" class="pantalla" hidden></section>
   <!-- Una pregunta (de práctica o de simulacro) -->
   <section id="pPreg" class="pantalla" hidden></section>
   <!-- El memotest -->
@@ -37,10 +39,15 @@
 <!-- Cartel para confirmar (salir de una ronda, borrar el progreso) -->
 <div class="modal" id="modal" hidden></div>
 
-<script src="contenido.js?b=2026-11-16-integradora-arreglos-de-la-revision-doble-toque-unir-en-el-simulacro-fechas"></script>
-<script src="mapa.js?b=2026-11-16-integradora-arreglos-de-la-revision-doble-toque-unir-en-el-simulacro-fechas"></script>
-<script src="mapa-limitrofes.js?b=2026-11-16-integradora-arreglos-de-la-revision-doble-toque-unir-en-el-simulacro-fechas"></script>
-<script src="app.js?b=2026-11-16-integradora-arreglos-de-la-revision-doble-toque-unir-en-el-simulacro-fechas"></script>
+<script src="contenido.js?b=2026-11-17-integradora-naturales-paginas-122-a-127"></script>
+<script src="mapa.js?b=2026-11-17-integradora-naturales-paginas-122-a-127"></script>
+<script src="mapa-limitrofes.js?b=2026-11-17-integradora-naturales-paginas-122-a-127"></script>
+<script src="dibujos.js?b=2026-11-17-integradora-naturales-paginas-122-a-127"></script>
+<script src="ideas.js?b=2026-11-17-integradora-naturales-paginas-122-a-127"></script>
+<script src="nat-sol.js?b=2026-11-17-integradora-naturales-paginas-122-a-127"></script>
+<script src="nat-estaciones.js?b=2026-11-17-integradora-naturales-paginas-122-a-127"></script>
+<script src="nat-gnomon.js?b=2026-11-17-integradora-naturales-paginas-122-a-127"></script>
+<script src="app.js?b=2026-11-17-integradora-naturales-paginas-122-a-127"></script>
 <script>
 if("serviceWorker"in navigator&&location.protocol==="https:")navigator.serviceWorker.register("../sw.js").catch(function(){});
 </script>

@@ -3,6 +3,7 @@
   --bg:#f1f6ff;--card:#fff;--ink:#1c2447;--muted:#566090;--line:#d9e4fb;
   --prim:#2459d6;--prim-sombra:#17399b;--prim-ink:#fff;--acento:#ffb300;
   --verde:#0d6b40;--verde-bg:#e0f6ea;--rojo:#c63a33;--rojo-bg:#fdeceb;--azul:#2a63d4;--azul-bg:#e6eeff;
+  --cielo:#d8ecff;--suelo:#a8dc92;--sol:#ffd24d;--sol-borde:#e08a00;--papel:#fff7e0;--arc-v:#d93b3b;--arc-e:#2a6fdb;
   --tierra:#c9daf7;--arg:#8fb0ee;--borde-mapa:#fff;--res:#ffb300;--res-borde:#8a5800;--ok-mapa:#3fb97b;--mal-mapa:#e0605a;--hueco:#8a5800;
   --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif;--body:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
   --sombra:0 2px 0 rgba(20,40,110,.07),0 6px 16px rgba(20,40,110,.09);
@@ -11,6 +12,7 @@
   --bg:#10162e;--card:#1b2347;--ink:#eef1ff;--muted:#aeb7e3;--line:#2e3768;
   --prim:#7da2ff;--prim-sombra:#4d6fc4;--prim-ink:#0b1330;--acento:#ffc83d;
   --verde:#5ad79a;--verde-bg:#12392c;--rojo:#ff8a82;--rojo-bg:#43211f;--azul:#8fb3ff;--azul-bg:#1d2b55;
+  --cielo:#22336b;--suelo:#2b6246;--sol:#ffd24d;--sol-borde:#ffb300;--papel:#2a3563;--arc-v:#ff7a7a;--arc-e:#7da2ff;
   --tierra:#34437a;--arg:#5a70c4;--borde-mapa:#10162e;--res:#ffc83d;--res-borde:#fff3c4;--ok-mapa:#3fb97b;--mal-mapa:#e0605a;--hueco:#ffc83d;
   --sombra:0 2px 0 rgba(0,0,0,.25),0 6px 16px rgba(0,0,0,.25);
 }}
@@ -52,7 +54,7 @@ h2{font:800 1.3rem var(--display);margin:22px 0 10px;line-height:1.2}
 .areas{display:grid;gap:12px;margin:0 0 14px}
 .area{display:flex;align-items:center;gap:14px;width:100%;text-align:left;border:0;border-radius:20px;padding:16px;color:#fff;box-shadow:var(--sombra);min-height:100px}
 .area.a-azul{background:linear-gradient(135deg,#1c47b3,#2863d8)}
-.area.a-verde{background:linear-gradient(135deg,#0a7048,#10865a)}
+.area.a-verde{background:linear-gradient(135deg,#075a3a,#0c7a50)}
 .area.pronto{background:linear-gradient(135deg,#3a6150,#477562);cursor:default}
 .area:active:not(.pronto){transform:scale(.985)}
 .area[data-area]{align-items:flex-start}   /* con sus temas adentro: el ícono arriba y los temas debajo del nombre */
@@ -238,5 +240,142 @@ svg.mapa .caba-et{text-anchor:start}
   #pMapa .mapa-est{grid-template-columns:minmax(150px,.7fr) minmax(0,1.3fr);align-items:start;column-gap:14px}
   #pMapa .mapa-est svg.mapa{height:calc(100dvh - 130px);grid-column:1;grid-row:1}
   #pMapa .mapa-est .info{grid-column:2;grid-row:1;order:0}
+}
+
+/* ---- los dibujos de Naturales (el camino del Sol, las salidas y puestas, las alturas, el gnomon y los árboles) */
+svg.dibujo{display:block;width:100%;height:auto;margin:0 auto;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+svg.sol,svg.alturas{max-width:520px}
+svg.salidas,svg.gnomon{max-width:400px}
+svg.dibujo .d-cielo{fill:var(--cielo)}
+svg.dibujo .d-suelo{fill:var(--suelo)}
+svg.dibujo .d-papel{fill:var(--papel)}
+svg.dibujo .d-borde{stroke:var(--line);stroke-width:2}
+svg.dibujo .d-horiz{stroke:var(--ink);stroke-width:1.5;opacity:.45}
+svg.dibujo .d-arco{fill:none;stroke:var(--sol-borde);stroke-width:2.5;stroke-dasharray:7 6;stroke-linecap:round}
+svg.dibujo .d-sol{fill:var(--sol);stroke:var(--sol-borde);stroke-width:2}
+svg.dibujo .d-num{font:800 15px var(--display);fill:#5a3b00;text-anchor:middle;pointer-events:none}
+svg.dibujo .d-flecha{font:800 12px var(--body);fill:#5a3b00;text-anchor:middle;pointer-events:none}
+svg.dibujo .d-nota{font:700 11px var(--body);fill:var(--ink);text-anchor:middle;opacity:.75;pointer-events:none}
+svg.dibujo .d-obs,svg.dibujo .d-vara-c{fill:var(--ink)}
+svg.dibujo .hit{fill:transparent;stroke:none}
+svg.dibujo .deco,svg.dibujo .d-arco,svg.dibujo .d-horiz,svg.dibujo .rayo{pointer-events:none}   /* los adornos (la casa, el árbol, el muñeco) no tapan los toques: un toque sobre el muñeco cuenta como un toque en la zona de abajo */
+svg.dibujo .zona rect{fill:transparent}
+svg.dibujo .zona-et{font:800 13px var(--body);fill:var(--ink);text-anchor:middle;pointer-events:none;opacity:.8}
+svg.dibujo.clic .pos,svg.dibujo.clic .zona,svg.dibujo.clic .pt,svg.dibujo.clic .panel,svg.dibujo.clic .som{cursor:pointer}
+svg.dibujo .pos.res .d-sol,svg.dibujo .pt.res .d-sol{fill:var(--res);stroke:var(--res-borde)}
+svg.dibujo .pos.ok .d-sol,svg.dibujo .pt.ok .d-sol{fill:var(--ok-mapa)}
+svg.dibujo .pos.mal .d-sol,svg.dibujo .pt.mal .d-sol{fill:var(--mal-mapa)}
+svg.dibujo .zona.res rect{fill:rgba(255,179,0,.38)}
+svg.dibujo .zona.ok rect{fill:rgba(63,185,123,.42)}
+svg.dibujo .zona.mal rect{fill:rgba(224,96,90,.42)}
+svg.dibujo .puntos-card text{font:800 13px var(--body);fill:var(--ink);text-anchor:middle}
+svg.dibujo .puntos-card .c-int{font-size:10px;font-weight:700;opacity:.7}
+svg.dibujo .arc{fill:none;stroke-width:3;stroke-linecap:round}
+svg.dibujo .arc-v{stroke:var(--arc-v)}
+svg.dibujo .arc-e{stroke:var(--arc-e)}
+svg.dibujo .arc-i{stroke:var(--ink)}
+svg.dibujo .pt-v .d-sol{stroke:var(--arc-v)}
+svg.dibujo .pt-e .d-sol{stroke:var(--arc-e)}
+svg.dibujo .pt-i .d-sol{stroke:var(--ink)}
+svg.dibujo .leyenda text{font:800 11px var(--body);text-anchor:start;pointer-events:none}
+svg.dibujo .leyenda .d-nota{text-anchor:middle}
+svg.dibujo text.lg-v{fill:var(--arc-v)}
+svg.dibujo text.lg-e{fill:var(--arc-e)}
+svg.dibujo text.lg-i{fill:var(--ink)}
+svg.dibujo .lg-l{stroke-width:3;stroke-linecap:round}
+svg.dibujo line.lg-v{stroke:var(--arc-v)}
+svg.dibujo line.lg-e{stroke:var(--arc-e)}
+svg.dibujo line.lg-i{stroke:var(--ink)}
+svg.dibujo .panel .pb{stroke:var(--line);stroke-width:2}
+svg.dibujo .vara{fill:var(--ink)}
+svg.dibujo .sombra{fill:rgba(20,30,60,.6)}
+svg.dibujo .rayo{stroke:var(--sol-borde);stroke-width:1.6;stroke-dasharray:3 3}
+svg.dibujo .p-et{font:800 12px var(--body);fill:var(--ink);text-anchor:middle;pointer-events:none}
+svg.dibujo .panel.res .pb{stroke:var(--res-borde);stroke-width:4}
+svg.dibujo .panel.ok .pb{stroke:var(--ok-mapa);stroke-width:4}
+svg.dibujo .panel.mal .pb{stroke:var(--mal-mapa);stroke-width:4}
+svg.dibujo .som-l{stroke:var(--ink);stroke-width:5;stroke-linecap:round;opacity:.85}
+svg.dibujo .som-hit{stroke:transparent;stroke-width:12;stroke-linecap:round}   /* la zona sensible de cada sombra: una línea fina y un círculo en la punta (con 26 de ancho, las sombras vecinas se pisaban cerca de la varilla) */
+svg.dibujo .som-p{fill:var(--ink)}
+svg.dibujo .som-h{font:800 11px var(--body);fill:var(--ink);text-anchor:middle;pointer-events:none}
+svg.dibujo .som.res .som-l{stroke:var(--res-borde);stroke-width:7}
+svg.dibujo .som.ok .som-l{stroke:var(--ok-mapa);stroke-width:7;opacity:1}
+svg.dibujo .som.mal .som-l{stroke:var(--mal-mapa);stroke-width:7;opacity:1}
+svg.arbol{max-width:240px;border-radius:14px;border:2px solid var(--line)}
+.arboles{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.arboles .fig{margin:0;text-align:center}
+.arboles .fig svg.arbol{max-width:100%}
+.arboles .fig figcaption{font:800 .95rem var(--display);margin-top:4px}
+/* ---- Naturales: el simulacro, la pantalla de estudio (resumen, cuadro, dibujos y mapa conceptual), «ordenar» y el memotest de ideas */
+:root{--k0:#c0392b;--k1:#b05a12;--k2:#2a63d4;--k3:#a43d86;--r0:#2a63d4;--r1:#0b7a4c;--r2:#b05a12;--r3:#8a4fc8;--r4:#c43c78;--r5:#0b7684}
+@media (prefers-color-scheme:dark){:root{--k0:#ff8a7a;--k1:#ffb066;--k2:#8fb3ff;--k3:#f0a0d8;--r0:#8fb3ff;--r1:#5ad79a;--r2:#ffb066;--r3:#c9a2ff;--r4:#ff9ec8;--r5:#6fdbe8}}
+.btn.grande.nat{background:#0a7048;box-shadow:0 4px 0 #064d31}
+@media (prefers-color-scheme:dark){.btn.grande.nat{background:var(--verde);color:#062014;box-shadow:0 4px 0 #2e8f63}}
+.fila-con{grid-template-columns:minmax(0,1fr) auto}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 4px}
+.tab{flex:1 1 auto;border:2px solid var(--line);border-radius:99px;background:var(--card);color:var(--ink);font:800 .95rem var(--display);line-height:1.15;padding:8px 14px;min-height:46px;box-shadow:var(--sombra)}
+.tab.on{background:var(--prim);border-color:var(--prim);color:var(--prim-ink)}
+.tab:active{transform:scale(.985)}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.grupo h2,.dib-est h2{margin:18px 0 8px;font-size:1.15rem}
+.con{background:var(--card);border-radius:16px;padding:12px 14px;margin:0 0 10px;box-shadow:var(--sombra);border-left:6px solid var(--verde)}
+.con.foco{outline:3px solid var(--acento);outline-offset:2px}
+.con-t{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.con h3{margin:0 0 4px;font:800 1.1rem var(--display);line-height:1.2;overflow-wrap:anywhere}
+.con p{margin:0;font-weight:600;overflow-wrap:anywhere}
+.con .cajas{margin-top:6px;flex:none}
+/* el cuadro comparativo: en el celular cada fila es una tarjeta con sus cuatro valores rotulados; en pantallas anchas, la tabla de siempre */
+.cuadro-w{margin-top:8px}
+.cuadro,.cuadro tbody,.cuadro tr{display:block}
+.cuadro thead{display:none}
+.cuadro tr{background:var(--card);border-radius:14px;box-shadow:var(--sombra);margin:0 0 10px;padding:8px 12px;border-left:6px solid var(--acento)}
+.cuadro tbody th{display:block;text-align:left;font:800 1.02rem var(--display);padding:2px 0 6px}
+.cuadro td{display:grid;grid-template-columns:6.4rem minmax(0,1fr);gap:8px;padding:6px 0;border-top:1px solid var(--line);font-weight:600;font-size:.95rem;overflow-wrap:anywhere}
+.cuadro td::before{content:attr(data-col);font-weight:800;color:var(--k,var(--muted))}
+.cuadro .k0{--k:var(--k0)}.cuadro .k1{--k:var(--k1)}.cuadro .k2{--k:var(--k2)}.cuadro .k3{--k:var(--k3)}
+@media (min-width:700px){
+  .cuadro-w{overflow-x:auto}
+  .cuadro{display:table;width:100%;border-collapse:separate;border-spacing:0;background:var(--card);border-radius:14px;box-shadow:var(--sombra);overflow:hidden}
+  .cuadro thead{display:table-header-group}
+  .cuadro tbody{display:table-row-group}
+  .cuadro tr{display:table-row;background:none;box-shadow:none;margin:0;padding:0;border-radius:0;border-left:0}
+  .cuadro th,.cuadro td{display:table-cell;padding:8px 10px;border-top:1px solid var(--line);vertical-align:top;font-size:.9rem;text-align:left}
+  .cuadro thead th{font:800 .95rem var(--display);color:var(--k,var(--ink));border-top:0;border-bottom:2px solid var(--line)}
+  .cuadro tbody th{display:table-cell;padding:8px 10px;font:800 .9rem var(--display);width:19%}   /* el display:block y el padding del modo celular tienen más especificidad que la regla de arriba: se pisan acá */
+  .cuadro td::before{content:none}
+}
+.dib-w{background:var(--card);border-radius:16px;padding:10px;box-shadow:var(--sombra);margin-bottom:10px}
+/* el mapa conceptual: la idea central arriba y, colgando de una línea, una tarjeta por rama */
+.mc-raiz{background:linear-gradient(135deg,#1c47b3,#2863d8);color:#fff;border-radius:18px;padding:14px 16px;font:800 1.3rem var(--display);text-align:center;box-shadow:var(--sombra);line-height:1.2}
+.mc-ramas{margin:0 0 0 14px;padding:16px 0 0 22px;border-left:4px solid var(--line);display:grid;gap:14px}
+.mc-rama{position:relative;background:var(--card);border-radius:14px;padding:10px 14px;box-shadow:var(--sombra);border-left:6px solid var(--rc)}
+.mc-rama::before{content:"";position:absolute;left:-28px;top:26px;width:22px;border-top:4px solid var(--line)}
+.mc-rama h3{margin:0 0 4px;font:800 1.05rem var(--display);line-height:1.2;color:var(--rc)}
+.mc-rama ul{margin:0;padding-left:1.1em;font-weight:600}
+.mc-rama li{margin:3px 0;overflow-wrap:anywhere}
+.mc-rama.r0{--rc:var(--r0)}.mc-rama.r1{--rc:var(--r1)}.mc-rama.r2{--rc:var(--r2)}.mc-rama.r3{--rc:var(--r3)}.mc-rama.r4{--rc:var(--r4)}.mc-rama.r5{--rc:var(--r5)}
+/* ordenar: cada paso es un botón; al tocarlo queda numerado */
+.orden{display:grid;gap:8px;margin:0 0 4px}
+.paso{display:grid;grid-template-columns:2rem minmax(0,1fr);gap:10px;align-items:center;text-align:left;border:2px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);padding:10px 12px;font:800 1rem var(--display);line-height:1.2;min-height:56px;box-shadow:var(--sombra)}
+.paso-n{display:grid;place-items:center;width:2rem;height:2rem;border-radius:50%;border:2px dashed var(--line);font:800 1rem var(--display)}
+.paso-t{overflow-wrap:anywhere}
+.paso:active:not(:disabled){transform:scale(.985)}
+.paso.puesto{border-color:var(--azul);background:var(--azul-bg);color:var(--azul)}
+.paso.puesto .paso-n{background:var(--azul);border:2px solid var(--azul);color:var(--prim-ink)}
+.paso.si{border-color:var(--verde);background:var(--verde-bg);color:var(--verde)}
+.paso.si .paso-n{background:var(--verde);border:2px solid var(--verde);color:var(--prim-ink)}
+.paso.no{border-color:var(--rojo);background:var(--rojo-bg);color:var(--rojo)}
+.paso.no .paso-n{background:var(--rojo);border:2px solid var(--rojo);color:var(--prim-ink)}
+.paso:disabled:not(.si):not(.no):not(.puesto){opacity:.6}
+.cuerpo.condib{grid-template-columns:minmax(0,1fr)}
+/* el memotest de ideas: las cartas traen frases, así que van más anchas (pocas columnas) */
+.memo.largo{grid-template-columns:repeat(2,minmax(0,1fr))}
+.memo.largo .cm{min-height:88px}
+.memo.largo .cm-b{font-size:.88rem}
+@media (min-width:560px){.memo.largo{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-height:520px) and (orientation:landscape){
+  .memo.largo{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .memo.largo .cm{min-height:74px}
+  #pPreg.pmapa .cuerpo.condib svg.dibujo{max-height:calc(100dvh - 90px)}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}

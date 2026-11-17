@@ -44,7 +44,7 @@ chk('lo que se escribe vale de varias formas: «San Fernando» o «Catamarca», 
 const formas=x=>[x.corto,x.nombre,x.abrev,...x.altNombre];
 chk('ninguna forma de escribir una provincia (ni su abreviatura del mapa) es el nombre de otra: no hay respuestas ambiguas (la única coincidencia a propósito es «Buenos Aires», que vale para la provincia pintada y para el punto de la Ciudad: son preguntas distintas)',INT.ITEMS.every(a=>INT.ITEMS.every(b=>a===b||(a.id==='caba'&&b.id==='buenosaires')||(a.id==='buenosaires'&&b.id==='caba')||!formas(a).some(x=>formas(b).some(y=>NORMT(x)===NORMT(y)))))&&!INT.item('buenosaires').altNombre.some(x=>NORMT(x)==='ciudad de buenos aires')&&INT.CABA.altNombre.some(x=>NORMT(x)==='buenos aires'));
 chk('las notas no afirman superlativos discutibles («la provincia más chica del país»: Tierra del Fuego, sin la Antártida ni las islas, es menor que Tucumán)',!INT.TODOS.some(x=>/más chic|más peque|más grande del país/i.test(x.nota)));
-chk('el área Sociales trae dos temas, «Provincias y capitales» (las 24 piezas) y «Países limítrofes» (los 5 países), y Naturales ya no figura como «pronto»',INT.AREAS.length===2&&INT.AREAS[0].id==='sociales'&&INT.AREAS[0].temas.length===2&&INT.AREAS[0].temas[0].id==='provincias'&&INT.AREAS[0].temas[0].items.length===24&&INT.AREAS[0].temas[1].id==='limitrofes'&&INT.AREAS[0].temas[1].items.length===5&&INT.AREAS[1].id==='naturales'&&INT.AREAS[1].pronto===false&&INT.AREAS[1].temas.length>=3);
+chk('el área Sociales trae dos temas, «Provincias y capitales» (las 24 piezas) y «Países limítrofes» (los 5 países), y Naturales ya no figura como «pronto»',INT.AREAS.length===2&&INT.AREAS[0].id==='sociales'&&INT.AREAS[0].temas.length>=2&&INT.AREAS[0].temas[0].id==='provincias'&&INT.AREAS[0].temas[0].items.length===24&&INT.AREAS[0].temas[1].id==='limitrofes'&&INT.AREAS[0].temas[1].items.length===5&&INT.AREAS[1].id==='naturales'&&INT.AREAS[1].pronto===false&&INT.AREAS[1].temas.length>=3);
 // los países limítrofes (la Argentina limita con cinco países: Chile, Bolivia, Paraguay, Brasil y Uruguay)
 const ORO_PAISES={chile:['Chile','Santiago'],bolivia:['Bolivia','Sucre'],paraguay:['Paraguay','Asunción'],brasil:['Brasil','Brasilia'],uruguay:['Uruguay','Montevideo']};
 chk('los países limítrofes son exactamente Chile, Bolivia, Paraguay, Brasil y Uruguay, cada uno con su capital (contrastado con una tabla aparte)',INT.PAISES.length===5&&INT.PAISES.every(x=>x.tipo==='pais'&&ORO_PAISES[x.id]&&x.corto===ORO_PAISES[x.id][0]&&x.capital===ORO_PAISES[x.id][1])&&INT.TODOS.length===29&&INT.ITEMS.length===24,j(INT.PAISES.map(x=>x.id+':'+x.capital)));
@@ -131,6 +131,57 @@ const ORO_CUADRO=[[/Empieza/,[/21 de diciembre/,/20 de marzo/,/21 de junio/,/22 
 if(cu.cols.join()!=='Verano,Otoño,Invierno,Primavera'||cu.filas.length!==ORO_CUADRO.length)malO.push('el cuadro de las estaciones no tiene las 4 columnas y las '+ORO_CUADRO.length+' filas');
 ORO_CUADRO.forEach(([re,vals],i)=>{const f=cu.filas[i];if(!f||!re.test(f.t))return malO.push('cuadro fila '+i+': el título no es el esperado '+re);vals.forEach((v,k)=>{if(!new RegExp(v.source,'i').test(f.v[k]))malO.push('cuadro «'+f.t+'» / '+cu.cols[k]+': «'+f.v[k]+'» no dice '+v)})});
 chk('los datos clave de Naturales coinciden con una tabla aparte (las fechas de cada estación, las horas de salida y puesta del Sol, dónde sale y se pone, la duración del día, el mediodía solar a las 13 h, la sombra que apunta al sur, el gnomon…) y el cuadro de las estaciones tiene sus 11 filas × 4 estaciones bien',malO.length===0,malO.slice(0,6).join(' | '));
+
+// los DATOS CLAVE de Sociales (la época colonial: páginas 100 a 105 del libro), contrastados con una tabla aparte: fechas, nombres, quién hacía qué
+const socT=ideT.filter(t=>t.area==='sociales');
+chk('Sociales trae los tres temas de las páginas 100 a 105 (la organización de las colonias · 100 y 101, la sociedad colonial · 102 y 103, los Borbones y el Virreinato del Río de la Plata · 104 y 105) después de los dos de geografía, y el inicio los muestra',
+  socT.map(t=>t.id).join()==='colonias,sociedad,borbones'&&socT.map(t=>t.paginas).join('|')==='páginas 100 y 101|páginas 102 y 103|páginas 104 y 105'&&INT.AREAS[0].temas.map(t=>t.id).join()==='provincias,limitrofes,colonias,sociedad,borbones'&&INT.AREAS[0].temas.slice(2).every(t=>t.tipo==='ciencia'&&t.items.length===t.def.conceptos.length));
+const ORO_SOC={
+  instituciones:[/instituciones/],
+  consejo_indias:[/Consejo de Indias/,/leyes/,/funcionarios/],
+  casa_contratacion:[/Casa de Contratación/,/Sevilla/,/comercio/,/navegación/],
+  dificil_gobernar:[/costaba|difícil|dificultad/,/medidas/],
+  virreinatos:[/virreinatos/,/Nueva España/,/Perú/,/dos/],
+  dos_primeros_virreinatos:[/1535/,/Ciudad de México/,/1542/,/Lima/],
+  nueva_espana:[/1535/,/Ciudad de México/],
+  peru:[/1542/,/Lima/],
+  capitanias:[/capitanías generales|capitanía general/,/capitán general/,/militar/],
+  virrey:[/virrey/,/rey/,/autoridad máxima|máxima autoridad|autoridad más importante/],
+  audiencias:[/audiencias/,/justicia/],
+  cabildos:[/cabildos/,/ciudades/,/vecinos/,/una vez (al|por) año|cada año/],
+  vecinos:[/varón/,/español/,/casa/,/jefe de familia/,/sangre limpia/],
+  funciones_cabildo:[/calles/,/seguridad/,/mercados/,/precios/,/impuestos/],
+  cabildo_abierto:[/Cabildo Abierto/,/emergencia/,/vecinos/],
+  cabildos_historicos:[/Buenos Aires/,/Luján/,/Córdoba/,/Salta/,/Jujuy/],
+  desigualdad:[/desigual/,/piel/],
+  espanoles:[/España/,/privilegi/,/cargos/],
+  criollos:[/América/,/privilegios/,/cargos/],
+  indigenas_libres:[/libres/,/tributos?/],
+  africanos:[/África|africanos/,/esclaviz/,/derechos/],
+  castas:[/castas/,/origen/],
+  mestizos:[/blancos/,/indígenas/],
+  mulatos:[/blancos/,/africanos/],
+  zambos:[/indígenas/,/africanos/],
+  encomienda:[/encomienda/,/trabajo forzado/,/conquistadores/],
+  encomendero_tributo:[/encomendero/,/tributo/],
+  jesuitas_reducciones:[/jesuitas/,/reducciones/,/misiones/],
+  borbones:[/1700/,/Borbones/,/reformas/],
+  contrabando:[/contrabando/,/ilegal|sin que España lo supiera/],
+  nuevos_virreinatos:[/Río de la Plata/,/1776/,/Nueva Granada/,/1717/],
+  nuevas_capitanias:[/Chile/,/Cuba/,/Venezuela/,/Guatemala/],
+  intendencias:[/intendencias/,/control/],
+  expulsion_jesuitas:[/jesuitas/,/expuls/],
+  cargos_peninsulares:[/criollos/,/descontento/],
+  rio_plata_1776:[/1776/,/Argentina/,/Uruguay/,/Paraguay/,/Bolivia/],
+  capital_buenos_aires:[/Buenos Aires/,/puerto/,/virrey/],
+  intendencias_1782:[/1782/,/ocho/,/intendencias/],
+  intendente:[/intendente/,/impuestos/,/España/],
+  gobernaciones_militares:[/gobernaciones militares/,/frontera/,/defensa/]
+};
+const malS=[];Object.keys(ORO_SOC).forEach(id=>{const c=ideC.find(x=>x.id===id);if(!c)return malS.push(id+': no existe esa idea');ORO_SOC[id].forEach(re=>{if(!new RegExp(re.source,'i').test(c.resumen))malS.push(id+' no dice '+re)})});
+const FECHAS_OK=[['nueva_espana',/1535/],['peru',/1542/],['borbones',/1700/],['rio_plata_1776',/1776/],['intendencias_1782',/1782/]];
+FECHAS_OK.forEach(([id,re])=>{const c=ideC.find(x=>x.id===id);if(c&&!c.tipear.concat(c.mc.map(m=>[m[0],[m[1]]])).some(q=>q[1].some(a=>re.test(a))))malS.push(id+': ninguna pregunta de escribir o de elegir trae el año '+re)});
+chk('los datos clave de Sociales coinciden con una tabla aparte (1535 Nueva España con capital en la Ciudad de México, 1542 Perú con capital en Lima, Consejo de Indias y Casa de Contratación de Sevilla, virrey, audiencias, cabildos y vecinos, los cinco cabildos históricos, castas, encomienda, jesuitas, los Borbones desde 1700, Nueva Granada 1717, Río de la Plata 1776 con capital en Buenos Aires y ocho intendencias en 1782) y cada fecha está en alguna pregunta',malS.length===0,malS.slice(0,6).join(' | '));
 
 // el mapa
 chk('el mapa trae las 23 provincias y la Ciudad de Buenos Aires (los mismos ids que el contenido), cada una con su trazado y su punto, todo dentro del dibujo',Object.keys(MAPA.prov).sort().join()===ids.slice().sort().join()&&Object.values(MAPA.prov).every(p=>/^M[\d. -]+(L[\d. -]+)+Z/.test(p.d)&&p.cx>0&&p.cx<MAPA.w&&p.cy>0&&p.cy<MAPA.h),j(Object.keys(MAPA.prov)));
@@ -540,14 +591,14 @@ for(const tid of temasIds){
   await p.click('#bInicioFin');await p.waitForSelector('#pInicio .area');await irTema(p,tid);
   await p.click('#bMemo');await p.waitForSelector('#pMemo .cm');
   const mm=await p.evaluate(()=>({n:document.querySelectorAll('#pMemo .cm').length,largo:document.querySelector('#pMemo .memo').classList.contains('largo'),ids:[...new Set(INT.memo().cartas.map(c=>c.id))],cartas:INT.memo().cartas.map(c=>c.id+'|'+c.lado+'|'+c.t),txt:document.querySelector('#pMemo .sub').innerText}));
-  chk(NT+'el memotest arma 10 cartas de 5 parejas (una idea y lo que le corresponde) de este tema, sin textos repetidos, todas boca abajo',mm.n===10&&mm.largo&&mm.ids.length===5&&mm.ids.every(id=>idsT.includes(id))&&new Set(mm.cartas.map(x=>NORMT(x.split('|')[2]))).size===10&&/una idea y lo que le corresponde/.test(mm.txt),j(mm).slice(0,300));
+  chk(NT+'el memotest arma las cartas de UN tablero del tema (4 o 5 parejas: una idea y lo que le corresponde), sin textos repetidos',mm.n===mm.ids.length*2&&mm.ids.length>=4&&mm.ids.length<=5&&mm.largo&&def.tableros.some(tb=>mm.ids.length===tb.length&&mm.ids.every(id=>tb.includes(id)))&&new Set(mm.cartas.map(x=>NORMT(x.split('|')[2]))).size===mm.n&&/una idea y lo que le corresponde/.test(mm.txt),j(mm).slice(0,300));
   const malos=await p.evaluate(()=>{const c=INT.memo().cartas;for(let i=0;i<c.length;i++)for(let k=i+1;k<c.length;k++)if(c[i].id!==c[k].id)return [i,k]});
   await p.click('#pMemo .cm[data-c="'+malos[0]+'"]');await p.click('#pMemo .cm[data-c="'+malos[1]+'"]');await p.waitForTimeout(1100);
   const pares=await p.evaluate(()=>{const c=INT.memo().cartas,m={};c.forEach((x,i)=>(m[x.id]=m[x.id]||[]).push(i));return Object.values(m)});
   for(const [a,c] of pares){await p.click('#pMemo .cm[data-c="'+a+'"]');await p.click('#pMemo .cm[data-c="'+c+'"]')}
   await p.waitForSelector('#pFin:not([hidden])',{timeout:5000});
   const fm=await textoFin(p),sm=await estado(p);
-  chk(NT+'al encontrar las 5 parejas termina: dice los intentos (6: uno equivocado y cinco bien) y se anota en las cajas',/6\s+intentos/.test(fm)&&sm.rondas>=2&&idsT.filter(id=>sm.items[id]).length>=5,fm.slice(0,160));
+  chk(NT+'al encontrar todas las parejas termina: dice los intentos (uno equivocado y uno por pareja) y se anota en las cajas',new RegExp((mm.ids.length+1)+'\\s+intentos').test(fm)&&sm.rondas>=2&&idsT.filter(id=>sm.items[id]).length>=mm.ids.length,fm.slice(0,160));
   chk(NT+'no hubo errores de página',p.errs.length===0,j(p.errs));
   await cerrar(p);
 }
@@ -810,25 +861,25 @@ await cerrar(p);
 }
 chk('los textos de la revisión están corregidos en el código: «Seguí practicando» (no «Sigan») y la fecha en minúscula dentro de la oración',/Seguí practicando/.test(fs.readFileSync(path.join(RAIZ,'integradora','app.js'),'utf8'))&&!/Sigan/.test(fs.readFileSync(path.join(RAIZ,'integradora','app.js'),'utf8')));
 
-// ---------- 4) el simulacro: 35 preguntas (30 de provincias y 5 de países), sin ver si estuvo bien hasta el final, con resultado por parte
+// ---------- 4) el simulacro de Sociales: 40 preguntas (30 de provincias, 5 de países y 5 de la época colonial), sin ver si estuvo bien hasta el final, con resultado por parte
 {
 const p=await abrir();
 await p.click('#bSim');await p.waitForSelector('#pPreg .consigna');
 const sim=await p.evaluate(()=>{const R=INT.ronda(),por={};R.qs.forEach(q=>{por[q.parte]=(por[q.parte]||0)+1});return {n:R.qs.length,test:R.test,por,parte:document.querySelector('.parte')&&document.querySelector('.parte').textContent}});
-chk('el simulacro tiene 35 preguntas en 7 partes (A · Elegí la capital 7, B · Uní provincias y capitales 2, C · Verdadero o falso 4, D · Escribí la capital 5, E · Mirá el mapa 8, F · ¿De qué provincia es capital? 4, G · Países limítrofes 5) y muestra la parte en cada pregunta',sim.n===35&&sim.test&&sim.por['G · Países limítrofes']===5&&sim.por['A · Elegí la capital']===7&&sim.por['B · Uní provincias y capitales']===2&&sim.por['C · Verdadero o falso']===4&&sim.por['D · Escribí la capital']===5&&sim.por['E · Mirá el mapa']===8&&sim.por['F · ¿De qué provincia es capital?']===4&&/^A · /.test(sim.parte||''),j(sim));
+chk('el simulacro de Sociales tiene 40 preguntas en 8 partes (A · Elegí la capital 7, B · Uní provincias y capitales 2, C · Verdadero o falso 4, D · Escribí la capital 5, E · Mirá el mapa 8, F · ¿De qué provincia es capital? 4, G · Países limítrofes 5, H · La época colonial 5) y muestra la parte en cada pregunta',sim.n===40&&sim.test&&sim.por['H · La época colonial']===5&&sim.por['G · Países limítrofes']===5&&sim.por['A · Elegí la capital']===7&&sim.por['B · Uní provincias y capitales']===2&&sim.por['C · Verdadero o falso']===4&&sim.por['D · Escribí la capital']===5&&sim.por['E · Mirá el mapa']===8&&sim.por['F · ¿De qué provincia es capital?']===4&&/^A · /.test(sim.parte||''),j(sim));
 await responder(p,true);await p.waitForTimeout(80);
 chk('en el simulacro no se ve si estuvo bien o mal hasta el final (ni cartel, ni colores, ni «Siguiente»)',!(await visible(p,'#feedback'))&&!(await p.evaluate(()=>!!document.querySelector('#pPreg .opcion.si, #pPreg .opcion.no, #pPreg .resp.si, #pPreg .resp.no, #pPreg #bSig'))));
 await p.waitForFunction(()=>INT.ronda().i===1);
 const tipos=await jugar(p,()=>true,true);
 const fin=await textoFin(p),st=await estado(p);
-chk('simulacro todo bien: «35 de 35», 100 %, «Por parte» con las 7 partes, sin errores, y queda guardado el resultado ('+[...new Set(tipos)].join('/')+')',/35 de 35/.test(fin)&&/100 %/.test(fin)&&/Por parte/.test(fin)&&(await p.locator('#pFin .pt').count())===7&&st.sims.length===1&&st.sims[0].p===35&&st.sims[0].t===35&&!/Para repasar/.test(fin),fin.slice(0,260)+j(st.sims));
-chk('el resultado por parte muestra cuántas salieron bien en cada una (7 / 7, 2 / 2, 4 / 4, 5 / 5, 8 / 8, 4 / 4, 5 / 5)',await p.evaluate(()=>[...document.querySelectorAll('#pFin .pt b')].map(x=>x.textContent).join()==='7 / 7,2 / 2,4 / 4,5 / 5,8 / 8,4 / 4,5 / 5'));
+chk('simulacro de Sociales todo bien: «40 de 40», 100 %, «Por parte» con las 8 partes, sin errores, y queda guardado el resultado como de Sociales ('+[...new Set(tipos)].join('/')+')',/40 de 40/.test(fin)&&/100 %/.test(fin)&&/Por parte/.test(fin)&&(await p.locator('#pFin .pt').count())===8&&st.sims.length===1&&st.sims[0].p===40&&st.sims[0].t===40&&st.sims[0].a==='sociales'&&!/Para repasar/.test(fin),fin.slice(0,260)+j(st.sims));
+chk('el resultado por parte muestra cuántas salieron bien en cada una (7 / 7, 2 / 2, 4 / 4, 5 / 5, 8 / 8, 4 / 4, 5 / 5, 5 / 5)',await p.evaluate(()=>[...document.querySelectorAll('#pFin .pt b')].map(x=>x.textContent).join()==='7 / 7,2 / 2,4 / 4,5 / 5,8 / 8,4 / 4,5 / 5,5 / 5'));
 await p.click('#bInicioFin');await p.waitForSelector('#pInicio .area');
 chk('el inicio muestra «tu mejor resultado: 100 %»',/tu mejor resultado: 100 %/.test(await p.innerText('#bSim')));
 await p.click('#bSim');await p.waitForSelector('#pPreg .consigna');
 await jugar(p,()=>false,true);
 const finM=await textoFin(p),stM=await estado(p);
-chk('simulacro todo mal: «0 de 35», muchas cosas «para repasar» y el mejor resultado sigue siendo el de antes',/0 de 35/.test(finM)&&/Para repasar \(35\)/.test(finM)&&stM.sims.length===2&&stM.sims[1].p===0&&Math.max(...stM.sims.map(s=>s.p))===35,finM.slice(0,200));
+chk('simulacro de Sociales todo mal: «0 de 40», muchas cosas «para repasar» y el mejor resultado sigue siendo el de antes',/0 de 40/.test(finM)&&/Para repasar \(40\)/.test(finM)&&stM.sims.length===2&&stM.sims[1].p===0&&Math.max(...stM.sims.map(s=>s.p))===40,finM.slice(0,200));
 await p.click('#bInicioFin');await p.waitForSelector('#pInicio .area');
 chk('después de fallar el simulacro hay muchas cosas para repasar (botón prendido)',await p.evaluate(()=>!document.getElementById('bErrores').disabled&&/\d+ cosas/.test(document.getElementById('bErrores').innerText)));
 chk('el simulacro no produjo errores de página',p.errs.length===0,j(p.errs));

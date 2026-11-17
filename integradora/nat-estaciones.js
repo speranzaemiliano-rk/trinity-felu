@@ -23,12 +23,12 @@ INT.temaIdeas({
  conceptos:[
   K("recorrido_cambia","a","🔄","El recorrido cambia","Todos los días el Sol sale por el sector este, llega a su posición más alta y se pone por el sector oeste. Pero cada día cambia el tiempo que está sobre el horizonte: el Sol no hace exactamente el mismo recorrido durante todo el año.",{
    mc:[["A lo largo del año, el tiempo que el Sol está sobre el horizonte…","Cambia de un día a otro",["Es siempre exactamente el mismo","Cambia sólo cuando hay nubes","Cambia una sola vez por año"]],
-       ["Te despertás siempre a la misma hora, muy temprano. ¿Qué puede pasar a lo largo del año?","Según la época del año puede ser de día o de noche",["Siempre es de día","Siempre es de noche","Siempre es el mediodía solar"]]],
+       ["Te despertás siempre a las 7 de la mañana. ¿Qué puede pasar a lo largo del año?","Según la época del año puede ser de día o de noche",["Siempre es de día","Siempre es de noche","Siempre es el mediodía solar"]]],
    vf:[["El Sol hace exactamente el mismo recorrido todos los días del año.",false,"Cada día cambia el tiempo que el Sol está sobre el horizonte."],
        ["Aunque te despiertes siempre a la misma hora, en algunas épocas del año puede ser de noche y en otras de día.",true,"Pasa porque el recorrido del Sol cambia durante el año."]]}),
   K("sombra_cambia","a","📏","Las sombras cambian","Si registrás la sombra de un objeto fijo, a la misma hora y en distintos días, vas a ver que no mide siempre lo mismo: es más corta en una época del año que en otra.",{
    mc:[["Medís la sombra de un poste a la misma hora, en distintos días del año. ¿Qué observás?","Que el largo de la sombra cambia según la época del año",["Que mide siempre lo mismo","Que sólo cambia si cambia la hora","Que desaparece en invierno"]],
-       ["¿Cómo podés comprobar si el Sol hace el mismo recorrido durante todo el año?","Registrando la sombra de un objeto fijo, a la misma hora, en distintos días",["Mirando sólo el amanecer de un día","Midiendo la temperatura a la medianoche","Contando cuántas nubes hay"]]],
+       ["¿Cómo podés comprobar si el Sol hace el mismo recorrido durante todo el año?","Registrando la sombra de un objeto fijo, a la misma hora, en distintos días",["Mirando sólo el amanecer de un día","Contando cuántas estrellas se ven de noche","Contando cuántas nubes hay"]]],
    vf:[["La sombra de un objeto fijo, a la misma hora, mide siempre lo mismo durante todo el año.",false,"Es más corta en una época del año que en otra."]],
    tipear:[["La sombra de un objeto fijo, a la misma hora, cambia de largo según la… del año (una palabra).",["epoca","la epoca","estacion","la estacion"],"Por ejemplo, el verano"]]}),
   K("temperaturas","a","🌡️","Calor, frío y templado","Durante el año hay meses con temperaturas altas, bajas y templadas. Esos cambios muestran que el recorrido del Sol cambia durante el año.",{
@@ -49,9 +49,9 @@ INT.temaIdeas({
        ["Cerca de los polos hay días enteros en los que el Sol nunca se pone.",true,"Pasa en otra época del año, meses después de los días sin Sol."]]}),
   K("ano","a","📆","¿Qué es un año?","Cuando se completa el ciclo de las cuatro estaciones, decimos que transcurrió un año. Las estaciones no empiezan siempre el mismo día, pero sí en días muy cercanos (entre el 20 y el 23 del mes). Cuando termina la primavera, el ciclo se repite.",{
    mc:[["¿Cuándo decimos que transcurrió un año?","Cuando se completa el ciclo de las cuatro estaciones",["Cuando pasan siete días","Cuando el Sol sale por el este","Cuando el día dura 12 horas"]],
-       ["¿Las estaciones empiezan siempre exactamente el mismo día de cada año?","No, pero sí en días muy cercanos entre sí",["Sí, siempre el mismo día","No, cada año empiezan en meses distintos","Sí, pero sólo el verano"]]],
+       ["¿Las estaciones empiezan siempre exactamente el mismo día de cada año?","No, pero sí en días muy cercanos de un año a otro",["Sí, siempre el mismo día","No, cada año empiezan en meses distintos","Sí, pero sólo el verano"]]],
    vf:[["El ciclo de las estaciones se repite una y otra vez.",true,"Después de la primavera empieza un nuevo verano."],
-       ["Las estaciones empiezan siempre el mismo día de cada año, sin variar nunca.",false,"Empiezan en días muy cercanos entre sí, pero no siempre el mismo."]],
+       ["Las estaciones empiezan siempre el mismo día de cada año, sin variar nunca.",false,"Empiezan en días muy cercanos de un año a otro, pero no siempre el mismo."]],
    tipear:[["Cuando se completa el ciclo de las cuatro estaciones transcurre un… (una palabra).",["año","un año","ano"],"Es más largo que un mes"]],
    ordenar:[["Ordená los días que marcan el comienzo de cada estación, empezando por diciembre.",["Solsticio de verano (diciembre)","Equinoccio de otoño (marzo)","Solsticio de invierno (junio)","Equinoccio de primavera (septiembre)"]]]}),
   K("puntos_sale_pone","b","🧭","Dónde sale y se pone el Sol","A lo largo del año el Sol no sale ni se pone siempre por el mismo punto. El primer día del verano sale por el sureste y se pone por el suroeste. El primer día del otoño y el de la primavera sale casi por el este y se pone casi por el oeste. El primer día del invierno sale por el noreste y se pone por el noroeste.",{
@@ -83,7 +83,7 @@ INT.temaIdeas({
   K("dia_noche_duracion","b","🌓","Días y noches en cada estación","En verano y en primavera los días duran más que las noches. En otoño y en invierno los días duran menos que las noches. Los primeros días del otoño y de la primavera, el día y la noche duran unas 12 horas cada uno.",{
    mc:[["¿En qué estaciones los días duran más que las noches?","En verano y en primavera",["En otoño y en invierno","En verano y en otoño","En invierno y en primavera"]],
        ["¿En qué estaciones los días duran menos que las noches?","En otoño y en invierno",["En verano y en primavera","En verano y en invierno","En otoño y en primavera"]],
-       ["El primer día del otoño y el primer día de la primavera, el día y la noche duran…","Unas 12 horas cada uno",["14 horas el día y 10 la noche","10 horas el día y 14 la noche","Más el día que la noche"]]],
+       ["El primer día del otoño y el primer día de la primavera, el día y la noche duran…","Unas 12 horas cada uno",["14 horas el día y 10 la noche","10 horas el día y 14 la noche","Mucho más el día que la noche"]]],
    vf:[["En invierno los días duran menos que las noches.",true,"En otoño y en invierno los días son más cortos que las noches."],
        ["En primavera los días duran menos que las noches.",false,"En primavera los días duran más que las noches."]]}),
   K("cambio_diario","b","⏱️","Cuánto cambia cada día","Mientras avanza una estación, la duración del día cambia unos 2 minutos por día. En verano y en otoño cada día dura unos 2 minutos menos que el anterior (el Sol sale un minuto más tarde y se pone un minuto más temprano). En invierno y en primavera cada día dura unos 2 minutos más (sale un minuto más temprano y se pone un minuto más tarde).",{
@@ -92,7 +92,7 @@ INT.temaIdeas({
        ["En primavera, cada día el Sol sale…","Un minuto más temprano, y se pone un minuto más tarde",["Un minuto más tarde, y se pone un minuto más temprano","A la misma hora que el día anterior","Dos horas más temprano"]]],
    vf:[["En otoño cada día dura unos 2 minutos más que el anterior.",false,"En otoño cada día se acorta unos 2 minutos."],
        ["En primavera cada día dura unos 2 minutos más que el anterior.",true,"En invierno y en primavera los días se van alargando."]],
-   tipear:[["En verano, cada día se acorta unos… minutos respecto del anterior (escribí el número).",["2","dos"],"Es un número"]]}),
+   tipear:[["En verano, cada día se acorta unos… minutos respecto del anterior (escribí el número).",["2","dos","2 minutos","dos minutos"],"Es un número"]]}),
   K("arco_cambia","b","🌈","El arco cambia durante el año","En verano y en otoño, cada día el arco del Sol es menor y el mediodía alcanza menos altura. En invierno y en primavera, cada día el arco es mayor y el mediodía alcanza más altura.",{
    mc:[["Durante el otoño, cada día el arco que hace el Sol…","Es menor, y el mediodía alcanza menos altura",["Es mayor, y el mediodía alcanza más altura","Es igual","Desaparece"]],
        ["Durante la primavera, cada día el arco que hace el Sol…","Es mayor, y el mediodía alcanza más altura",["Es menor, y el mediodía alcanza menos altura","Es igual","Desaparece"]]],
@@ -129,14 +129,14 @@ INT.temaIdeas({
        ["El día del solsticio de verano, el arco que hace el Sol es…","El más grande del año",["El más chico del año","Igual que el del equinoccio","Inexistente"]]],
    vf:[["El día del solsticio de verano es el día de mayor duración del año.",true,"Es el día en que el arco del Sol es el más grande."],
        ["En la Ciudad de Buenos Aires, en el solsticio de verano, el Sol queda justo arriba de nuestras cabezas.",false,"Alcanza su máxima altura, pero nunca está justo arriba de nuestras cabezas."]],
-   tipear:[["El día en que comienza el verano se llama solsticio de… (escribí la estación).",["verano","de verano"],"Es la estación de las vacaciones"]]}),
+   tipear:[["El día en que el arco del Sol es el más grande del año se llama solsticio de… (escribí la estación).",["verano","de verano"],"Empieza con v"]]}),
   K("eq_otono","d","🍃","Equinoccio de otoño","El equinoccio de otoño ocurre entre el 20 y el 23 de marzo y marca el comienzo del otoño. Ese día el Sol sale casi por el este y se pone casi por el oeste, y el día y la noche duran unas 12 horas cada uno (en 2026: salida a las 6:57 y puesta a las 19:05). Después, los días se van acortando.",{
    mc:[["¿Cómo se llama el día en que comienza el otoño?","Equinoccio de otoño",["Solsticio de otoño","Equinoccio de verano","Solsticio de invierno"]],
        ["¿Entre qué fechas ocurre el equinoccio de otoño?","Entre el 20 y el 23 de marzo",["Entre el 20 y el 23 de diciembre","Entre el 20 y el 23 de junio","Entre el 20 y el 23 de septiembre"]],
        ["En el equinoccio, el Sol sale casi por el…","este",["sureste","noreste","sur"]]],
    vf:[["En el equinoccio de otoño el día y la noche duran unas 12 horas cada uno.",true,"Después de ese día los días se van acortando."],
        ["En el equinoccio de otoño el día dura casi 14 horas y media.",false,"Eso pasa en el solsticio de verano; en el equinoccio el día dura unas 12 horas."]]}),
-  K("sol_invierno","d","🥶","Solsticio de invierno","El solsticio de invierno ocurre entre el 20 y el 23 de junio y marca el comienzo del invierno. Ese día el Sol sale por el noreste, al mediodía llega a su altura más baja del año y se pone por el noroeste: el arco es el más chico y el día el más corto (en 2026: de 8:00 a 17:50, ¡14 horas y 10 minutos de noche!).",{
+  K("sol_invierno","d","🥶","Solsticio de invierno","El solsticio de invierno ocurre entre el 20 y el 23 de junio y marca el comienzo del invierno. Ese día el Sol sale por el noreste, al mediodía llega a su altura más baja del año y se pone por el noroeste: el arco es el más chico y el día el más corto (en 2026: sale a las 8:00 y se pone a las 17:50, ¡14 horas y 10 minutos de noche!).",{
    mc:[["¿Cómo se llama el día en que comienza el invierno?","Solsticio de invierno",["Equinoccio de invierno","Solsticio de verano","Equinoccio de otoño"]],
        ["¿Entre qué fechas ocurre el solsticio de invierno?","Entre el 20 y el 23 de junio",["Entre el 20 y el 23 de diciembre","Entre el 20 y el 23 de marzo","Entre el 20 y el 23 de septiembre"]],
        ["El día del solsticio de invierno, el arco que hace el Sol es…","El más chico del año",["El más grande del año","Igual que el del verano","Inexistente"]],
@@ -152,9 +152,9 @@ INT.temaIdeas({
  ],
  tableros:[
   {titulo:"Cuándo empieza cada estación",cols:["Estación","Empieza"],pares:[["sol_verano","Verano","Alrededor del 21 de diciembre"],["eq_otono","Otoño","Alrededor del 20 de marzo"],["sol_invierno","Invierno","Alrededor del 21 de junio"],["eq_primavera","Primavera","Alrededor del 22 de septiembre"]]},
-  {titulo:"Las temperaturas",cols:["Estación","Temperaturas"],pares:[["verano","Verano","Temperaturas elevadas"],["otono","Otoño","Temperaturas menores que en verano"],["invierno","Invierno","Temperaturas generalmente bajas"],["primavera","Primavera","Temperaturas mayores que en invierno"]]},
+  {titulo:"Las temperaturas",cols:["Estación","Temperaturas"],pares:[["verano","Verano","Temperaturas elevadas"],["otono","Otoño","Van bajando después del verano"],["invierno","Invierno","Temperaturas generalmente bajas"],["primavera","Primavera","Van subiendo después del invierno"]]},
   {titulo:"Solsticios y equinoccios",cols:["Día","Qué pasa"],pares:[["sol_verano","Solsticio de verano","El arco más grande y el día más largo"],["sol_invierno","Solsticio de invierno","El arco más chico y el día más corto"],["eq_otono","Equinoccio de otoño","Día y noche de 12 horas; los días se acortan"],["eq_primavera","Equinoccio de primavera","Día y noche de 12 horas; los días se alargan"]]},
-  {titulo:"Más sobre el año",cols:["Idea","Qué dice"],pares:[["ano","Un año","Se completa el ciclo de las estaciones"],["sombra_cambia","La sombra de un objeto fijo","Cambia de largo según la época"],["temperaturas","Meses de calor, frío y templados","Muestran que el recorrido del Sol cambia"],["polos","Cerca de los polos","Días sin que salga el Sol y días sin que se ponga"]]}
+  {titulo:"Más sobre el año",cols:["Idea","Qué dice"],pares:[["ano","Un año","Se completa el ciclo de las estaciones"],["sombra_cambia","La sombra de un objeto fijo","Cambia de largo según la época"],["temperaturas","Las temperaturas durante el año","Hay meses de calor, de frío y templados"],["polos","Cerca de los polos","Días sin que salga el Sol y días sin que se ponga"]]}
  ],
  estudio:[
   {id:"resumen",titulo:"📖 Resumen"},
@@ -180,7 +180,7 @@ INT.temaIdeas({
   {t:"Verano (desde el 20-23 de diciembre)",h:["Solsticio de verano: el arco más grande y el día más largo","Sale por el sureste y se pone por el suroeste","Los días duran más que las noches","Sol alto, sombras cortas, temperaturas elevadas","Cada día dura unos 2 minutos menos"]},
   {t:"Otoño (desde el 20-23 de marzo)",h:["Equinoccio de otoño: día y noche de unas 12 horas","Sale casi por el este y se pone casi por el oeste; después, por el noreste y el noroeste","Los días duran menos que las noches; temperaturas menores","Cada día dura unos 2 minutos menos"]},
   {t:"Invierno (desde el 20-23 de junio)",h:["Solsticio de invierno: el arco más chico y el día más corto","Sale por el noreste y se pone por el noroeste","Los días duran menos que las noches; sombras largas; temperaturas bajas","Cada día dura unos 2 minutos más"]},
-  {t:"Primavera (desde el 20-23 de septiembre)",h:["Equinoccio de primavera: día y noche de unas 12 horas","Sale casi por el este; después, por el sureste y se pone por el suroeste","Los días duran más que las noches; temperaturas mayores que en invierno","Cada día dura unos 2 minutos más","Cuando el día es el más largo del año empieza un nuevo verano"]},
+  {t:"Primavera (desde el 20-23 de septiembre)",h:["Equinoccio de primavera: día y noche de unas 12 horas","Sale casi por el este y se pone casi por el oeste; después, por el sureste y el suroeste","Los días duran más que las noches; temperaturas mayores que en invierno","Cada día dura unos 2 minutos más","Cuando el día es el más largo del año empieza un nuevo verano"]},
   {t:"Un año",h:["Se completa el ciclo de las cuatro estaciones","El ciclo se repite una y otra vez"]}
  ]}
 });

@@ -377,5 +377,49 @@ svg.arbol{max-width:240px;border-radius:14px;border:2px solid var(--line)}
   .memo.largo{grid-template-columns:repeat(5,minmax(0,1fr))}
   .memo.largo .cm{min-height:74px}
   #pPreg.pmapa .cuerpo.condib svg.dibujo{max-height:calc(100dvh - 90px)}
+  #pPreg.pmapa .cuerpo.condib svg.virreinato{height:calc(100dvh - 90px)}   /* el mapa del virreinato (alto y angosto) usa todo el alto de la pantalla de costado */
 }
+
+/* ---- los dibujos de Sociales (las autoridades coloniales, el triángulo de las castas, la línea de tiempo y el Virreinato del Río de la Plata en el mapa de hoy) */
+:root{--virrey:#6fb7a8}
+@media (prefers-color-scheme:dark){:root{--virrey:#2f8f80}}
+svg.autoridades,svg.linea{max-width:440px}
+svg.castas{max-width:400px}
+svg.virreinato{width:auto;height:clamp(260px,60vh,560px);max-width:100%}
+.cuerpo.condib svg.virreinato{height:clamp(240px,calc(100dvh - 260px),640px)}
+svg.dibujo .fr-esp{fill:var(--azul-bg)}
+svg.dibujo .fr-ame{fill:var(--verde-bg)}
+svg.dibujo .fr-ciu{fill:var(--papel)}
+svg.dibujo .fr-t{font:800 10px var(--body);fill:var(--muted);letter-spacing:.08em;pointer-events:none}
+svg.dibujo .d-linea{fill:none;stroke:var(--muted);stroke-width:2.2;stroke-linecap:round;pointer-events:none}
+svg.dibujo .d-linea.disc{stroke-dasharray:6 5}
+svg.dibujo .d-linea.gruesa{stroke-width:5;stroke:var(--line)}
+svg.dibujo.clic .aut,svg.dibujo.clic .cas,svg.dibujo.clic .ev,svg.dibujo.clic .vir{cursor:pointer}
+svg.dibujo .aut .caja{fill:var(--card);stroke:var(--azul);stroke-width:2}
+svg.dibujo .aut text,svg.dibujo .cas text{font:800 12.5px var(--body);fill:var(--ink);text-anchor:middle;pointer-events:none}
+svg.dibujo .aut.res .caja,svg.dibujo .cas.res .pill{fill:var(--res);stroke:var(--res-borde);stroke-width:3}
+svg.dibujo .aut.ok .caja,svg.dibujo .cas.ok .pill{fill:var(--ok-mapa)}
+svg.dibujo .aut.mal .caja,svg.dibujo .cas.mal .pill{fill:var(--mal-mapa)}
+svg.dibujo .aut.res text,svg.dibujo .aut.ok text,svg.dibujo .aut.mal text,svg.dibujo .cas.res text,svg.dibujo .cas.ok text,svg.dibujo .cas.mal text{fill:#10162e}
+svg.dibujo .tri{fill:none;stroke:var(--line);stroke-width:3}
+svg.dibujo .cas .pill{stroke-width:2}
+svg.dibujo .cas.origen .pill{fill:var(--card);stroke:var(--muted)}
+svg.dibujo .cas.casta .pill{fill:var(--azul-bg);stroke:var(--azul)}
+svg.dibujo .ev .ev-p{fill:var(--card);stroke:var(--azul);stroke-width:3}
+svg.dibujo .ev .ev-a{font:800 15px var(--display);fill:var(--ink);pointer-events:none}
+svg.dibujo .ev .ev-n{font:700 12.5px var(--body);fill:var(--ink);pointer-events:none}
+svg.dibujo .ev.res .ev-p{fill:var(--res);stroke:var(--res-borde)}
+svg.dibujo .ev.ok .ev-p{fill:var(--ok-mapa);stroke:var(--ok-mapa)}
+svg.dibujo .ev.mal .ev-p{fill:var(--mal-mapa);stroke:var(--mal-mapa)}
+svg.dibujo .ev.res .hit{fill:rgba(255,179,0,.2)}
+svg.dibujo .ev.ok .hit{fill:rgba(63,185,123,.26)}
+svg.dibujo .ev.mal .hit{fill:rgba(224,96,90,.26)}
+svg.dibujo .vir path{fill:var(--tierra);stroke:var(--borde-mapa);stroke-width:1.1;stroke-linejoin:round}
+svg.dibujo .vir.miembro path{fill:var(--virrey)}
+svg.dibujo .vir.res path{fill:var(--res);stroke:var(--res-borde);stroke-width:1.8}
+svg.dibujo .vir.ok path{fill:var(--ok-mapa)}
+svg.dibujo .vir.mal path{fill:var(--mal-mapa)}
+svg.dibujo .vir-et{font:800 22px var(--body);fill:var(--ink);text-anchor:middle;dominant-baseline:middle;paint-order:stroke;stroke:var(--bg);stroke-width:4.6px;stroke-linejoin:round;pointer-events:none}
+svg.dibujo .vir-ba circle{fill:var(--card);stroke:var(--ink);stroke-width:3}
+svg.dibujo .vir-ba text{font:800 20px var(--body);fill:var(--ink);text-anchor:end;paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round;pointer-events:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}

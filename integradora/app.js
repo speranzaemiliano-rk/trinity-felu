@@ -336,7 +336,8 @@ function pintarTemaIdeas(t){
      <h2>Las ideas de este tema</h2>
      <div class="lista-prov" role="list">${filas}</div>`;
 }
-const DIB_TIT={sol:"El camino del Sol durante un día",salidas:"Dónde sale y dónde se pone el Sol",alturas:"El Sol y la sombra al mediodía",gnomon:"Las sombras del gnomon durante un día",arboles:"Un árbol en cada estación"};
+const DIB_TIT={sol:"El camino del Sol durante un día",salidas:"Dónde sale y dónde se pone el Sol",alturas:"El Sol y la sombra al mediodía",gnomon:"Las sombras del gnomon durante un día",arboles:"Un árbol en cada estación",autoridades:"Las autoridades coloniales",castas:"El triángulo de las castas",linea:"Línea de tiempo (los años no están a escala)",virreinato:"El Virreinato del Río de la Plata en el mapa de hoy"};
+const DIB_NOTA={virreinato:"Los países se pintan enteros, pero el virreinato no coincidía exactamente con las fronteras de hoy: el libro dice que abarcaba su territorio «total o parcialmente»."};   // aclaración que va bajo el dibujo, si hace falta
 let EST={t:null,tab:"resumen"};   // lo que se está estudiando
 function pintarEstudio(t,tab,foco){
   const def=t.def,tabs=def.estudio&&def.estudio.length?def.estudio:[{id:"resumen",titulo:"📖 Resumen"}];
@@ -360,7 +361,7 @@ function estCuadro(def){
 function estDibujos(tab){
   return ((tab&&tab.dibujos)||[]).map(d=>{
     const inf=IDEAS.info[d],f=DIB[d];if(!f)return "";
-    return `<section class="dib-est" data-dib="${esc(d)}"><h2>${esc(DIB_TIT[d]||"")}</h2><div class="dib-w">${f({clic:!!inf})}</div>${inf?`<div class="info vacio" id="info-${esc(d)}" role="status" aria-live="polite">Tocá una parte del dibujo para ver qué significa.</div>`:""}</section>`}).join("");
+    return `<section class="dib-est" data-dib="${esc(d)}"><h2>${esc(DIB_TIT[d]||"")}</h2><div class="dib-w">${f({clic:!!inf})}</div>${inf?`<div class="info vacio" id="info-${esc(d)}" role="status" aria-live="polite">Tocá una parte del dibujo para ver qué significa.</div>`:""}${DIB_NOTA[d]?`<p class="nota-aj">${esc(DIB_NOTA[d])}</p>`:""}</section>`}).join("");
 }
 function estMapa(def){
   const m=def.mapa;if(!m)return `<p class="sin">Este tema no tiene mapa conceptual.</p>`;
@@ -504,7 +505,7 @@ function porParte(){
   return `<h2>Por parte</h2><div class="partes">${[...m].map(([k,e])=>`<div class="pt"><span>${esc(k)}</span><b>${e.ok} / ${e.t}</b>${barraProg(Math.round(100*e.ok/e.t))}</div>`).join("")}</div>`;
 }
 // ---- simulacro: como una prueba (sin ver si estuvo bien hasta el final)
-const N_SIM=35;   // 30 de provincias (6 partes) y 5 de los países limítrofes (parte G)
+const N_SIM=35+(IDEAS.temas.some(t=>t.area==="sociales")?5:0);   // 30 de provincias (6 partes), 5 de los países limítrofes (parte G) y, si hay temas de ideas de Sociales, 5 de ellos (parte H)
 const AYUDA_UNIR_EXAMEN="Tocá una provincia y después su capital. Para cambiar una pareja, tocala de nuevo. Al terminar, tocá «Listo».";
 function armarSimulacro(){
   const qs=[],P=mezclar(PROVS),T=mezclar(INT.ITEMS);
@@ -521,30 +522,37 @@ function armarSimulacro(){
   // los cinco países limítrofes, uno por pregunta y de distinto tipo
   const tg=mezclar(["capEleg","mapaEleg","capTipear","provEleg","vf"]);
   mezclar(PAISES).forEach((it,i)=>qs.push({...generar(tg[i%tg.length],it,1),parte:"G · Países limítrofes"}));
+  // H · las ideas de Sociales (la época colonial): 2 de elegir, 1 de verdadero o falso, 1 de escribir y un tablero de unir, todo de ideas distintas
+  if(ideasDe("sociales").length){const us=new Set(),H="H · La época colonial";
+    qs.push(...preguntasIdeas("sociales","cnMc",2,H,us),...preguntasIdeas("sociales","cnVf",1,H,us),...preguntasIdeas("sociales","cnTipear",1,H,us),...tablerosExamen("sociales",1,H,AYUDA_UNIR_IDEAS,us));
+  }
   return qs;
 }
-// ---- simulacro de Naturales (también sin ver si estuvo bien hasta el final): preguntas de todos los temas en seis partes; se procura que un concepto no aparezca en dos partes
-const N_SIM_NAT=19+Math.min(2,IDEAS.temas.length);   // 6 + 4 + 4 + 2 + 3 y dos tableros de unir
-const AYUDA_UNIR_EXAMEN_NAT="Tocá una idea y después lo que le corresponde. Para cambiar una pareja, tocala de nuevo. Al terminar, tocá «Listo».";
+// ---- las ideas y los temas de cada materia (Naturales y Sociales traen temas de ideas), y cómo se arman con ellos las preguntas de una prueba
+const temasDe=a=>IDEAS.temas.filter(t=>t.area===a),ideasDe=a=>[].concat(...temasDe(a).map(t=>t.conceptos));
+const AYUDA_UNIR_IDEAS="Tocá una idea y después lo que le corresponde. Para cambiar una pareja, tocala de nuevo. Al terminar, tocá «Listo».";
+// n preguntas de un tipo, de ideas distintas de una materia (primero las que todavía no salieron en la prueba, que se anotan en «usados»)
+function preguntasIdeas(area,tipo,n,parte,usados){
+  const propias=new Set(ideasDe(area).map(x=>x.id)),l=mezclar(ELEGIBLES[tipo].filter(x=>propias.has(x.id))),orden=l.filter(x=>!usados.has(x.id)).concat(l.filter(x=>usados.has(x.id))),vistas=new Set(),qs=[];
+  for(const it of orden){if(qs.length>=n)break;const q=generarIdea(tipo,it,1,vistas);if(vistas.has(q.clave))continue;vistas.add(q.clave);usados.add(it.id);qs.push({...q,parte})}
+  return qs;
+}
+// n tableros de unir, de temas distintos de una materia (sus ideas pasan a «usados»: los tableros son lo que más «regala», porque muestran muchas ideas con su respuesta)
+function tablerosExamen(area,n,parte,ayuda,usados){
+  return mezclar(temasDe(area).filter(t=>t.tableros.length)).slice(0,n).map(t=>{const i=azar(0,t.tableros.length-1);t.tableros[i].pares.forEach(p=>usados.add(p[0]));return {...tableroUnirIdea(t,i),ayuda,parte}});
+}
+// ---- simulacro de Naturales (también sin ver si estuvo bien hasta el final): preguntas de todos sus temas en seis partes; se procura que una idea no aparezca en dos partes
+const N_SIM_NAT=19+Math.min(2,temasDe("naturales").length);   // 6 + 4 + 4 + 2 + 3 y dos tableros de unir
 function armarSimulacroNat(){
-  const usados=new Set();
-  const poner=(tipo,n,parte)=>{   // n preguntas de ese tipo, de conceptos distintos (primero los que todavía no salieron en la prueba)
-    const l=mezclar(ELEGIBLES[tipo]),orden=l.filter(x=>!usados.has(x.id)).concat(l.filter(x=>usados.has(x.id))),vistas=new Set(),qs=[];
-    for(const it of orden){if(qs.length>=n)break;const q=generarIdea(tipo,it,1,vistas);if(vistas.has(q.clave))continue;vistas.add(q.clave);usados.add(it.id);qs.push({...q,parte})}
-    return qs;
-  };
-  // los tableros de unir son lo que más «regala» (muestran muchas ideas con su respuesta): se eligen primero, de dos temas distintos, y sus conceptos se evitan en las demás partes
-  const E=mezclar(IDEAS.temas.filter(t=>t.tableros.length)).slice(0,2).map(t=>{const n=azar(0,t.tableros.length-1);t.tableros[n].pares.forEach(p=>usados.add(p[0]));return {...tableroUnirIdea(t,n),ayuda:AYUDA_UNIR_EXAMEN_NAT,parte:"E · Uní las ideas"}});
+  const usados=new Set(),poner=(tipo,n,parte)=>preguntasIdeas("naturales",tipo,n,parte,usados);
+  const E=tablerosExamen("naturales",2,"E · Uní las ideas",AYUDA_UNIR_IDEAS,usados);   // primero los tableros: sus ideas se evitan en las demás partes
   const A=poner("cnMc",6,"A · Elegí la respuesta"),B=poner("cnVf",4,"B · Verdadero o falso"),C=poner("cnTocar",3,"C · Mirá el dibujo").concat(poner("cnEstacion",1,"C · Mirá el dibujo")),D=poner("cnOrdenar",2,"D · Ordená"),F=poner("cnTipear",3,"F · Escribí");
   return [...A,...B,...C,...D,...E,...F];
 }
 // ---- memotest: se dan vuelta de a dos cartas (una provincia o un país y su capital; en Naturales, una idea y lo que le corresponde)
 let MM=null;
-function memotestIdeas(t){   // hasta 5 parejas de los tableros del tema (empieza por uno al azar, así «hablan de lo mismo»), sin repetir concepto ni texto
-  const usados=new Set(),textos=new Set(),pares=[];
-  mezclar(t.def.tableros).forEach(tab=>mezclar(tab.pares).forEach(p=>{
-    if(pares.length>=5||usados.has(p[0])||textos.has(NORM(p[1]))||textos.has(NORM(p[2])))return;
-    usados.add(p[0]);textos.add(NORM(p[1]));textos.add(NORM(p[2]));pares.push(p)}));
+function memotestIdeas(t){   // las parejas de UN tablero del tema (4 o 5): si se mezclaran tableros, el texto de una pareja podría servir también para otra idea y el chico tendría razón y el juego no
+  const tab=elegir(t.def.tableros),pares=tab.pares.slice();
   MM={cartas:mezclar(pares.flatMap(p=>[{id:p[0],lado:"n",t:p[1]},{id:p[0],lado:"c",t:p[2]}])),abiertas:[],hechas:new Set(),intentos:0,fallos:{},bloq:false,items:pares.map(p=>ITEM[p[0]]),tema:t};
   pintarMemo();ir("pMemo");
 }
@@ -586,7 +594,7 @@ function pintarAjustes(){
     <label class="campo" for="aFecha"><span>📅 Fecha de la prueba (para la cuenta regresiva)</span><input type="date" id="aFecha" value="${esc(ST.fecha)}"></label>
     <button class="btn sec" id="aSinFecha" ${ST.fecha?"":"disabled"}>Sacar la fecha</button>
     <label class="fila"><input type="checkbox" id="aEtq" ${ST.etq?"checked":""}><span>Mostrar los nombres en el mapa para estudiar</span></label>
-    <p class="nota-aj">Las provincias y sus capitales son las de la República Argentina (23 provincias y la Ciudad Autónoma de Buenos Aires); los países limítrofes son Chile, Bolivia, Paraguay, Brasil y Uruguay. Los mapas se armaron con datos públicos de Natural Earth. ${IDEAS.temas.length?`Los resúmenes, los dibujos y los ejercicios de Naturales están hechos con otras palabras a partir de las páginas del libro (${esc(IDEAS.temas.map(t=>t.paginas).join(", "))}): si algo no coincide con el libro, vale el libro. `:""}Todo lo que hacés queda sólo en este aparato.</p>
+    <p class="nota-aj">Las provincias y sus capitales son las de la República Argentina (23 provincias y la Ciudad Autónoma de Buenos Aires); los países limítrofes son Chile, Bolivia, Paraguay, Brasil y Uruguay. Los mapas se armaron con datos públicos de Natural Earth. ${IDEAS.temas.length?`Los resúmenes, los dibujos y los ejercicios de ${[["Naturales","naturales"],["Sociales","sociales"]].filter(([,a])=>temasDe(a).length).map(([n,a])=>n+" ("+temasDe(a).map(t=>t.paginas).join(", ")+")").join(" y de ")} están hechos con otras palabras a partir de las páginas del libro: si algo no coincide con el libro, vale el libro. `:""}Todo lo que hacés queda sólo en este aparato.</p>
     <button class="btn peligro" id="aBorrar">Borrar mi progreso</button></div>`;
 }
 

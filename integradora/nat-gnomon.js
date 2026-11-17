@@ -4,11 +4,11 @@
 const INT=window.INT,K=INT.idea;
 // lo que dice cada sombra del dibujo al tocarla en la pantalla de estudio (la hora es la de un día de ejemplo: el mediodía solar cae cerca de las 13 h)
 INT.IDEAS.info.gnomon={
-  s9:{t:"9:00 · sombra de la mañana",d:"Apunta hacia el sector oeste y es larga. A medida que avanza la mañana se va acortando."},
-  s11:{t:"11:00 · sombra de la mañana",d:"Sigue apuntando hacia el sector oeste y ya es más corta: el Sol se está elevando."},
-  s13:{t:"13:00 · mediodía solar",d:"Es la sombra más corta del día y apunta hacia el sur. Así se reconoce el norte (del lado opuesto) y los demás puntos cardinales."},
-  s15:{t:"15:00 · sombra de la tarde",d:"Ya apunta hacia el sector este y se está alargando: el Sol va bajando."},
-  s17:{t:"17:00 · sombra de la tarde",d:"Apunta hacia el sector este y es larga. A medida que avanza la tarde se va alargando más."}
+  s9:{t:"9:00 · sombra de la mañana (día de ejemplo)",d:"Apunta hacia el sector oeste y es larga. A medida que avanza la mañana se va acortando."},
+  s11:{t:"11:00 · sombra de la mañana (día de ejemplo)",d:"Sigue apuntando hacia el sector oeste y ya es más corta: el Sol se está elevando."},
+  s13:{t:"13:00 · mediodía solar (día de ejemplo)",d:"Es la sombra más corta del día y apunta hacia el sur. Así se reconoce el norte (del lado opuesto) y los demás puntos cardinales."},
+  s15:{t:"15:00 · sombra de la tarde (día de ejemplo)",d:"Ya apunta hacia el sector este y se está alargando: el Sol va bajando."},
+  s17:{t:"17:00 · sombra de la tarde (día de ejemplo)",d:"Apunta hacia el sector este y es larga. A medida que avanza la tarde se va alargando más."}
 };
 INT.temaIdeas({
  id:"gnomon",nombre:"Observación y registro: el gnomon",ico:"📏",paginas:"página 127",
@@ -26,15 +26,15 @@ INT.temaIdeas({
        ["¿Dónde conviene instalar el gnomon?","En un lugar descubierto, lejos de paredes y de objetos grandes",["Contra una pared alta","Debajo de un árbol","Dentro de una habitación"]]],
    vf:[["El gnomon se puede instalar pegado a una pared.",false,"Conviene alejarlo de paredes y de objetos grandes que hagan sombra."]]}),
   K("registrar_sombras","b","✏️","Cómo se registran las sombras","Para registrar una sombra se puede dibujar su contorno sobre un papel o hacer una marca en el piso en el extremo de la sombra. Junto a cada sombra hay que anotar la hora.",{
-   mc:[["¿Cómo se puede registrar una sombra?","Dibujando su contorno en un papel o marcando en el piso su extremo",["Sacándole una foto sin anotar nada","Esperando a que desaparezca","Midiéndola con una brújula"]],
+   mc:[["¿Cómo se puede registrar una sombra?","Dibujando su contorno en un papel o marcando en el piso su extremo",["Sin dibujar ni marcar nada, sólo recordándola","Esperando a que desaparezca","Midiéndola con una brújula"]],
        ["Junto a cada sombra registrada hay que anotar…","La hora",["El color del piso","La temperatura del piso","El nombre del Sol"]]],
    vf:[["Al registrar una sombra conviene anotar la hora junto a ella.",true,"Así se sabe cuándo se formó cada sombra."]],
-   tipear:[["Junto a cada sombra que registrás tenés que anotar la… (una palabra).",["hora","la hora"],"Sirve para saber cuándo la registraste"]],
+   tipear:[["Junto a cada sombra que registrás tenés que anotar la… (una palabra).",["hora","la hora"],"Es lo que marca el reloj"]],
    ordenar:[["Ordená los pasos para usar el gnomon.",["Elegir un día soleado y un lugar descubierto","Instalar la varilla vertical y dejarla fija","Marcar el extremo de la sombra y anotar la hora (por la mañana)","Repetir el registro cerca del mediodía","Repetir el registro por la tarde","Buscar la sombra más corta: es la del mediodía solar"]]]}),
-  K("cuando_registrar","b","⏰","Cuándo registrar","Conviene registrar la sombra todas las veces que se pueda: al menos una vez por la mañana, una cerca del mediodía y otra por la tarde.",{
-   mc:[["¿En qué momentos del día conviene registrar la sombra?","Todas las veces posibles: por la mañana, cerca del mediodía y por la tarde",["Sólo de noche","Sólo una vez, a cualquier hora","Sólo al amanecer"]],
-       ["¿Cuántas veces, como mínimo, conviene registrar la sombra durante el día?","Tres: mañana, cerca del mediodía y tarde",["Una sola","Dos, las dos a la tarde","Ninguna: alcanza con mirar"]]],
-   vf:[["Para registrar las sombras alcanza con hacerlo una sola vez por la mañana.",false,"Conviene registrarlas al menos tres veces: por la mañana, cerca del mediodía y por la tarde."]]}),
+  K("cuando_registrar","b","⏰","Cuándo registrar","Conviene registrar la sombra en tres momentos del día: por la mañana, cerca del mediodía y por la tarde.",{
+   mc:[["¿En qué momentos del día conviene registrar la sombra?","Por la mañana, cerca del mediodía y por la tarde",["Sólo de noche","Sólo una vez, a cualquier hora","Sólo al amanecer"]],
+       ["¿En cuántos momentos del día conviene registrar la sombra?","En tres: mañana, cerca del mediodía y tarde",["En uno solo","En dos, los dos a la tarde","En ninguno: alcanza con mirar"]]],
+   vf:[["Para registrar las sombras alcanza con hacerlo una sola vez por la mañana.",false,"Conviene registrarlas en tres momentos: por la mañana, cerca del mediodía y por la tarde."]]}),
   K("sombra_manana","c","🌤️","La sombra de la mañana","Por la mañana la sombra del gnomon apunta hacia el sector oeste y es cada vez más corta, porque el Sol se va elevando.",{
    mc:[["Por la mañana, ¿hacia dónde apunta la sombra del gnomon?","Hacia el sector oeste",["Hacia el sector este","Hacia el norte","Hacia ninguna parte"]],
        ["A medida que avanza la mañana, la sombra se va poniendo…","Más corta",["Más larga","Más ancha","Más fría"]]],
@@ -50,7 +50,7 @@ INT.temaIdeas({
            ["En el mediodía solar la sombra del gnomon apunta hacia el… (punto cardinal).",["sur","el sur"],"Es el opuesto del norte"]],
    tocar:[["gnomon","Tocá en el dibujo la sombra que se forma al mediodía solar.","s13"],
           ["gnomon","Tocá en el dibujo la sombra más corta del día.","s13"],
-          ["gnomon","Tocá en el dibujo la sombra que apunta hacia el sur.","s13"]]}),
+          ["gnomon","Tocá en el dibujo la sombra que apunta justo hacia el sur.","s13"]]}),
   K("sombra_tarde","c","🌇","La sombra de la tarde","Por la tarde la sombra del gnomon apunta hacia el sector este y es cada vez más larga, porque el Sol va bajando.",{
    mc:[["Por la tarde, ¿hacia dónde apunta la sombra del gnomon?","Hacia el sector este",["Hacia el sector oeste","Hacia el norte","Hacia el sur"]],
        ["A medida que avanza la tarde, la sombra se va poniendo…","Más larga",["Más corta","Más angosta","Más cálida"]]],
@@ -70,8 +70,8 @@ INT.temaIdeas({
    vf:[["Dentro de dos meses, las sombras del gnomon van a medir exactamente lo mismo que hoy a la misma hora.",false,"El largo puede cambiar porque el recorrido del Sol cambia durante el año."]]})
  ],
  tableros:[
-  {titulo:"El gnomon y su registro",cols:["Tema","Qué hay que saber"],pares:[["gnomon","El gnomon","Varilla vertical y fija"],["gnomon_lugar","Dónde se instala","En un lugar soleado y descubierto"],["registrar_sombras","Registrar una sombra","Contorno o marca del extremo, y la hora"],["cuando_registrar","Cuándo registrar","Mañana, cerca del mediodía y tarde"]]},
-  {titulo:"Las sombras del día",cols:["Tema","Qué pasa"],pares:[["sombra_manana","Sombra de la mañana","Apunta al oeste y se acorta"],["sombra_mediodia","Sombra del mediodía solar","La más corta, apunta al sur"],["sombra_tarde","Sombra de la tarde","Apunta al este y se alarga"],["observar","Observar no es mirar","Sentidos en alerta y mente en acción"],["registrar_datos","Registrar datos","Escribir, dibujar, fotografiar o grabar"]]}
+  {titulo:"El gnomon y su registro",cols:["Tema","Qué hay que saber"],pares:[["gnomon","El gnomon","Varilla vertical y fija"],["gnomon_lugar","Dónde se instala","Un día soleado y un lugar descubierto"],["registrar_sombras","Registrar una sombra","Contorno o marca del extremo, y la hora"],["cuando_registrar","Cuándo registrar","Mañana, cerca del mediodía y tarde"]]},
+  {titulo:"Las sombras y la observación",cols:["Tema","Qué pasa"],pares:[["sombra_manana","Sombra de la mañana","Apunta al oeste y se acorta"],["sombra_mediodia","Sombra del mediodía solar","La más corta, apunta al sur"],["sombra_tarde","Sombra de la tarde","Apunta al este y se alarga"],["observar","Observar no es mirar","Sentidos en alerta y mente en acción"],["registrar_datos","Registrar datos","Escribir, dibujar, fotografiar o grabar"]]}
  ],
  estudio:[
   {id:"resumen",titulo:"📖 Resumen"},
@@ -80,7 +80,7 @@ INT.temaIdeas({
  ],
  mapa:{raiz:"El gnomon: observar y registrar sombras",ramas:[
   {t:"¿Qué es?",h:["Una varilla vertical que tiene que quedar fija","Con su sombra se sabe dónde está el Sol y se encuentran los puntos cardinales"]},
-  {t:"¿Dónde y cuándo?",h:["Un día soleado, en un lugar descubierto, lejos de paredes y objetos grandes","Todas las veces posibles: mañana, cerca del mediodía y tarde"]},
+  {t:"¿Dónde y cuándo?",h:["Un día soleado, en un lugar descubierto, lejos de paredes y objetos grandes","Tres momentos: mañana, cerca del mediodía y tarde"]},
   {t:"¿Cómo se registra?",h:["Dibujando el contorno de la sombra en un papel, o marcando su extremo en el piso","Anotando la hora junto a cada sombra"]},
   {t:"¿Qué se descubre?",h:["Mañana: la sombra apunta al sector oeste y se acorta","Mediodía solar (cerca de las 13 h): la sombra más corta, apunta al sur","Tarde: apunta al sector este y se alarga","Así se reconoce el norte y los demás puntos cardinales"]},
   {t:"Observar y registrar",h:["Observar no es mirar: sentidos en alerta y mente en acción","Registrar: escribir, dibujar, fotografiar o grabar","Analizar los datos es esencial en una investigación"]}

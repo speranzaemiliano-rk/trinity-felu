@@ -1257,7 +1257,12 @@ for(const oscuro of (RAPIDO?[false]:[false,true])){
 {
   const p=await abrir();
   const miMarca=await p.evaluate(()=>{const e=document.querySelector('script[src*="app.js"]');return (/app\.js\?b=([^"'&\s>]+)/.exec(e.getAttribute('src'))||[])[1]||''});
-  chk('en http (como en estas pruebas) el aviso de versión no hace nada: no consulta, no recarga, no muestra nada',await p.evaluate(()=>INT.vigilarVersion()===null&&!document.querySelector('.int-nuevo'))&&!p.pedidos.some(x=>/[?&]c=\d+/.test(x.u)));
+  if(await p.evaluate(()=>location.protocol!=='https:'))
+    chk('en http (como en estas pruebas) el aviso de versión no hace nada: no consulta, no recarga, no muestra nada',await p.evaluate(()=>INT.vigilarVersion()===null&&!document.querySelector('.int-nuevo'))&&!p.pedidos.some(x=>/[?&]c=\d+/.test(x.u)));
+  else{   // contra el sitio publicado (URL=https://…): la página ya consultó sola; si la publicada es la misma, no hace nada
+    await p.waitForTimeout(3800);
+    chk('en https (contra el sitio publicado) el aviso consulta la propia página una vez (un GET «?c=») y, con la misma versión, no hace nada: ni cartel ni recarga',p.pedidos.filter(x=>/[?&]c=\d+/.test(x.u)&&x.m==='GET'&&x.u.startsWith(ORIGEN_PROPIO)).length===1&&await p.evaluate(()=>!document.querySelector('.int-nuevo')&&!/[?&]v=\d+/.test(location.search)));
+  }
   chk('la página tiene su propia marca de versión («?b=») en sus scripts: es lo que se compara con la publicada',/\S/.test(miMarca),miMarca);
   // helper: arma un vigilante con el index.html «publicado» simulado y lo corre
   const vigilar=(op)=>p.evaluate(async op=>{

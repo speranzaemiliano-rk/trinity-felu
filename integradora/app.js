@@ -667,5 +667,46 @@ function arrancar(){
 INT.gen=(tipo,id,c)=>generar(tipo,ITEM[id],c);INT.tipos=()=>POOL;INT.ELEGIBLES=ELEGIBLES;INT.ACTIVIDADES=ACTIVIDADES;INT.ACTIVIDADES_PAIS=ACTIVIDADES_PAIS;INT.N_SIM=N_SIM;
 INT.rondaCon=(qs,test)=>ronda({qs,test:!!test});INT.estado=()=>ST;INT.actual=actual;INT.ronda=()=>R;INT.armarSimulacro=armarSimulacro;INT.NORM=NORM;INT.dominio=dominio;INT.mapaHTML=mapaHTML;INT.mapaLimHTML=mapaLimHTML;INT.memo=()=>MM;
 INT.ACTIVIDADES_IDEAS=ACTIVIDADES_IDEAS;INT.N_SIM_NAT=N_SIM_NAT;INT.armarSimulacroNat=armarSimulacroNat;INT.tablerosDe=tablerosDe;INT.cuantas=cuantas;INT.nRonda=nRonda;INT.POOL_IDEA=POOL_IDEA;
-arrancar();pintarInicio();ir("pInicio",true);
+// ---------------- aviso de «versión nueva». Este módulo no usa motor.js (que es quien avisa en Felu y Raphina), así que lo hace acá: sin esto, una app instalada o dejada abierta en segundo plano
+// sigue mostrando la versión de antes hasta que alguien la cierra del todo. La «versión» es la marca «?b=» de los scripts de la propia página (tools/version.js la cambia en cada publicación).
+function vigilarVersion(op){
+  op=op||{};
+  const https=op.https!==undefined?op.https:location.protocol==="https:";
+  if(!https)return null;
+  const marca=h=>{const m=/app\.js\?b=([^"'&\s>]+)/.exec(String(h));return m?m[1]:""};
+  const mia=op.mia!==undefined?op.mia:(()=>{const e=document.querySelector('script[src*="app.js"]');return e?marca(e.getAttribute("src")):""})();
+  if(!mia)return null;
+  const leer=op.leer||(async()=>{const r=await fetch(location.pathname+"?c="+Date.now(),{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);return r.text()});   // («?c=» va directo a la red: el service worker no lo toca)
+  const recargar=op.recargar||(()=>{(async()=>{try{if(window.caches){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)))}}catch(e){}location.replace(location.pathname+"?v="+Date.now())})()});   // una dirección nueva: no sale del caché del navegador
+  const libre=()=>!R&&!MM&&!(INT.oral&&INT.oral.enCurso())&&!$("pInicio").hidden&&$("modal").hidden;   // en el inicio, sin nada empezado: se puede recargar sin que se pierda nada
+  let avisado=false,ultimo=-1e9;
+  function aviso(nueva){
+    if(document.querySelector(".int-nuevo"))return;
+    const d=document.createElement("div");d.className="int-nuevo";d.setAttribute("role","status");
+    d.innerHTML='<span>🔄 Hay una versión nueva de la app.</span><button type="button" class="ok">Actualizar</button><button type="button" class="x" aria-label="Cerrar">✕</button>';
+    d.querySelector(".ok").onclick=()=>{try{sessionStorage.setItem("integradora_recarga",nueva)}catch(e){}recargar(nueva)};
+    d.querySelector(".x").onclick=()=>d.remove();
+    document.body.appendChild(d);
+  }
+  async function revisar(alAbrir){
+    const ahora=Date.now();if(avisado||ahora-ultimo<8000)return;ultimo=ahora;   // (varios eventos seguidos no repiten la consulta)
+    try{
+      const nueva=marca(await leer());
+      if(!nueva||nueva===mia)return;
+      let yaProbo="";try{yaProbo=sessionStorage.getItem("integradora_recarga")||""}catch(e){}
+      avisado=true;
+      if(alAbrir&&libre()&&yaProbo!==nueva){try{sessionStorage.setItem("integradora_recarga",nueva)}catch(e){}recargar(nueva)}   // recién abierta y vieja: se recarga sola (una sola vez por versión, para no entrar en un ciclo)
+      else aviso(nueva);
+    }catch(e){}
+  }
+  if(!op.sinEventos){
+    document.addEventListener("visibilitychange",()=>{if(!document.hidden)revisar(false)});   // (al volver de otra aplicación: la app quedó abierta con la versión de antes)
+    window.addEventListener("pageshow",e=>{if(e.persisted)revisar(false)});
+    setTimeout(()=>revisar(true),op.espera!==undefined?op.espera:2500);
+  }
+  if(/[?&]v=\d+/.test(location.search)){try{history.replaceState(null,"",location.pathname+location.hash)}catch(e){}}   // se limpia la dirección después de recargar
+  return {revisar};
+}
+INT.vigilarVersion=vigilarVersion;
+arrancar();pintarInicio();ir("pInicio",true);vigilarVersion();
 })();

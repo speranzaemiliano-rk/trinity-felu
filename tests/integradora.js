@@ -214,7 +214,9 @@ chk('el archivo del mapa es liviano ('+Math.round(mapaTxt.length/1024)+' KB) y d
 const html=fs.readFileSync(path.join(RAIZ,'integradora','index.html'),'utf8');
 chk('la página está en español, con viewport para celular, título, manifiesto e ícono, se puede hacer zoom, y anota «trinity_ultimo = 7» para el menú del inicio',/<html lang="es">/.test(html)&&/name="viewport"/.test(html)&&!/user-scalable\s*=\s*no/.test(html)&&/<title>Prueba final integradora · Felipe/.test(html)&&/rel="manifest"/.test(html)&&/rel="apple-touch-icon"/.test(html)&&/trinity_ultimo","7"/.test(html));
 const fuente=['app.js','contenido.js'].map(f=>fs.readFileSync(path.join(RAIZ,'integradora',f),'utf8').replace(/^\s*\/\/.*$/gm,'').replace(/\s\/\/ .*$/gm,'')).concat([html]).join('\n');
-chk('no usa nada que mande datos afuera: ni fetch, ni XMLHttpRequest, ni eval, ni confirm/alert/prompt del navegador',!/\bfetch\s*\(|XMLHttpRequest|\beval\s*\(|new Function|\bconfirm\s*\(|\balert\s*\(|\bprompt\s*\(|sendBeacon|WebSocket/.test(fuente));
+// la ÚNICA excepción: el aviso de «versión nueva» pide la propia página (misma dirección + «?c=hora», sin método, cuerpo ni cabeceras: es un GET que no lleva nada del alumno)
+const LECTURA_PROPIA='fetch(location.pathname+"?c="+Date.now(),{cache:"no-store"})';
+chk('no usa nada que mande datos afuera: ni fetch (salvo la lectura de la propia página para el aviso de versión nueva: un GET sin cuerpo ni cabeceras), ni XMLHttpRequest, ni eval, ni confirm/alert/prompt del navegador',fuente.split(LECTURA_PROPIA).length-1===1&&!/\bfetch\s*\(|XMLHttpRequest|\beval\s*\(|new Function|\bconfirm\s*\(|\balert\s*\(|\bprompt\s*\(|sendBeacon|WebSocket/.test(fuente.split(LECTURA_PROPIA).join('')));
 
 (async()=>{
 let srv=null;if(!URL){srv=await servir();URL='http://127.0.0.1:'+srv.address().port+'/integradora/'}
@@ -1248,6 +1250,55 @@ for(const oscuro of (RAPIDO?[false]:[false,true])){
   await p.click('#bSimNat');await p.waitForSelector('#pPreg .consigna');await jugar(p,i=>i%3===0,true);await medirContraste('resultado del simulacro de Naturales');
   await p.click('#bInicioFin');await p.click('#pInicio .barra .atras');await p.waitForSelector('#aFecha');await medirContraste('ajustes');
   chk('contraste de los textos en modo '+(oscuro?'oscuro':'claro')+' (4,5 a 1; 3 a 1 en texto grande) en inicio, tema, mapa, preguntas, corregidas, resultado, ajustes, y en los temas de ideas (resumen, cuadro, dibujos, mapa conceptual, cada tipo de pregunta, memotest y resultado del simulacro de Naturales)',malos.length===0,malos.slice(0,6).join(' | '));
+  await cerrar(p);
+}
+
+// ---------- 10) aviso de «versión nueva» (este módulo no usa motor.js, que es quien avisa en Felu y Raphina: sin esto una app instalada o dejada abierta sigue con la versión de antes)
+{
+  const p=await abrir();
+  const miMarca=await p.evaluate(()=>{const e=document.querySelector('script[src*="app.js"]');return (/app\.js\?b=([^"'&\s>]+)/.exec(e.getAttribute('src'))||[])[1]||''});
+  chk('en http (como en estas pruebas) el aviso de versión no hace nada: no consulta, no recarga, no muestra nada',await p.evaluate(()=>INT.vigilarVersion()===null&&!document.querySelector('.int-nuevo'))&&!p.pedidos.some(x=>/[?&]c=\d+/.test(x.u)));
+  chk('la página tiene su propia marca de versión («?b=») en sus scripts: es lo que se compara con la publicada',/\S/.test(miMarca),miMarca);
+  // helper: arma un vigilante con el index.html «publicado» simulado y lo corre
+  const vigilar=(op)=>p.evaluate(async op=>{
+    window.__rec=[];
+    const v=INT.vigilarVersion({https:true,mia:op.mia,sinEventos:true,leer:op.falla?(async()=>{throw new Error('sin red')}):(async()=>'<html><script src="oral.js?b='+op.pub+'"></script><script src="app.js?b='+op.pub+'"></script></html>'),recargar:n=>window.__rec.push(n)});
+    await v.revisar(op.alAbrir);
+    return {rec:window.__rec.slice(),aviso:!!document.querySelector('.int-nuevo'),flag:sessionStorage.getItem('integradora_recarga')};
+  },op);
+  const quitar=()=>p.evaluate(()=>{document.querySelectorAll('.int-nuevo').forEach(e=>e.remove());sessionStorage.removeItem('integradora_recarga')});
+  let r=await vigilar({mia:'v1',pub:'v1',alAbrir:true});
+  chk('si la versión publicada es la misma, no pasa nada',r.rec.length===0&&!r.aviso);
+  r=await vigilar({mia:'v1',pub:'v2',alAbrir:true,falla:true});
+  chk('si no se puede consultar (sin internet), no pasa nada',r.rec.length===0&&!r.aviso);
+  r=await vigilar({mia:'v1',pub:'v2',alAbrir:true});
+  chk('recién abierta, en el inicio y sin nada empezado, con una versión nueva publicada: se recarga SOLA una vez (v2), sin cartel',r.rec.join()==='v2'&&!r.aviso&&r.flag==='v2',JSON.stringify(r));
+  r=await vigilar({mia:'v1',pub:'v2',alAbrir:true});
+  chk('… pero si ya se recargó por esa versión en esta sesión (y la página sigue vieja), no entra en un ciclo: muestra el cartel',r.rec.length===0&&r.aviso,JSON.stringify(r));
+  await quitar();
+  r=await vigilar({mia:'v1',pub:'v3',alAbrir:false});
+  chk('al VOLVER de otra aplicación (la app quedó abierta en segundo plano) no recarga sola: muestra «🔄 Hay una versión nueva de la app» con «Actualizar»',r.rec.length===0&&r.aviso&&await p.evaluate(()=>/Hay una versión nueva de la app/.test(document.querySelector('.int-nuevo').innerText)&&document.querySelector('.int-nuevo .ok').innerText==='Actualizar'),JSON.stringify(r));
+  const med=await p.evaluate(()=>{const c=document.querySelector('.int-nuevo'),r=c.getBoundingClientRect(),bs=[...c.querySelectorAll('button')].map(b=>{const q=b.getBoundingClientRect();return [Math.round(q.width),Math.round(q.height)]});
+    const num=x=>x.match(/[\d.]+/g).map(Number),lin=v=>{v/=255;return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4)},lum=x=>{const [a,b,d]=num(x);return .2126*lin(a)+.7152*lin(b)+.0722*lin(d)};
+    const cs=getComputedStyle(c),fondo=cs.backgroundColor,ratio=(a,b)=>(Math.max(lum(a),lum(b))+.05)/(Math.min(lum(a),lum(b))+.05);
+    return {izq:r.left,der:r.right,ancho:innerWidth,bs,txt:ratio(cs.color,fondo),btn:ratio(getComputedStyle(c.querySelector('.ok')).color,getComputedStyle(c.querySelector('.ok')).backgroundColor),scroll:document.documentElement.scrollWidth}});
+  chk('el cartel entra en la pantalla (sin scroll de costado), sus botones miden 44 px o más y el texto contrasta (≥ 4,5 a 1)',med.izq>=0&&med.der<=med.ancho&&med.scroll<=med.ancho&&med.bs.every(x=>x[1]>=40&&x[0]>=40)&&med.txt>=4.5&&med.btn>=4.5,JSON.stringify(med));
+  await p.click('.int-nuevo .ok');
+  chk('«Actualizar» guarda la marca de la versión para no entrar en un ciclo y recarga',await p.evaluate(()=>sessionStorage.getItem('integradora_recarga')==='v3'&&window.__rec.join()==='v3'));
+  await p.click('.int-nuevo .x');
+  chk('«✕» cierra el cartel',await p.evaluate(()=>!document.querySelector('.int-nuevo')));
+  await quitar();
+  // con algo empezado no se recarga sola aunque se acabe de abrir: no se pierde lo que se está haciendo
+  await irTema(p,'provincias');await p.click('#bPracticar');await p.waitForSelector('#pPreg .consigna');
+  r=await vigilar({mia:'v1',pub:'v4',alAbrir:true});
+  chk('con una ronda empezada no se recarga sola (no se pierde lo que se está haciendo): muestra el cartel',r.rec.length===0&&r.aviso,JSON.stringify(r));
+  await quitar();
+  await p.click('#pPreg .barra .atras');await p.click('#mSi');await p.waitForSelector('#pInicio:not([hidden])');
+  await p.evaluate(()=>{window.__enc=INT.oral.enCurso;INT.oral.enCurso=()=>true});   // (hay un examen oral en curso: no se empieza uno de verdad acá, que pediría micrófono e IA)
+  r=await vigilar({mia:'v1',pub:'v5',alAbrir:true});
+  chk('ni en medio de un examen oral',r.rec.length===0&&r.aviso,JSON.stringify(r));
+  await p.evaluate(()=>{INT.oral.enCurso=window.__enc});
+  chk('sin errores de página (aviso de versión)',p.errs.length===0,JSON.stringify(p.errs));
   await cerrar(p);
 }
 

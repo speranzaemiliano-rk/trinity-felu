@@ -1,6 +1,6 @@
 // «Prueba final integradora · Felipe»: estudiar, practicar y hacer un simulacro. Sociales: las provincias argentinas y sus capitales, y los países limítrofes y sus capitales (con mapas para ubicarlos).
 // Naturales: resúmenes, dibujos, cuadros y mapas conceptuales, y ejercicios, de las páginas del libro que se fueron pasando (cada tema es un archivo nat-*.js; las preguntas se arman acá).
-// JavaScript vanilla, sin build. Todo queda en este aparato (localStorage «integradora_estado»); no se manda nada a ningún lado.
+// JavaScript vanilla, sin build. Todo queda en este aparato (localStorage «integradora_estado»); lo único que sale es el examen oral con IA (oral.js): el audio de cada respuesta, para pasarlo a texto.
 // Cómo se aprende: cada provincia (o país) tiene una «caja» (0 a 4, como las cajitas de repaso): si la contestás bien sube, si te equivocás vuelve a la 0 y aparece más seguido.
 (function(){
 "use strict";
@@ -287,7 +287,7 @@ const PANT=["pInicio","pTema","pMapa","pEst","pPreg","pMemo","pFin","pAjustes"];
 // un doble toque (o un toque apurado justo después de que cambia la pantalla) no tiene que contestar lo que quedó debajo del dedo: durante 400 ms no se atiende nada (las pruebas lo apagan con window.__INT_SIN_ESPERA)
 let ULT_NAV=-1e9,ULT_RESP=-1e9;   // «hace mucho»: al abrir la app no hay nada que esperar
 const esperando=()=>window.__INT_SIN_ESPERA!==true&&performance.now()-ULT_NAV<400;
-function ir(p,arranque){PANT.forEach(x=>{$(x).hidden=x!==p});if(!arranque)ULT_NAV=performance.now();window.scrollTo(0,0)}   // al abrir la app no corre la espera (el primer toque es de verdad)
+function ir(p,arranque){if(INT.oral)INT.oral.parar();PANT.forEach(x=>{$(x).hidden=x!==p});if(!arranque)ULT_NAV=performance.now();window.scrollTo(0,0)}   // al abrir la app no corre la espera (el primer toque es de verdad)
 function barra(titulo,atras,extra){return `<header class="barra"><button class="atras" data-ir="${atras}" aria-label="Volver">⬅</button><div class="titulo">${titulo}</div>${extra||"<span></span>"}</header>`}
 const barraProg=i=>`<span class="prog" aria-hidden="true"><i style="width:${i}%"></i></span>`;
 
@@ -331,6 +331,7 @@ function pintarTemaIdeas(t){
      <button class="btn grande" id="bPracticar">▶ Practicar<small>10 preguntas mezcladas, las que más te cuestan primero</small></button>
      <h2>Para estudiar</h2>
      <button class="btn sec" id="bEstudiar">📖 Estudiar este tema<small>${esc(est.join(" · "))}</small></button>
+     ${INT.oral&&INT.oral.disponible(t)?`<button class="btn sec" id="bOral">🎤 Examen oral con IA<small>${(u=>u?"Último: "+u:"El examinador te pregunta en voz alta y vos contestás con tus palabras")(INT.oral.ultimoTxt(t))}</small></button>`:""}
      <h2>Actividades</h2>
      <div class="acts">${acts.map(([k,i,n,d])=>`<button class="act" data-act="${k}"><span class="ai" aria-hidden="true">${i}</span><b>${esc(n)}</b><small>${esc(d)}</small></button>`).join("")}<button class="act" id="bMemo"><span class="ai" aria-hidden="true">🃏</span><b>Memotest</b><small>Encontrá cada idea con lo que le corresponde</small></button></div>
      <h2>Las ideas de este tema</h2>
@@ -340,11 +341,13 @@ const DIB_TIT={sol:"El camino del Sol durante un día",salidas:"Dónde sale y d�
 const DIB_NOTA={virreinato:"Los países se pintan enteros, pero el virreinato no coincidía exactamente con las fronteras de hoy: el libro dice que abarcaba su territorio «total o parcialmente»."};   // aclaración que va bajo el dibujo, si hace falta
 let EST={t:null,tab:"resumen"};   // lo que se está estudiando
 function pintarEstudio(t,tab,foco){
-  const def=t.def,tabs=def.estudio&&def.estudio.length?def.estudio:[{id:"resumen",titulo:"📖 Resumen"}];
+  if(INT.oral)INT.oral.parar();   // si había un examen oral andando, se suelta el micrófono
+  const def=t.def,oral=!!(INT.oral&&INT.oral.disponible(t)),tabs=(def.estudio&&def.estudio.length?def.estudio:[{id:"resumen",titulo:"📖 Resumen"}]).concat(oral?[{id:"oral",titulo:"🎤 Examen oral"}]:[]);
   tab=tabs.some(x=>x.id===tab)?tab:tabs[0].id;EST={t,tab};
-  const cont=tab==="cuadro"?estCuadro(def):tab==="dibujos"?estDibujos(tabs.find(x=>x.id==="dibujos")):tab==="mapa"?estMapa(def):estResumen(def);
+  const cont=tab==="oral"?`<div id="oralMontaje"></div>`:tab==="cuadro"?estCuadro(def):tab==="dibujos"?estDibujos(tabs.find(x=>x.id==="dibujos")):tab==="mapa"?estMapa(def):estResumen(def);
   $("pEst").innerHTML=barra(`${esc(t.ico)} ${esc(t.nombre)}`,"pTema")+
     `<div class="tabs" role="tablist">${tabs.map(x=>`<button class="tab${x.id===tab?" on":""}" role="tab" aria-selected="${x.id===tab}" data-tab="${esc(x.id)}">${esc(x.titulo)}</button>`).join("")}</div><div class="est-cont">${cont}</div>`;
+  if(tab==="oral")INT.oral.montar(t,$("oralMontaje"),{ver:id=>{pintarEstudio(t,"resumen",id);ir("pEst")},confirmar});
   const e=foco&&$("c-"+foco);if(e){e.classList.add("foco");setTimeout(()=>{try{e.scrollIntoView({block:"center"})}catch(x){}},60)}   // desde la lista de ideas: se abre el resumen en la que se tocó
 }
 function estResumen(def){
@@ -594,17 +597,17 @@ function pintarAjustes(){
     <label class="campo" for="aFecha"><span>📅 Fecha de la prueba (para la cuenta regresiva)</span><input type="date" id="aFecha" value="${esc(ST.fecha)}"></label>
     <button class="btn sec" id="aSinFecha" ${ST.fecha?"":"disabled"}>Sacar la fecha</button>
     <label class="fila"><input type="checkbox" id="aEtq" ${ST.etq?"checked":""}><span>Mostrar los nombres en el mapa para estudiar</span></label>
-    <p class="nota-aj">Las provincias y sus capitales son las de la República Argentina (23 provincias y la Ciudad Autónoma de Buenos Aires); los países limítrofes son Chile, Bolivia, Paraguay, Brasil y Uruguay. Los mapas se armaron con datos públicos de Natural Earth. ${IDEAS.temas.length?`Los resúmenes, los dibujos y los ejercicios de ${[["Naturales","naturales"],["Sociales","sociales"]].filter(([,a])=>temasDe(a).length).map(([n,a])=>n+" ("+temasDe(a).map(t=>t.paginas).join(", ")+")").join(" y de ")} están hechos con otras palabras a partir de las páginas del libro: si algo no coincide con el libro, vale el libro. `:""}Todo lo que hacés queda sólo en este aparato.</p>
+    <p class="nota-aj">Las provincias y sus capitales son las de la República Argentina (23 provincias y la Ciudad Autónoma de Buenos Aires); los países limítrofes son Chile, Bolivia, Paraguay, Brasil y Uruguay. Los mapas se armaron con datos públicos de Natural Earth. ${IDEAS.temas.length?`Los resúmenes, los dibujos y los ejercicios de ${[["Naturales","naturales"],["Sociales","sociales"]].filter(([,a])=>temasDe(a).length).map(([n,a])=>n+" ("+temasDe(a).map(t=>t.paginas).join(", ")+")").join(" y de ")} están hechos con otras palabras a partir de las páginas del libro: si algo no coincide con el libro, vale el libro. `:""}Todo lo que hacés queda sólo en este aparato, salvo el <b>examen oral con IA</b>: para pasar tu voz a texto y corregirte, ese examen manda el audio de tus respuestas y el texto de las ideas que se preguntan a la IA de Google (acá no se guarda ningún audio).</p>
     <button class="btn peligro" id="aBorrar">Borrar mi progreso</button></div>`;
 }
 
 // ---------------- un cartel propio para confirmar (los diálogos del navegador se ven feos y se bloquean en algunas apps)
-function confirmar(msg,si,textoSi){
+function confirmar(msg,si,textoSi,no){   // «no»: qué hacer si se elige «No, seguir» o se cierra con Escape (el examen oral se frena mientras el cartel está abierto y ahí se retoma)
   const m=$("modal");
   m.innerHTML=`<div class="caja-modal" role="alertdialog" aria-modal="true" aria-label="${esc(msg)}"><p>${esc(msg)}</p><div class="acciones"><button class="btn peligro" id="mSi">${esc(textoSi||"Sí")}</button><button class="btn sec" id="mNo">No, seguir</button></div></div>`;
-  m.hidden=false;
-  const cerrar=()=>{m.hidden=true;m.innerHTML=""};
-  $("mNo").onclick=cerrar;$("mSi").onclick=()=>{cerrar();si()};
+  m.hidden=false;m._no=no||null;
+  const cerrar=()=>{m.hidden=true;m.innerHTML="";m._no=null};
+  $("mNo").onclick=()=>{const f=m._no;cerrar();if(f)f()};$("mSi").onclick=()=>{cerrar();si()};
   try{$("mNo").focus()}catch(e){}
 }
 
@@ -622,11 +625,14 @@ function arrancar(){
     const el=e.target.closest("button");if(!el)return;
     if(esperando())return;
     if(el.id==="bSig"&&window.__INT_SIN_ESPERA!==true&&performance.now()-ULT_RESP<400)return;   // «Siguiente» no se activa con el segundo toque (o la segunda tecla Enter) de la misma respuesta
-    if(el.dataset.ir){const d=el.dataset.ir;if(d==="pAjustes")pintarAjustes();if(d==="pInicio")pintarInicio();if(d==="pTema")pintarTema(TEMA_ACT);return ir(d)}
+    if(el.dataset.ir){const d=el.dataset.ir,ir2=()=>{if(d==="pAjustes")pintarAjustes();if(d==="pInicio")pintarInicio();if(d==="pTema")pintarTema(TEMA_ACT);ir(d)};
+      if(INT.oral&&INT.oral.enCurso()){const fr=INT.oral.frenar();confirmar("¿Dejar el examen oral? Se pierde lo que va hecho.",ir2,"Dejarlo",fr?()=>INT.oral.reanudar():null);return}
+      return ir2()}
     if(el.dataset.tema){const t=INT.tema(el.dataset.tema);if(t){TEMA_ACT=t;pintarTema(t);return ir("pTema")}return}
     if(el.dataset.ver){if(TEMA_ACT.tipo==="ciencia"){pintarEstudio(TEMA_ACT,"resumen",el.dataset.ver);return ir("pEst")}pintarMapaEstudio(el.dataset.ver);return ir("pMapa")}
     if(el.dataset.tab){pintarEstudio(EST.t||TEMA_ACT,el.dataset.tab);window.scrollTo(0,0);return}
     if(el.id==="bEstudiar"){pintarEstudio(TEMA_ACT,null);return ir("pEst")}
+    if(el.id==="bOral"){pintarEstudio(TEMA_ACT,"oral");return ir("pEst")}
     if(el.id==="bMapaEst"){pintarMapaEstudio(null);return ir("pMapa")}
     if(el.id==="bPracticar")return ronda({n:10,tema:TEMA_ACT});
     if(el.id==="bOtraMezcla")return ronda({n:10,tema:R&&R.tema||null});
@@ -648,14 +654,14 @@ function arrancar(){
     if(el.classList.contains("par"))return tocarPar(el.dataset.lado,+el.dataset.i);
     if(el.id==="bUnirListo")return terminarUnir();
     if(el.id==="aSinFecha"){ST.fecha="";guardar();pintarAjustes();return}
-    if(el.id==="aBorrar"){confirmar("¿Borrar todo lo que hiciste (lo aprendido, los simulacros y los días)? No se puede deshacer.",()=>{ST={v:1,fecha:ST.fecha,etq:ST.etq,items:Object.create(null),dias:{},sims:[],rondas:0};guardar();pintarAjustes()},"Borrar");return}
+    if(el.id==="aBorrar"){confirmar("¿Borrar todo lo que hiciste (lo aprendido, los simulacros, los exámenes orales y los días)? No se puede deshacer.",()=>{try{localStorage.removeItem("integradora_oral")}catch(e){}ST={v:1,fecha:ST.fecha,etq:ST.etq,items:Object.create(null),dias:{},sims:[],rondas:0};guardar();pintarAjustes()},"Borrar");return}
   });
   document.addEventListener("change",e=>{
     const i=e.target.id;
     if(i==="aFecha"){const v=e.target.value,b=$("aSinFecha");if(v===""){ST.fecha="";guardar();if(b)b.disabled=true}else if(FECHA_OK(v)){ST.fecha=v;guardar();if(b)b.disabled=false}}   // sin volver a pintar: un año a medio teclear («0002») no se guarda y el campo no se pierde
     else if(i==="aEtq"||i==="mEtq"){ST.etq=e.target.checked;guardar();if(!$("pMapa").hidden)pintarMapaEstudio($("pMapa").dataset.sel||null)}
   });
-  document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="resp"){e.preventDefault();comprobarTipear()}else if(e.key==="Escape"&&!$("modal").hidden){$("modal").hidden=true;$("modal").innerHTML=""}});
+  document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="resp"){e.preventDefault();comprobarTipear()}else if(e.key==="Escape"&&!$("modal").hidden){const m=$("modal"),f=m._no;m.hidden=true;m.innerHTML="";m._no=null;if(f)f()}});
 }
 // para las pruebas
 INT.gen=(tipo,id,c)=>generar(tipo,ITEM[id],c);INT.tipos=()=>POOL;INT.ELEGIBLES=ELEGIBLES;INT.ACTIVIDADES=ACTIVIDADES;INT.ACTIVIDADES_PAIS=ACTIVIDADES_PAIS;INT.N_SIM=N_SIM;

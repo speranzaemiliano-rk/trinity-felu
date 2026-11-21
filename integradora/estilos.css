@@ -423,3 +423,74 @@ svg.dibujo .vir-et{font:800 22px var(--body);fill:var(--ink);text-anchor:middle;
 svg.dibujo .vir-ba circle{fill:var(--card);stroke:var(--ink);stroke-width:3}
 svg.dibujo .vir-ba text{font:800 20px var(--body);fill:var(--ink);text-anchor:end;paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round;pointer-events:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ---- Examen oral con IA (pestaña «🎤 Examen oral» de la pantalla de estudio): la intro, la charla con el examinador, los controles de respuesta y el resultado */
+#pEst.en-oral .tabs{display:none}   /* durante el examen no se puede cambiar de pestaña sin querer: se sale con «Terminar» o con la flecha de arriba (que pregunta) */
+.oral{display:grid;gap:12px;margin-top:10px}
+.oral-intro{display:grid;gap:12px}
+.oral-que{margin:0;font-weight:700;font-size:1.02rem}
+.oral-modos{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.oral-modo{border:2px solid var(--line);border-radius:16px;background:var(--card);color:var(--ink);padding:10px 8px;font:800 1.05rem var(--display);box-shadow:var(--sombra);min-height:68px;line-height:1.15}
+.oral-modo small{display:block;margin-top:3px;font:600 .78rem var(--body);color:var(--muted)}
+.oral-modo[aria-pressed="true"]{border-color:var(--prim);background:var(--azul-bg);box-shadow:0 0 0 2px var(--prim) inset}
+.oral-ult{margin:0;color:var(--muted);font-weight:700}
+.oral-ayuda,.oral-diag,.oral-charla{background:var(--card);border-radius:14px;padding:10px 14px;box-shadow:var(--sombra)}
+.oral-ayuda summary,.oral-diag summary,.oral-charla summary{font-weight:800;cursor:pointer;min-height:36px;display:flex;align-items:center}
+.oral-ayuda ul{margin:8px 0 0;padding-left:20px;display:grid;gap:6px;font-weight:600;font-size:.95rem}
+.oral-cfg{display:grid;gap:8px}
+.oral-cfg select{font:700 1rem var(--body);padding:8px;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--ink);min-width:0;max-width:100%;flex:1 1 140px}
+.oral-cfg .nota-aj{margin:0 2px}
+.oral-cfg .fila{flex-wrap:wrap}
+.btn.chico{display:inline-block;width:auto;min-height:44px;padding:8px 14px;margin:0;font-size:.95rem;box-shadow:var(--sombra)}
+.btn.chico:active:not(:disabled){transform:none;box-shadow:var(--sombra)}
+.oral-diag .btn.chico{margin:8px 8px 0 0}
+.oral-exam{display:grid;gap:8px}
+.oral-top{display:flex;align-items:center;gap:8px}
+.oral-top b{flex:1;font:800 1.05rem var(--display)}
+.oral-chat{display:grid;gap:8px;align-content:start;min-height:120px}
+.ob{max-width:94%;padding:10px 14px;border-radius:16px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
+.ob .quien{display:block;font:800 .72rem var(--display);letter-spacing:.04em;text-transform:uppercase;opacity:.85;margin-bottom:2px}
+.ob.ex{justify-self:start;background:var(--card);border:2px solid var(--line);border-bottom-left-radius:4px;box-shadow:var(--sombra)}
+.ob.ex.rep{border-style:dashed}
+.ob.kid{justify-self:end;background:var(--azul-bg);color:var(--azul);border:2px solid var(--azul);border-bottom-right-radius:4px}
+.ob.tip{justify-self:stretch;max-width:100%;background:var(--papel);border-left:6px solid var(--acento);font-size:.92rem}
+.oral-ctl{position:sticky;bottom:0;z-index:4;display:grid;gap:8px;padding:10px 0 calc(8px + env(safe-area-inset-bottom));background:linear-gradient(to top,var(--bg) 82%,transparent)}
+.oral-ctl .btn{margin:0}
+.oral-mic{display:flex;align-items:center;gap:12px;background:var(--card);border:2px solid var(--azul);border-radius:16px;padding:10px 14px}
+.oral-dot{width:16px;height:16px;border-radius:50%;background:var(--rojo);flex:none;animation:oralPulso 1.2s infinite}
+.oral-mic.espera{border-color:var(--line)}
+.oral-mic.espera .oral-dot{background:var(--muted);animation:none}
+.oral-mic.espera .oral-lvl{display:none}
+@keyframes oralPulso{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.35);opacity:.6}}
+@media (prefers-reduced-motion:reduce){.oral-dot{animation:none}}
+.oral-live{display:grid;gap:4px;min-width:0;flex:1}
+.oral-lvl{height:8px;border-radius:99px;background:var(--line);overflow:hidden}
+.oral-lvl i{display:block;height:100%;width:0;background:var(--verde);transition:width .08s}
+#oralHeard{color:var(--muted);font-weight:700;font-size:.9rem;overflow-wrap:anywhere}
+.oral-st{background:var(--papel);border-left:6px solid var(--acento);border-radius:12px;padding:8px 12px;font-weight:700;font-size:.92rem}
+.oral-type{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+.oral-type input{font:700 1.05rem var(--body);padding:12px;border-radius:12px;border:2px solid var(--line);background:var(--card);color:var(--ink);min-width:0;min-height:48px}
+.oral-type .btn{width:auto;padding:12px 18px}
+.oral-fila{display:flex;flex-wrap:wrap;gap:8px}
+.oral-fila .btn{flex:1 1 30%}
+.oral-pausa{display:grid;gap:6px}
+.oral-pausa p{margin:0;font-weight:700}
+.oral-res{display:grid;gap:10px;scroll-margin-top:72px}
+.or-nota{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#1c47b3,#2863d8);color:#fff;border-radius:18px;padding:14px 16px;box-shadow:var(--sombra)}
+.or-pct{font:800 2.6rem var(--display);line-height:1;flex:none}
+.or-pct small{font-size:1.2rem}
+.or-msg{font:800 1.1rem var(--display);line-height:1.2}
+.or-cuenta{margin-top:4px;font-weight:700;font-size:.9rem}
+.oral-res h3{font:800 1.1rem var(--display);margin:8px 0 2px}
+.or-lista{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.or-fila{background:var(--card);border-radius:14px;padding:10px 12px;box-shadow:var(--sombra);border-left:6px solid var(--line);display:grid;gap:6px}
+.or-fila.bien{border-left-color:var(--verde)}
+.or-fila.parcial{border-left-color:var(--acento)}
+.or-fila.mal,.or-fila.nose{border-left-color:var(--rojo)}
+.or-t small{color:var(--muted);font-weight:700;margin-left:4px}
+.or-dijo{color:var(--muted);font-weight:600;font-size:.92rem;overflow-wrap:anywhere}
+.or-falto{font-weight:700;font-size:.92rem}
+.or-fila .btn.chico{justify-self:start}
+.oral-charla .oral-chat{margin-top:8px}
+.oral-exam:focus,.oral-res:focus{outline:none}
+.or-de{display:block;margin-top:2px;font:700 .7rem var(--body);letter-spacing:.02em}

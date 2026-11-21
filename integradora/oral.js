@@ -1,0 +1,856 @@
+// «Examen oral» de la Prueba final integradora: la IA le toma a Felipe, en voz alta, un examen sobre UN tema (el que está estudiando) y compara lo que contesta con el texto del resumen.
+// Se parece al examen oral de inglés (motor.js): el examinador habla, el micrófono se abre solo en cada respuesta y la voz se pasa a texto con la IA (Firebase AI Logic, con la misma
+// configuración pública de ../firebase-config.js). Cambia lo que importa para este caso: es en español y el examinador recorre TODAS las ideas del tema (o una muestra, en el examen corto),
+// para comprobar que se acuerda de todo lo que estudió, no sólo de lo que le toque. Al final dice qué ideas se sabe, cuáles a medias y cuáles tiene que repasar.
+// Sin IA (no hay firebase-config.js o la IA falla a mitad del examen) sigue andando: preguntas «Contame…» y una corrección simple por palabras clave.
+// ⚠️ Lo aprendido con el examen de inglés en iPhone vale acá igual (ver los comentarios de motor.js): el micrófono se abre SÓLO mientras contesta y se SUELTA antes de que hable el examinador
+// (con el micrófono abierto, la voz del navegador queda muda en Safari); y en iPhone la voz sólo arranca si se «desbloquea» con un toque que termina y el micrófono hay que abrirlo con un toque.
+// Lo que se manda afuera: el audio de cada respuesta (para pasarlo a texto) y el texto de las ideas que se están preguntando, a la IA de Google (Gemini) por Firebase. Acá no se guarda ningún audio.
+(function(){
+"use strict";
+const INT=window.INT;if(!INT)return;
+const esc=t=>String(t).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const NORM=s=>String(s==null?"":s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
+const mezclar=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const elegir=a=>a[Math.floor(Math.random()*a.length)];
+const pausa=ms=>new Promise(r=>setTimeout(r,ms));
+const FECHA=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const ALUMNO=()=>String(INT.ALUMNO||"");
+const fmtFechaCorta=f=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(f||""));return m?(+m[3])+"/"+(+m[2]):""};
+const IS_IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const ANDROID=/Android/i.test(navigator.userAgent);
+const SRc=window.SpeechRecognition||window.webkitSpeechRecognition;
+
+// ---------------- lo que se recuerda en este aparato (aparte del estado de la app: si esto se rompe, no toca lo aprendido)
+const KEY_CFG="integradora_oral_cfg",KEY_HIST="integradora_oral";
+function leerCfg(){const b={voz:true,pausa:"normal",modo:"completo"};try{const o=JSON.parse(localStorage.getItem(KEY_CFG)||"null");if(o&&typeof o==="object"&&!Array.isArray(o)){if(o.voz===false)b.voz=false;if(o.pausa==="larga")b.pausa="larga";if(o.modo==="corto")b.modo="corto"}}catch(e){}return b}
+let CFG=leerCfg();
+const guardarCfg=()=>{try{localStorage.setItem(KEY_CFG,JSON.stringify(CFG))}catch(e){}};
+const NUMOK=(x,max)=>Number.isFinite(+x)?Math.max(0,Math.min(max,Math.round(+x))):0;
+function leerHist(){   // {idDelTema: [{f, p, n, tot, b, pa, m, modo, ia}]}: lo guardado se revisa campo por campo
+  const r=Object.create(null);
+  try{const o=JSON.parse(localStorage.getItem(KEY_HIST)||"null");
+    if(o&&typeof o==="object"&&!Array.isArray(o))Object.keys(o).forEach(k=>{if(Array.isArray(o[k]))r[k]=o[k].filter(x=>x&&typeof x==="object"&&/^\d{4}-\d{2}-\d{2}$/.test(x.f)).slice(-10).map(x=>({f:/^\d{4}-\d{2}-\d{2}$/.test(x.f)?x.f:"",p:NUMOK(x.p,100),n:NUMOK(x.n,200),tot:NUMOK(x.tot,200),b:NUMOK(x.b,200),pa:NUMOK(x.pa,200),m:NUMOK(x.m,200),modo:x.modo==="corto"?"corto":"completo",ia:x.ia!==false}))})}
+  catch(e){}
+  return r;
+}
+function guardarHist(tid,reg){try{const h=leerHist();h[tid]=(h[tid]||[]).concat([reg]).slice(-10);localStorage.setItem(KEY_HIST,JSON.stringify(h))}catch(e){}}
+
+// ---------------- constantes
+const CORTO=6;                                   // preguntas del examen corto
+const SIL={normal:2500,larga:4000};             // ms sin voz para dar por terminada una respuesta (el chico piensa lo que va a decir: más que en inglés)
+const TOPE_RESP_MS=60000,SIN_HABLA_MS=15000;    // una respuesta larga dura hasta 1 minuto · si en 15 s no dijo nada, no contestó
+const LISTO_TARDE_MS=10000;                      // «Listo, terminé» aparece recién cuando lleva tanto escuchando
+const LOG=[];function rklog(t){try{LOG.push(new Date().toTimeString().slice(0,8)+" "+t);if(LOG.length>80)LOG.shift()}catch(e){}}
+
+// ---------------- la IA (Firebase AI Logic, sin servidor ni claves secretas en el sitio). Copiado de motor.js: lo que ahí se ajustó con el uso real, vale acá.
+const FB=window.TRINITY_FB||{},FB_VERSION="13.1.0",FB_MODELOS=["gemini-3.1-flash-lite","gemini-3.5-flash-lite","gemini-3.5-flash"];
+const fbListo=()=>{const c=FB.config;return !!(c&&c.apiKey&&c.projectId&&c.appId)};
+let _fbP=null,_fbBueno="";
+function fbCargar(){
+  if(_fbP)return _fbP;
+  _fbP=(async()=>{
+    const base="https://www.gstatic.com/firebasejs/"+FB_VERSION+"/";
+    const [A,I]=await Promise.all([import(base+"firebase-app.js"),import(base+"firebase-ai.js")]);
+    const app=A.initializeApp(FB.config);
+    if(FB.appCheckSiteKey){   // App Check: sin esto Firebase rechaza los pedidos cuando se lo exige
+      const C=await import(base+"firebase-app-check.js");
+      const prov=FB.appCheckEnterprise?new C.ReCaptchaEnterpriseProvider(FB.appCheckSiteKey):new C.ReCaptchaV3Provider(FB.appCheckSiteKey);
+      C.initializeAppCheck(app,{provider:prov,isTokenAutoRefreshEnabled:true});
+    }
+    return {ai:I.getAI(app,{backend:new I.GoogleAIBackend()}),getGenerativeModel:I.getGenerativeModel,Schema:I.Schema};
+  })();
+  _fbP.catch(()=>{_fbP=null});
+  return _fbP;
+}
+// Prueba cada modelo de la lista: si uno no existe o no está disponible, pasa al siguiente (y si uno tarda, pide al siguiente en paralelo)
+async function _fbGenerar(o){
+  let tCarga;
+  const {ai,getGenerativeModel,Schema}=await Promise.race([fbCargar(),new Promise((_,ko)=>{tCarga=setTimeout(()=>ko(new Error("tiempo agotado: no cargó la IA")),15000)})]).finally(()=>clearTimeout(tCarga));
+  let nombres=(FB.models&&FB.models.length)?FB.models.slice():FB_MODELOS.slice();
+  if(_fbBueno&&nombres.indexOf(_fbBueno)>0)nombres=[_fbBueno].concat(nombres.filter(x=>x!==_fbBueno));
+  const total=o.ms||10000,cobertura=o.hedge||2500;
+  const reintentable=/404|not found|not_found|not supported|unsupported|not available|429|500|502|503|504|overload|high demand|unavailable|resource.?exhausted|tiempo agotado|internal|failed to fetch/i;
+  return new Promise((resolve,reject)=>{
+    let hecho=false,pend=0,sig=0,ultimo=null,tCob=null;
+    const fin=(f,v)=>{if(hecho)return;hecho=true;clearTimeout(tCob);clearTimeout(tTotal);f(v)};
+    const tTotal=setTimeout(()=>fin(reject,ultimo||new Error("tiempo agotado")),total);
+    const lanzar=()=>{
+      if(hecho||sig>=nombres.length)return false;
+      const nombre=nombres[sig++];pend++;
+      (async()=>{
+        try{
+          const gc={temperature:o.temp,maxOutputTokens:o.tokens};if(o.json)gc.responseMimeType="application/json";
+          if(o.schema&&Schema)gc.responseSchema=o.schema(Schema);
+          const params={model:nombre,generationConfig:gc};if(o.system)params.systemInstruction=o.system;
+          const m=getGenerativeModel(ai,params);
+          const r=await m.generateContent(o.partes?o.partes:{contents:o.contents});
+          const txt=r.response.text();
+          _fbBueno=nombre;fin(resolve,txt);
+        }catch(e){
+          ultimo=e;console.warn("[IA oral] "+nombre+":",e);pend--;
+          if(hecho)return;
+          if(!reintentable.test(String(e&&e.message||e))){if(pend===0)fin(reject,e);return}
+          if(!lanzar()&&pend===0)fin(reject,e);
+        }
+      })();
+      clearTimeout(tCob);tCob=setTimeout(lanzar,cobertura);
+      return true;
+    };
+    lanzar();
+  });
+}
+let _calentada=false;
+function calentarIA(){
+  if(_calentada||!fbListo())return;_calentada=true;
+  fbCargar().then(()=>_fbGenerar({contents:[{role:"user",parts:[{text:"hi"}]}],temp:0,tokens:8,ms:20000})).catch(()=>{_calentada=false});
+}
+function _iaMsg(e){
+  let m=String((e&&e.message)||e||"").replace(/^AI:\s*/,"").replace(/Error fetching from \S+?:(\s+|$)/,"").trim();
+  const d=e&&e.customErrorData;if(d&&d.status&&m.indexOf("["+d.status)<0)m="["+d.status+(d.statusText?" "+d.statusText:"")+"] "+m;
+  let pista="";
+  if(/failed to fetch|networkerror|load failed|network request/i.test(m)||!m)pista=" · Revisá la conexión a internet.";
+  else if(/quota|429|resource.?exhausted/i.test(m))pista=" · Se acabó el cupo gratis de la IA por ahora.";
+  return (m||"sin detalle").slice(0,200)+pista;
+}
+function _jsonDe(t){t=String(t||"").trim().replace(/^```(?:json)?\s*/i,"").replace(/```\s*$/,"");const i=t.indexOf("{"),j=t.lastIndexOf("}");if(i<0||j<i)throw new Error("respuesta inválida");return JSON.parse(t.slice(i,j+1))}
+const _blobB64=blob=>new Promise((ok,ko)=>{const f=new FileReader();f.onload=()=>ok(String(f.result).split(",")[1]);f.onerror=ko;f.readAsDataURL(blob)});
+
+// ---------------- micrófono (grabación en WAV: anda igual en PC, Android e iPhone, que no tiene dictado confiable). Copiado de motor.js.
+let _actx=null,_cap=null;
+function primeAudio(){   // se llama DENTRO de un toque: en iPhone el audio sólo arranca así
+  try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;if(!_actx||_actx.state==="closed")_actx=new AC();if(_actx.state==="suspended")_actx.resume()}catch(e){}
+}
+function audioSesion(tipo){try{if(navigator.audioSession)navigator.audioSession.type=tipo}catch(e){}}
+async function abrirMic(constraints){   // en iPhone, si el audio quedó en «sólo reproducir», Safari lo rechaza con InvalidStateError: se pasa a «grabar» antes de pedirlo y se reintenta una vez
+  audioSesion("play-and-record");
+  try{return await navigator.mediaDevices.getUserMedia(constraints)}
+  catch(e){
+    if(e&&e.name==="InvalidStateError"){audioSesion("auto");await pausa(400);audioSesion("play-and-record");return await navigator.mediaDevices.getUserMedia(constraints)}
+    throw e;
+  }
+}
+async function capIniciar(){
+  if(_cap&&_cap.stream&&_cap.stream.getTracks().some(t=>t.readyState==="live"))return _cap;
+  if(_cap)capDetener();
+  primeAudio();
+  const ctx=_actx;let stream;
+  if(!ctx){const e=new Error("el navegador no pudo abrir el audio");e.name="AudioSuspendido";throw e}   // sin audio no se abre ni el micrófono: la pista quedaría abierta y en iPhone la voz del examinador queda muda
+  try{stream=await abrirMic({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}})}   // sin supresión de ruido: en varias notebooks «recorta» la voz suave
+  catch(e){if(_actx===ctx){_actx=null;try{ctx.close().catch(()=>{})}catch(x){}}audioSesion("auto");rklog("mic: no se pudo abrir ("+(e&&e.name||e)+")");throw e}
+  const soltar=()=>{stream.getTracks().forEach(t=>t.stop());if(_actx===ctx)_actx=null;try{ctx.close().catch(()=>{})}catch(e){}audioSesion("auto")};
+  let cap=null;
+  try{
+    if(_actx!==ctx){soltar();const e=new Error("cancelado");e.name="Cancelado";throw e}   // frenaron el examen mientras se abría
+    if(ctx.state!=="running")await Promise.race([ctx.resume(),pausa(1500)]);
+    if(ctx.state!=="running"){soltar();const e=new Error("el audio del navegador no arrancó sin un toque");e.name="AudioSuspendido";throw e}   // iPhone: sin un toque el audio queda «suspended»
+    const src=ctx.createMediaStreamSource(stream),proc=ctx.createScriptProcessor(4096,1,1);
+    cap={stream,src,proc,rate:ctx.sampleRate,onFrame:null,frames:0};
+    proc.onaudioprocess=e=>{cap.frames++;if(cap.onFrame)cap.onFrame(e.inputBuffer.getChannelData(0))};
+    src.connect(proc);proc.connect(ctx.destination);
+    stream.getTracks().forEach(t=>{t.onended=()=>{if(_cap===cap)_cap=null}});
+  }catch(e){soltar();throw e}   // lo que falle después de abrir el micrófono no puede dejar la pista viva
+  _cap=cap;rklog("mic abierto ("+Math.round(ctx.sampleRate)+" Hz)");return cap;
+}
+function capDetener(){   // suelta TODO (pistas, AudioContext y modo de audio), aunque no hubiera captura: si queda algo abierto, en iPhone la voz del examinador queda muda
+  const c=_cap;_cap=null;
+  if(c){rklog("mic soltado");try{c.proc.onaudioprocess=null;c.proc.disconnect()}catch(e){}try{c.src.disconnect()}catch(e){}c.stream.getTracks().forEach(t=>t.stop())}
+  if(_actx){const x=_actx;_actx=null;try{x.close().catch(()=>{})}catch(e){}}
+  audioSesion("auto");
+}
+// La pantalla se mantiene encendida mientras dura el examen: el chico contesta hablando y no toca nada, y con el bloqueo automático del celular se bloquearía a mitad (y el examen quedaría en pausa).
+let wake=null,wakeTok=0;
+async function pantalla(on){
+  const mi=++wakeTok;
+  try{
+    if(!on){if(wake){const w=wake;wake=null;await w.release()}return}
+    if(!navigator.wakeLock||wake||document.hidden)return;
+    const w=await navigator.wakeLock.request("screen");
+    if(mi!==wakeTok){try{await w.release()}catch(e){}return}   // mientras se pedía, el examen ya se había cortado
+    wake=w;rklog("pantalla: se mantiene encendida");
+    w.addEventListener("release",()=>{if(wake===w)wake=null});
+  }catch(e){wake=null;rklog("pantalla: no se pudo mantener encendida ("+(e&&e.name||e)+")")}
+}
+let micPerm="unknown";   // "ok" | "denied" | "nodev" | "error:X"
+async function prepMic(){   // pide el permiso UNA vez al empezar (el cartel del navegador tarda) y suelta el micrófono: se abre de nuevo en cada respuesta
+  if(micPerm==="ok")return "ok";
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){micPerm="nodev";return "nodev"}
+  try{const st=await abrirMic({audio:true});st.getTracks().forEach(t=>t.stop());audioSesion("auto");micPerm="ok";rklog("permiso de micrófono: ok");return "ok"}
+  catch(e){audioSesion("auto");const n=e&&e.name;micPerm=(n==="NotAllowedError"||n==="SecurityError")?"denied":(n==="NotFoundError"||n==="OverconstrainedError")?"nodev":"error:"+(n||"desconocido");rklog("permiso de micrófono: "+micPerm);return micPerm}
+}
+function _aWav(chunks,rate){   // 16 kHz, mono, 16 bits; si el micrófono grabó muy bajito se sube el volumen (máx. 20×)
+  let n=0;chunks.forEach(c=>n+=c.length);
+  const all=new Float32Array(n);let o=0;chunks.forEach(c=>{all.set(c,o);o+=c.length});
+  let pk=0;for(let i=0;i<n;i++){const a=Math.abs(all[i]);if(a>pk)pk=a}
+  const g=pk>0.003&&pk<0.5?Math.min(20,0.8/pk):1;
+  const to=16000,ratio=rate/to,len=Math.floor(n/ratio),dv=new DataView(new ArrayBuffer(44+len*2));
+  const w=(off,s)=>{for(let i=0;i<s.length;i++)dv.setUint8(off+i,s.charCodeAt(i))};
+  w(0,"RIFF");dv.setUint32(4,36+len*2,true);w(8,"WAVE");w(12,"fmt ");dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,1,true);
+  dv.setUint32(24,to,true);dv.setUint32(28,to*2,true);dv.setUint16(32,2,true);dv.setUint16(34,16,true);w(36,"data");dv.setUint32(40,len*2,true);
+  for(let i=0;i<len;i++){const a=Math.floor(i*ratio),b=Math.max(a+1,Math.min(n,Math.floor((i+1)*ratio)));let s=0;for(let j=a;j<b;j++)s+=all[j];
+    const v=Math.max(-1,Math.min(1,(s/(b-a))*g));dv.setInt16(44+i*2,v<0?v*0x8000:v*0x7fff,true)}
+  return new Blob([dv.buffer],{type:"audio/wav"});
+}
+const MSG_MIC_DENEGADO=()=>IS_IOS?"El iPhone no dejó usar el micrófono. Arreglalo así: en Safari tocá <b>aA</b> (a la izquierda de la dirección) → <b>Configuración del sitio web</b> → <b>Micrófono → Permitir</b>. (Si abriste el link desde WhatsApp, Instagram o un mail, abrilo en <b>Safari</b>.) Mientras tanto podés contestar escribiendo."
+  :"El navegador no dejó usar el micrófono. Tocá el candado (o el ícono de la cámara) al lado de la dirección y permití el micrófono. Mientras tanto podés contestar escribiendo.";
+
+// ---------------- voz del examinador (la del navegador, en español; el texto siempre se ve en pantalla)
+const synth=window.speechSynthesis;let voz=null,vozOk=false,unlockPend=false,unlockN=0,ttsTimer=null,keep=null,ttsGen=0;   // ttsGen: cada vez que se corta la voz (pausa, salir, silenciar) sube y lo que estaba por arrancar no se reintenta
+function elegirVoz(){
+  if(!synth)return;const v=synth.getVoices();if(!v.length)return;
+  const es=v.filter(x=>/^es/i.test(x.lang)),buena=x=>/google|natural|premium|enhanced|neural/i.test(x.name);
+  for(const pref of [/^es[-_]AR/i,/^es[-_]419/i,/^es[-_](MX|US)/i,/^es[-_]ES/i,/^es/i]){
+    const l=es.filter(x=>pref.test(x.lang));if(l.length){voz=l.find(buena)||l[0];return}
+  }
+  voz=null;
+}
+if(synth){elegirVoz();if(synth.addEventListener)synth.addEventListener("voiceschanged",elegirVoz);else synth.onvoiceschanged=elegirVoz}
+// En iPhone, Safari sólo deja hablar a la voz del navegador si el PRIMER intento ocurre dentro de un toque que termina (click / touchend; «touchstart» y «pointerdown» no cuentan):
+// se prueba con una frase muda en cada toque hasta que una voz arranque de verdad.
+function desbloquearVoz(forzar){
+  if(!synth||vozOk||unlockPend)return;
+  if(unlockN>=3&&forzar!==true)return;
+  unlockN++;unlockPend=true;setTimeout(()=>{unlockPend=false},2500);
+  try{const u=new SpeechSynthesisUtterance("ok");u.volume=0;u.lang="es-AR";u.onstart=()=>{vozOk=true;if(S&&S.sinVoz){S.sinVoz=false;S.vozFalla=0}};u.onend=()=>{vozOk=true};synth.speak(u)}catch(e){}
+}
+const _desb=()=>desbloquearVoz();
+function ttsKeepAlive(on){clearInterval(ttsTimer);if(on)ttsTimer=setInterval(()=>{if(synth.speaking&&!synth.paused){synth.pause();synth.resume()}},9000)}   // Chrome corta la voz a los ~15 s si no se la «despierta»
+function hablarTrozo(t){   // → true si sonó
+  return new Promise(res=>{
+    if(!synth)return res(false);
+    if(!_cap)audioSesion("playback");
+    let started=false,ended=false,tries=0;const gen=ttsGen;
+    const maxMs=Math.max(12000,t.length*160+6000);
+    const fin=()=>{if(ended)return;ended=true;ttsKeepAlive(false);if(!_cap)audioSesion("auto");rklog("voz: fin"+(started?"":" SIN haber empezado"));res(started)};
+    const go=()=>{
+      if(ended)return;if(gen!==ttsGen){fin();return}   // se cortó la voz (pausa, salir, silenciar) mientras esperaba: no suena después
+      if(!voz)elegirVoz();
+      const u=new SpeechSynthesisUtterance(t);
+      if(tries===0){u.lang=(voz&&voz.lang.replace("_","-"))||"es-AR";if(voz&&!ANDROID)u.voice=voz}else u.lang="es-AR";   // 1er intento: la voz elegida (en Android sólo el idioma) · 2º: la que traiga el celu, para que al menos suene
+      u.rate=1;u.pitch=1;u.volume=1;keep=u;
+      u.onstart=()=>{started=true;vozOk=true;ttsKeepAlive(true)};
+      u.onend=fin;
+      u.onerror=e=>{rklog("voz: error "+(e&&e.error));if(e&&(e.error==="interrupted"||e.error==="canceled")){if(!started&&tries<2&&!ended&&gen===ttsGen){tries++;setTimeout(go,150);return}}fin()};
+      rklog("voz: speak (intento "+(tries+1)+")");
+      try{synth.speak(u)}catch(e){fin();return}
+      setTimeout(()=>{if(started||ended)return;if(gen!==ttsGen){fin();return}if(tries<1){tries++;try{synth.cancel()}catch(e){}setTimeout(go,150)}else fin()},2500);   // si a los 2,5 s no arrancó, se reintenta una vez; si sigue mudo, se da por no sonada
+    };
+    if(synth.speaking||synth.pending){try{synth.cancel()}catch(e){}setTimeout(()=>{try{synth.resume()}catch(e){}go()},(ANDROID||IS_IOS)?450:120)}
+    else{try{synth.resume()}catch(e){}go()}
+    setTimeout(fin,maxMs);
+  });
+}
+function trozos(t){   // la frase se parte en oraciones (la voz de Chrome se corta si es muy larga)
+  const partes=String(t).match(/[^.!?¿]+[.!?]*|[¿][^?]*\?/g)||[String(t)],out=[];let cur="";
+  partes.forEach(x=>{if((cur+x).length>180&&cur){out.push(cur.trim());cur=x}else cur+=x});if(cur.trim())out.push(cur.trim());
+  return out.length?out:[String(t)];
+}
+
+// ---------------- qué ideas se preguntan
+function armarAgenda(t,modo){
+  const items=(t.items||[]).filter(it=>it&&it.resumen&&it.titulo);
+  if(modo!=="corto"||items.length<=CORTO+1)return items.slice();   // completo: todas, en el orden en que se estudian
+  // corto: una de cada grupo (al azar), después al azar hasta completar, y se preguntan en el orden en que se estudian
+  const porGrupo=new Map();items.forEach(it=>{const g=it.grupo||"";(porGrupo.get(g)||porGrupo.set(g,[]).get(g)).push(it)});
+  const cola=[...porGrupo.values()].map(l=>mezclar(l)),elegidas=[];
+  while(elegidas.length<CORTO&&cola.some(l=>l.length)){mezclar(cola.filter(l=>l.length)).forEach(l=>{if(elegidas.length<CORTO)elegidas.push(l.shift())})}
+  return items.filter(it=>elegidas.indexOf(it)>=0);
+}
+const disponible=t=>!!t&&t.tipo==="ciencia"&&(t.items||[]).filter(it=>it&&it.resumen&&it.titulo).length>=3;
+
+// ---------------- la corrección sencilla (sin IA): cuántas de las palabras clave del resumen aparecen en lo que dijo
+const STOP=new Set(("para como pero porque entre sobre tambien cada hacia desde hasta donde cuando quien quienes cual cuales esta este esto estos estas esos esas eso esa ese aquel muy mas menos todo todos toda todas otro otra otros otras algo alguna algunas algunos "+
+  "tiene tienen tenia tenian tener hace hacen hacian hacer fue fueron era eran ser son estaba estaban estar hay habia habian haber puede pueden podia podian poder debia debian deber solo solian segun entonces luego despues antes aunque mientras ademas "+
+  "asi siempre nunca ahora aqui alli dentro fuera mismo misma mismos mismas varios varias muchos muchas poco pocos pocas unos unas algun cosa cosas parte partes forma formas manera tipo llamaban llamado llamada llamadas llamados dice dicen dijo decir "+
+  "ejemplo hacia sino tanto tanta entre sera seran sean sido siendo hecho hechos ellos ellas nosotros usted ustedes sus nuestro nuestra donde cuyo cuya donde quedo quedaron quedan queda").split(" "));
+const raiz=n=>/^\d+$/.test(n)?n:n.length>=5?n.slice(0,5):n;
+function claves(texto){   // hasta 12 palabras importantes del texto: números y palabras largas primero
+  const vistos=new Set(),out=[];
+  String(texto).split(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]+/).filter(Boolean).forEach(w=>{
+    const n=NORM(w);if(!n)return;const num=/^\d+$/.test(n);
+    if(!num&&(n.length<4||STOP.has(n)))return;
+    const r=raiz(n);if(vistos.has(r))return;vistos.add(r);
+    out.push({r,w:w.toLowerCase(),peso:(num?3:0)+Math.min(3,Math.floor((n.length-4)/2))});
+  });
+  return out.sort((a,b)=>b.peso-a.peso).slice(0,12);
+}
+// «No sé» y «repetí» se reconocen sólo por su FORMA, de principio a fin: son frases cortas y enteras. Antes bastaba que la respuesta EMPEZARA o CONTUVIERA esas palabras y se
+// descartaban respuestas correctas como «Cada vez que se repite el mediodía solar», «Repetir los registros» o «No se les reconocían derechos».
+const NOSE_RE=/^(?:(?:eh|em|mm+|hmm+|este|ah|uh|a ver)\s+)*(?:no (?:lo |la |eso )?se(?: nada| eso| la respuesta| que decir| cual es| como se llama| que es)?|ni idea|no me acuerdo(?: nada| de eso)?|no recuerdo(?: nada)?|ni me acuerdo|me olvide(?: de todo)?|no sabria|no tengo (?:ni )?idea|paso|pasar|siguiente)(?: (?:nada|gracias|por favor|la verdad|ahora|profe))?$/;
+const REPITE_RE=/^(?:(?:perdon|disculpa|ay|eh|a ver)\s+)*(?:(?:me\s+)?(?:lo\s+|la\s+)?(?:repeti|repetime|repetis|repetila|repetilo)\b|(?:podes|puedes|podrias|podria)\s+repetir(?:la|lo|me)?\b|(?:deci|decime|decila|decimela|decilo|decimelo)\s+(?:otra vez|de nuevo)\b|(?:la pregunta\s+)?(?:otra vez|de nuevo)(?:\s+(?:por favor|la pregunta|porfa))?$|no (?:te\s+)?(?:escuche|escuch|entendi|oi)\b|no entiendo\b|(?:que|como) dijiste\b|(?:perdon|disculpa|que|como|eh)$)/;
+const esNoSe=t=>{const n=NORM(t);return !n||(n.split(" ").length<=8&&NOSE_RE.test(n))};
+const pidioRepetir=t=>{const n=NORM(t);return !!n&&n.split(" ").length<=9&&REPITE_RE.test(n)};
+const primeraOracion=t=>{const m=String(t).match(/^[^.!?]+[.!?]?/);const s=(m?m[0]:String(t)).trim();return s.length>230?s.slice(0,227).replace(/\s+\S*$/,"")+"…":s};
+function evaluarLocal(idea,texto){   // → {v, falto, devolucion}
+  const n=NORM(texto);
+  if(esNoSe(texto))return {v:"nose",falto:"",devolucion:"No pasa nada. Te lo cuento yo: "+primeraOracion(idea.resumen)};
+  const ks=claves(idea.resumen),dichas=new Set(n.split(" ").map(raiz)),hit=ks.filter(k=>dichas.has(k.r)),cob=ks.length?hit.length/ks.length:0;
+  const faltan=ks.filter(k=>!dichas.has(k.r)).slice(0,3).map(k=>k.w);
+  const v=n.split(" ").length<2?"mal":cob>=.45?"bien":cob>=.2?"parcial":"mal";
+  const f=faltan.length&&v!=="bien"?"No mencionó: "+faltan.join(", "):"";
+  const devo=v==="bien"?elegir(["¡Muy bien!","¡Eso es!","¡Perfecto, así es!","¡Muy bien, te acordás!"])
+    :v==="parcial"?"Vas bien, pero faltó algo. "+primeraOracion(idea.resumen):"No es del todo así. Te lo cuento yo: "+primeraOracion(idea.resumen);
+  return {v,falto:f,devolucion:devo};
+}
+function preguntaPlantilla(idea){   // una pregunta oral a partir del título de la idea (cuando no hay IA que la redacte)
+  const t=String(idea.titulo).trim().replace(/\s+/g," ");
+  if(/\?\s*$/.test(t))return t;
+  if(/^(qu[eé]|c[oó]mo|por qu[eé]|para qu[eé]|cu[aá]l|cu[aá]ndo|d[oó]nde|qui[eé]n)(?=[\s,:?]|$)/i.test(t))return "¿"+t.replace(/[?¿]/g,"")+"?";
+  return "Contame con tus palabras lo que estudiaste sobre: "+t+".";
+}
+
+// ---------------- los pedidos a la IA
+function sistemaIA(t){
+  const A=ALUMNO()||"el alumno",area=((t.def&&t.def.area)||t.area)==="naturales"?"Ciencias Naturales":"Ciencias Sociales";
+  return `Sos el examinador de un EXAMEN ORAL de 4.º grado de primaria (Argentina). Le tomás el examen a ${A}, un chico de 10 años, sobre el tema «${t.nombre}» (${area}). Hablás en español rioplatense, con «vos», con frases cortas y fáciles, con calidez y paciencia. Lo que decís se lee en voz alta: sin emojis, sin viñetas y sin símbolos que no se puedan pronunciar.
+La APLICACIÓN decide el orden de las ideas del tema. En cada turno recibís: la idea que se acaba de preguntar con su TEXTO DE REFERENCIA (lo que ${A} estudió), la pregunta que se le hizo, lo que contestó (pasado a texto desde su voz: puede traer errores de transcripción; no se los reproches) y la idea siguiente.
+Tu trabajo en cada turno:
+1) Evaluar lo que contestó comparándolo SOLO con el texto de referencia de esa idea («veredicto»):
+ - "bien": dice lo esencial del texto, aunque use sus palabras y no lo diga todo.
+ - "parcial": dice algo correcto pero le falta una parte importante, o mezcla algo incorrecto.
+ - "mal": no coincide con el texto o es incorrecto.
+ - "nose": dijo que no sabe, no contestó o contestó algo que no tiene nada que ver.
+ No inventes datos que no estén en el texto. Si dice algo razonable que el texto no menciona, no lo cuentes como error.
+2) Reaccionar en voz alta («devolucion»): una o dos frases cortas. Si estuvo bien, felicitalo brevemente (variá las frases). Si fue parcial, reconocé lo que dijo bien y decí lo que faltó. Si fue mal o no sabía, decí la respuesta correcta en una frase simple, sin retarlo ni ironizar. Usá sólo información del texto de referencia.
+3) Preguntar la idea siguiente («pregunta»): UNA pregunta oral abierta (máximo 25 palabras) sobre la idea siguiente, que se conteste con sus palabras: «Contame…», «¿Qué…?», «¿Cómo…?», «¿Para qué…?». No des la respuesta en la pregunta ni copies frases del texto. Si no hay idea siguiente, dejá «pregunta» vacía y cerrá el examen en «devolucion» con un saludo breve y cálido (sin decir ninguna nota).
+Casos especiales:
+ - Si ${A} te pide que repitas la pregunta o dice que no entendió, poné veredicto "repite", repetí la pregunta con otras palabras más fáciles en «pregunta» y dejá «devolucion» con una frase corta.
+ - Si ${A} te hace una pregunta sobre el tema, poné veredicto "repite", respondele en «devolucion» en una o dos frases con el texto de referencia y en «pregunta» volvé a hacer la pregunta de la idea actual.
+ - Si es el COMIENZO del examen (no hay respuesta que evaluar): veredicto "inicio"; en «devolucion» saludá a ${A} en una frase corta (decile que le vas a hacer una pregunta por vez y que conteste con sus palabras) y en «pregunta» hacé la primera pregunta, sobre la idea que te indican.
+Respondé SOLO con un JSON: {"veredicto":"bien|parcial|mal|nose|repite|inicio","falto":"qué faltó o estuvo mal, en pocas palabras, para el informe (vacío si estuvo bien)","devolucion":"lo que decís en voz alta sobre su respuesta","pregunta":"la pregunta siguiente"}`;
+}
+function mensajeIA(o){   // o: {primera, idea, pregunta, texto, sig, n, tot}
+  const A=ALUMNO()||"el alumno",ref=i=>`${i.titulo}\nTEXTO DE REFERENCIA: ${String(i.resumen).slice(0,900)}`;
+  const sig=o.sig?`IDEA SIGUIENTE: ${ref(o.sig)}`:"NO HAY IDEA SIGUIENTE: es la última pregunta. Dejá «pregunta» vacía y cerrá el examen en «devolucion».";
+  if(o.primera)return `COMIENZO DEL EXAMEN (no hay respuesta que evaluar). Hacé la primera pregunta sobre esta idea.\nIDEA: ${ref(o.sig)}\nPREGUNTA NÚMERO 1 DE ${o.tot}.`;
+  return `IDEA QUE SE ACABA DE PREGUNTAR: ${ref(o.idea)}\nPREGUNTA QUE SE LE HIZO: ${o.pregunta}\nRESPUESTA DE ${A.toUpperCase()}: ${o.texto?"«"+String(o.texto).slice(0,900)+"»":"(no contestó)"}\n${sig}\nPREGUNTA NÚMERO ${o.n} DE ${o.tot}.`;
+}
+const VEREDICTOS=["bien","parcial","mal","nose","repite","inicio"];
+function normVeredicto(x){   // «Bien.», «correcto», «a medias»… → uno de los seis; lo que no se entiende vale «parcial»
+  const n=NORM(x);
+  if(/^(bien|correct|perfect|excelent|muy bien)/.test(n))return "bien";
+  if(/^(parcial|a medias|casi|regular)/.test(n))return "parcial";
+  if(/^(mal|incorrect|equivoc|erron)/.test(n))return "mal";
+  if(/^(nose|no se|no contest|sin respuesta)/.test(n))return "nose";
+  if(/^(repit|repite)/.test(n))return "repite";
+  if(/^(inicio|comienzo)/.test(n))return "inicio";
+  return "parcial";
+}
+function normTurno(o){
+  if(!o||typeof o!=="object")throw new Error("respuesta vacía");
+  const v=normVeredicto(o.veredicto);
+  const txt=(x,n)=>String(x==null?"":x).replace(/\s+/g," ").trim().slice(0,n);
+  return {v,falto:txt(o.falto,180),devolucion:txt(o.devolucion,420),pregunta:txt(o.pregunta,260)};
+}
+async function pedirTurno(t,o){   // → {v, falto, devolucion, pregunta}; reintenta una vez
+  let ult;
+  for(let i=0;i<2;i++){
+    try{
+      const txt=await _fbGenerar({system:sistemaIA(t),contents:[{role:"user",parts:[{text:mensajeIA(o)}]}],json:true,temp:.5,tokens:2000,ms:22000,hedge:7000,
+        schema:S=>S.object({properties:{veredicto:S.string(),falto:S.string(),devolucion:S.string(),pregunta:S.string()}})});
+      return normTurno(_jsonDe(txt));
+    }catch(e){ult=e;rklog("IA: intento "+(i+1)+" falló ("+_iaMsg(e).slice(0,80)+")");console.warn("[IA oral] turno, intento "+(i+1)+":",e);
+      if(/app ?check|401|403|api key|permission/i.test(String(e&&e.message||e)))break;   // reintentar no lo arregla
+      if(i<1)await pausa(900)}
+  }
+  throw ult;
+}
+const PROMPT_TRANSCRIBIR="Transcribí exactamente lo que dice la persona que habla en este audio. Es un chico argentino de 10 años que explica con sus palabras un tema de la escuela, en español rioplatense. Respondé SOLO con la transcripción, sin comillas, sin comentarios y sin corregir lo que dice. Si no hay voz o sólo hay ruido, respondé con una cadena vacía.";
+async function transcribir(blob,ayuda){
+  const t=await _fbGenerar({partes:[PROMPT_TRANSCRIBIR+(ayuda?"\nPalabras del tema que pueden aparecer (sólo para escribirlas bien si las dice; no las agregues si no las dice): "+ayuda:""),{inlineData:{mimeType:"audio/wav",data:await _blobB64(blob)}}],
+    temp:0,tokens:1200,ms:12000+Math.min(30000,Math.round(blob.size/32000*400)),hedge:3000});
+  const s=String(t||"").trim().replace(/^["“«]+|["”»]+$/g,"").trim();
+  return /^[(\[].*[)\]]$/.test(s)?"":s;   // «(silencio)», «[sin voz]»…
+}
+
+// ---------------- el examen en curso
+let T_MONTAJE=0;                 // cuándo se pintó la intro (un doble toque en «Examen oral» no tiene que apretar «Empezar» de la pantalla nueva)
+let T=null,H={},RAIZ=null;       // el tema, los ganchos que pasa la app ({ver, confirmar}) y el contenedor
+let S=null,run=0;                // S: el examen · run: número de corrida (lo que quedó pendiente de una anterior no hace nada)
+let ENT="auto";                  // cómo se contesta: auto (el micrófono se abre solo) · toque (hay que tocar 🎤) · dictado (reconocimiento del navegador) · texto (escribiendo)
+let finishNow=null,recAbort=null,tapRes=null,typedRes=null,cambioDeModo=false,tListo=null;
+const q=id=>RAIZ?RAIZ.querySelector("#"+id):null;
+const enCurso=()=>!!S&&S.corriendo&&!S.terminado;
+function setEnt(m){ENT=m;const k=q("oralKb");if(k)k.textContent=m==="texto"?"🎤 Hablar":"⌨️ Escribir"}   // (si la app cambia el modo sola, el botón de arriba dice lo que de verdad hace)
+// En qué momento del turno está el examen. «Repetir» y «Pasar» sólo valen mientras se hace la pregunta o se espera la respuesta: si no (mientras la IA piensa o el examinador comenta)
+// quedaban «armados» —o un doble toque— y se comían la pregunta que venía, sin que Felipe la oyera.
+function fase(f){
+  if(!S)return;S.fase=f;const ok=f==="pregunta"||f==="escucha";
+  ["oralRep","oralPasar"].forEach(i=>{const b=q(i);if(b)b.disabled=!ok});
+}
+const enfocar=id=>{const e=q(id);if(e){try{e.focus({preventScroll:true})}catch(x){}}};   // al cambiar de pantalla el foco queda en lo nuevo (si no, queda en un botón que ya no existe)
+function estado(m){const e=q("oralSt");if(!e)return;e.hidden=!m;e.innerHTML=m||""}
+function burbuja(cls,html,quien){
+  const c=q("oralChat");if(!c)return null;
+  const d=document.createElement("div");d.className="ob "+cls;d.innerHTML=(quien?`<span class="quien">${esc(quien)}</span>`:"")+html;c.appendChild(d);
+  const ctl=q("oralCtl");d.style.scrollMarginBottom=((ctl?ctl.offsetHeight:0)+12)+"px";   // el panel de controles queda pegado abajo: lo nuevo se ve por encima de él
+  try{d.scrollIntoView({block:"nearest",behavior:"smooth"})}catch(e){}
+  return d;
+}
+function micUI(on,txt,espera){const m=q("oralMic");if(!m)return;m.hidden=!on;m.classList.toggle("espera",!!espera);if(txt&&q("oralMicT"))q("oralMicT").textContent=txt;if(!on){if(q("oralHeard"))q("oralHeard").textContent="";listoOcultar();nivel(0)}}
+const nivel=v=>{const e=q("oralLvl");if(e)e.style.width=Math.max(0,Math.min(100,v))+"%"};
+function listoOcultar(){clearTimeout(tListo);tListo=null;if(q("oralListo"))q("oralListo").hidden=true}
+function listoTarde(){listoOcultar();tListo=setTimeout(()=>{tListo=null;const l=q("oralListo"),h=q("oralHablar"),m=q("oralMic");if(l&&finishNow&&h&&h.hidden&&m&&!m.hidden)l.hidden=false},LISTO_TARDE_MS)}
+function barra(){const b=q("oralBar");if(!b||!S)return;b.style.width=Math.round(100*Math.min(S.idx,S.agenda.length)/S.agenda.length)+"%";
+  const n=q("oralN");if(n)n.textContent=S.terminado?"Terminado":"Pregunta "+Math.min(S.idx+1,S.agenda.length)+" de "+S.agenda.length}
+
+// decir algo en voz alta (si la voz está prendida) y dejarlo escrito en la charla
+async function decir(id,texto){
+  if(run!==id||!CFG.voz||!synth||(S&&S.sinVoz))return false;
+  let sono=false;
+  for(const tr of trozos(texto)){if(run!==id||!CFG.voz)return sono;const ok=await hablarTrozo(tr);if(ok)sono=true;else break}
+  return sono;
+}
+async function exDice(id,texto,opc){
+  opc=opc||{};if(run!==id||!S)return false;
+  if(opc.fase)fase(opc.fase);
+  burbuja(opc.cls||"ex",esc(texto),"Examinador");S.charla.push({r:"E",t:texto});
+  if(opc.sinVoz)return true;
+  const ok=await decir(id,texto);
+  if(run===id&&S&&CFG.voz&&synth){
+    if(ok)S.vozFalla=0;
+    else if(!S.sinVoz){   // la voz no arrancó: se avisa una vez, y si falla dos veces seguidas no se pierde más tiempo esperándola (con 🔇 y 🔊 se vuelve a probar)
+      S.vozFalla=(S.vozFalla||0)+1;
+      if(!S.avisoVoz){S.avisoVoz=true;burbuja("tip","🔇 No pude hacer sonar la voz del examinador, así que lo ves escrito. Podés seguir leyendo y contestando (con 🔇 y 🔊 de arriba se prueba de nuevo).")}
+      if(S.vozFalla>=2){S.sinVoz=true;rklog("voz: no suena, se sigue sin voz")}}
+  }
+  await pausa(100);return ok;
+}
+
+// ---- cómo se escucha la respuesta
+function esperarToque(){
+  return new Promise(res=>{
+    micUI(true,"Pensá tu respuesta y tocá el botón para hablar",true);const b=q("oralHablar");b.hidden=false;listoOcultar();enfocar("oralHablar");
+    b.onclick=()=>{primeAudio();b.hidden=true;tapRes=null;res(true)};
+    tapRes=()=>{b.hidden=true;tapRes=null;res("cancel")};
+    finishNow=()=>{if(tapRes)tapRes()};
+  });
+}
+function esperarTexto(){
+  return new Promise(res=>{
+    const w=q("oralType");w.hidden=false;micUI(false);
+    const cerrar=()=>{typedRes=null;finishNow=null;const x=q("oralType");if(x)x.hidden=true};   // el cuadro para escribir sólo se ve mientras se espera la respuesta
+    typedRes=v=>{cerrar();res(v)};finishNow=()=>{if(typedRes){cerrar();res(null)}};
+    try{q("oralIn").focus()}catch(e){}
+  });
+}
+// Escucha por grabación: graba en WAV, corta sola tras un silencio (o con «Listo») y la IA lo pasa a texto
+function grabar(id){
+  return new Promise(async res=>{
+    const chunks=[];let done=false,spoke=false,lastVoice=0,t0=0,nf=0,th=0.02,rate=44100,pk=0,ultFuerte=0,capT=null,vigia=null;
+    const limpiar=()=>{clearTimeout(capT);clearTimeout(vigia);finishNow=null;recAbort=null;capDetener();nivel(0);listoOcultar()};
+    recAbort=()=>{if(done)return;done=true;limpiar();micUI(false);res(null)};
+    const terminar=async()=>{
+      if(done)return;done=true;limpiar();
+      const seg=chunks.reduce((n,c)=>n+c.length,0)/rate;
+      if(!spoke&&pk<0.008){micUI(false);estado("No llegó sonido del micrófono (volumen máx. "+Math.round(pk*100)+" %). Acercate, hablá más fuerte o usá <b>⌨️ Escribir</b>.");return res(null)}
+      micUI(true,"Entendiendo lo que dijiste…",true);fase("piensa");
+      try{
+        const t=await transcribir(_aWav(chunks,rate),spoke&&S?S.vocab:"");
+        if(run!==id)return res(null);   // (primero se mira si el examen sigue: una respuesta tardía no toca la pantalla de la corrida nueva)
+        micUI(false);if(S)S.fallasTrans=0;
+        if(!t)estado("Grabé "+seg.toFixed(1).replace(".",",")+" s pero no entendí palabras. Probá hablar más cerca y más fuerte, o usá <b>⌨️ Escribir</b>.");
+        res(t||null);
+      }catch(e){
+        console.warn("[IA oral] transcribir:",e);
+        if(run!==id)return res(null);
+        micUI(false);
+        // una falla suelta no cambia cómo se contesta (se vuelve a preguntar y se escucha otra vez); dos seguidas: se sigue escribiendo
+        const n=S?(S.fallasTrans=(S.fallasTrans||0)+1):2;
+        if(n>=2){setEnt("texto");cambioDeModo=true;estado("La IA no pudo pasar tu voz a texto ("+esc(_iaMsg(e))+"). <b>Contestá escribiendo</b> (en el celu podés dictarla con el 🎤 del teclado); con <b>🎤 Hablar</b> volvés a probar con la voz.")}
+        else estado("No pude pasar tu voz a texto ("+esc(_iaMsg(e))+"). Probá de nuevo.");
+        res(null);
+      }
+    };
+    // el navegador no deja abrir el micrófono solo (Safari en iPhone sin un toque, audio suspendido, micrófono mudo): se pasa a «tocar 🎤» y se sigue con la misma pregunta
+    const caer=e=>{
+      if(done)return;done=true;limpiar();micUI(false);
+      rklog("mic: pasa a «tocar 🎤» → "+(e.name||e.message));
+      if(e&&e.name==="NotAllowedError"){micPerm="unknown";setEnt("texto");cambioDeModo=true;estado(MSG_MIC_DENEGADO());return res(null)}
+      setEnt("toque");cambioDeModo=true;
+      estado((IS_IOS?"Safari no me deja abrir el micrófono solo en este iPhone. ":"No pude abrir el micrófono solo. ")+"Tocá <b>🎤 Tocar y contestar</b> cuando quieras hablar.");
+      res(null);
+    };
+    try{
+      micUI(true,"Abriendo el micrófono…");
+      const c=await capIniciar();
+      if(done){capDetener();return}
+      const f0=c.frames;
+      vigia=setTimeout(()=>{if(done)return;if(c.frames===f0){const e=new Error("no llegó audio");e.name="MicMudo";caer(e)}else if(IS_IOS&&pk===0){const e=new Error("el micrófono llegó mudo");e.name="MicMudo";caer(e)}},3000);
+      rate=c.rate;t0=performance.now();
+      c.onFrame=d=>{
+        if(done)return;
+        chunks.push(new Float32Array(d));
+        let m=0;for(let i=0;i<d.length;i++){const a=Math.abs(d[i]);if(a>m)m=a}
+        if(m>pk)pk=m;nivel(m*260);
+        const now=performance.now();
+        if(now-t0<500){if(m>nf)nf=m;th=Math.min(0.04,Math.max(0.008,nf*3))}   // los primeros 0,5 s miden el ruido de fondo
+        else{
+          if(m>th)ultFuerte=now;
+          // una vez que habló, la voz que se apaga (el final de una palabra) también cuenta, pero sólo hasta 1,2 s después de la última voz fuerte
+          if(m>th||(spoke&&now-ultFuerte<1200&&m>Math.min(th,Math.max(th*.7,nf*2)))){if(!spoke&&q("oralHeard"))q("oralHeard").textContent="🎙️ te escucho…";spoke=true;lastVoice=now}
+        }
+        if(spoke&&now-lastVoice>SIL[CFG.pausa])terminar();
+        else if(!spoke&&now-t0>SIN_HABLA_MS)terminar();
+      };
+      micUI(true,"Te escucho… contestá ahora");
+      finishNow=()=>terminar();capT=setTimeout(terminar,TOPE_RESP_MS);listoTarde();
+    }catch(e){
+      if(e&&e.name==="Cancelado"){if(!done){done=true;limpiar();micUI(false);res(null)}return}
+      caer(e);
+    }
+  });
+}
+// Dictado del navegador (Chrome/Edge/Android): sólo cuando no hay IA para pasar la voz a texto
+const MSG_DICTADO_IOS="En iPhone el dictado de Safari necesita <b>Ajustes → General → Teclado → Activar dictado</b> (y Siri activado). Mientras tanto, contestá escribiendo (o dictá con el 🎤 del teclado).";
+function dictar(id){
+  return new Promise(res=>{
+    let done=false,started=false,text="",base="",silence=null,cap=null,arranque=null,rec=null,restarts=0;
+    const fin=v=>{if(done)return;done=true;clearTimeout(silence);clearTimeout(cap);clearTimeout(arranque);finishNow=null;recAbort=null;try{if(rec)rec.stop()}catch(e){}rec=null;micUI(false);res(v&&v.trim()?v.trim():null)};
+    const aTexto=m=>{setEnt("texto");cambioDeModo=true;if(m)estado(m);fin(null)};
+    finishNow=()=>fin(text);recAbort=()=>fin(null);
+    try{rec=new SRc()}catch(e){setEnt("texto");cambioDeModo=true;return res(null)}
+    rec.lang="es-AR";rec.continuous=false;rec.interimResults=true;rec.maxAlternatives=1;
+    rec.onstart=()=>{started=true;micUI(true,"Te escucho… contestá ahora");listoTarde()};
+    rec.onresult=e=>{let s="";for(let r=0;r<e.results.length;r++)s+=e.results[r][0].transcript+" ";text=(base+" "+s).replace(/\s+/g," ").trim();
+      if(q("oralHeard"))q("oralHeard").textContent=text;clearTimeout(silence);silence=setTimeout(()=>fin(text),SIL[CFG.pausa]+1000)};
+    rec.onerror=e=>{
+      if(e.error==="audio-capture")aTexto("No se encontró micrófono. Escribí la respuesta:");
+      else if(e.error==="not-allowed"||e.error==="service-not-allowed")aTexto(IS_IOS?MSG_DICTADO_IOS:MSG_MIC_DENEGADO());
+      else if(e.error==="network")aTexto("El dictado del navegador necesita internet. Escribí la respuesta.");
+    };
+    rec.onend=()=>{if(done)return;if(text){base=text;try{rec.start()}catch(e){fin(text)}}else{restarts++;if(restarts>2)return fin(null);try{rec.start()}catch(e){fin(null)}}};
+    cap=setTimeout(()=>fin(text),TOPE_RESP_MS);
+    arranque=setTimeout(()=>{if(!started&&!done)aTexto("El micrófono del navegador no arrancó. Contestá escribiendo (o probá con Chrome o Edge).")},9000);   // (Safari a veces no manda ningún evento)
+    micUI(true,"Preparando el micrófono…",true);
+    try{rec.start()}catch(e){aTexto("")}
+  });
+}
+async function escucharUna(id){
+  if(ENT==="texto")return esperarTexto();
+  if(ENT==="toque"){const go=await esperarToque();if(go==="cancel")return null}
+  if(run!==id)return null;
+  if(ENT==="auto"&&CFG.voz){await pausa(250);if(run!==id)return null}   // el final de la voz del examinador no tiene que llegar al micrófono (parlantes de la compu)
+  return ENT==="dictado"?dictar(id):ENT==="texto"?esperarTexto():grabar(id);
+}
+// Cambiar de modo (hablar ↔ escribir) o pedir que se repita la pregunta a mitad de una respuesta no es «no te escuché»: se vuelve a escuchar
+async function escuchar(id){
+  let t;
+  do{
+    cambioDeModo=false;
+    if(S&&S.pasar)return null;   // apretó «Pasar» mientras hablaba el examinador
+    if(S&&S.repetir){S.repetir=false;await exDice(id,"Te repito: "+S.pregunta,{cls:"ex rep",fase:"pregunta"});if(run!==id)return null}
+    fase("escucha");
+    t=await escucharUna(id);
+  }while(run===id&&t===null&&S&&!S.pasar&&(cambioDeModo||S.repetir));
+  return t;
+}
+function abortarEscucha(){if(recAbort)recAbort();if(finishNow){const f=finishNow;finishNow=null;try{f()}catch(e){}}if(typedRes){typedRes(null)}}
+// → {texto, pasar}: lo que contestó (o null si no se lo oyó, después de un segundo intento)
+async function oirRespuesta(id){
+  for(let intento=0;intento<2;intento++){
+    estado("");
+    const t=await escuchar(id);
+    if(run!==id)return null;
+    if(S.pasar){S.pasar=false;return {texto:null,pasar:true}}
+    if(t!==null&&t!==undefined){burbuja("kid",esc(t),ALUMNO()||"Vos");S.charla.push({r:"K",t});return {texto:t}}
+    if(intento===0){await exDice(id,"No te escuché bien. Te repito la pregunta: "+S.pregunta,{cls:"ex rep",fase:"pregunta"});if(run!==id)return null}
+  }
+  burbuja("kid",`<i>(no se oyó la respuesta)</i>`,ALUMNO()||"Vos");S.charla.push({r:"K",t:"(sin respuesta)"});
+  return {texto:null};
+}
+
+// ---- un turno: evaluar la respuesta y preparar la pregunta que sigue
+const preguntaDelChico=t=>/\?/.test(String(t==null?"":t))||/^(que|como|por que|cual|cuales|cuando|donde|quien|me podes|podes|puedes)\b/.test(NORM(t));
+const errorDeAcceso=e=>/app ?check|401|403|api key|permission/i.test(String(e&&e.message||e));   // reintentar no lo arregla
+async function evaluar(id,idea,texto){   // → {v, falto, devolucion, pregunta, repite, ia}
+  const sig=S.agenda[S.idx+1]||null,sinRta=texto===null||esNoSe(texto),puedeRepetir=S.repet<2;
+  let ev=null,ia=false;
+  fase("piensa");
+  if(S.ia){
+    micUI(true,"Pensando tu respuesta…",true);
+    try{
+      ev=await pedirTurno(T,{idea,pregunta:S.pregunta,texto,sig,n:S.idx+1,tot:S.agenda.length});ia=true;S.iaFallos=0;
+      if(run!==id)return null;micUI(false);   // (primero se mira si el examen sigue: una respuesta tardía no toca la pantalla de la corrida nueva)
+    }catch(e){
+      if(run!==id)return null;micUI(false);
+      S.iaFallos++;ev=null;rklog("IA: turno sin IA ("+S.iaFallos+")");
+      if(S.iaFallos>=2||errorDeAcceso(e)){S.ia=false;burbuja("tip","⚠️ La IA no respondió ("+esc(_iaMsg(e))+"). <b>Sigo con una corrección más simple</b> (por palabras clave): sirve para practicar, pero es menos precisa.")}
+      else burbuja("tip","⚠️ La IA no respondió ("+esc(_iaMsg(e))+"). Corrijo esta respuesta de una forma más simple.");
+    }
+  }
+  if(ev&&ev.v==="inicio")ev.v="parcial";
+  if(ev&&ev.v==="repite"){
+    // «repite» sólo vale si el chico de verdad pidió que repitan o hizo una pregunta (lo comprueba la aplicación, no la IA) y todavía se puede repetir
+    if(puedeRepetir&&texto&&(pidioRepetir(texto)||preguntaDelChico(texto)))return {v:"repite",falto:"",devolucion:ev.devolucion||"Claro.",pregunta:ev.pregunta||S.pregunta,repite:true,ia};
+    ev=null;   // no era verdad: se corrige su respuesta de la forma simple
+  }
+  if(!ev){const l=evaluarLocal(idea,texto);ev={v:l.v,falto:l.falto,devolucion:l.devolucion,pregunta:""};ia=false}
+  if(sinRta)ev.v="nose";   // lo cuenta la aplicación, no la IA: sin respuesta no hay nada que premiar
+  else if(ia&&ev.v==="bien"&&NORM(texto).split(" ").length<=1){ev.v="parcial";if(!ev.falto)ev.falto="Contestó con una sola palabra"}   // (como la corrección simple: una palabra suelta no es «bien»)
+  const pregunta=sig?(ev.pregunta||preguntaPlantilla(sig)):"";
+  let devo=ev.devolucion||(ev.v==="bien"?"¡Muy bien!":"Gracias. "+primeraOracion(idea.resumen));
+  if(!sig&&!ia)devo+=" Con esto terminamos. ¡Gracias"+(ALUMNO()?", "+ALUMNO():"")+"!";
+  return {v:ev.v,falto:ev.falto,devolucion:devo,pregunta,repite:false,ia};
+}
+
+async function abrir(id){
+  const idea=S.agenda[0];let ev=null;
+  fase("piensa");
+  if(S.ia){
+    micUI(true,"El examinador se está preparando…",true);
+    try{ev=await pedirTurno(T,{primera:true,sig:idea,tot:S.agenda.length});if(run!==id)return;micUI(false);S.iaFallos=0}
+    catch(e){if(run!==id)return;micUI(false);S.iaFallos++;ev=null;
+      if(errorDeAcceso(e)){S.ia=false;burbuja("tip","⚠️ No pude conectarme con la IA ("+esc(_iaMsg(e))+"). Hago el examen con <b>una corrección más simple</b> (por palabras clave): sirve para practicar, pero es menos precisa.")}
+      else burbuja("tip","⚠️ No pude conectarme con la IA ("+esc(_iaMsg(e))+"). Empiezo con una pregunta sencilla y sigo intentando.")}
+  }
+  const saludo=(ev&&ev.devolucion)||`¡Hola, ${ALUMNO()||"qué tal"}! Vamos a charlar sobre «${T.nombre}». Te voy a hacer una pregunta por vez y vos me contestás con tus palabras.`;
+  const preg=(ev&&ev.pregunta)||preguntaPlantilla(idea);
+  await exDice(id,saludo,{fase:"devolucion"});if(run!==id)return;
+  S.pregunta=preg;S.abierto=true;await exDice(id,preg,{fase:"pregunta"});
+}
+async function bucle(id){
+  try{
+    if(S.idx>=S.agenda.length){finalizar(id);return}   // se cortó justo al final, mientras el examinador se despedía: no hay nada más que preguntar
+    if(!S.abierto){await abrir(id);if(run!==id)return}   // («abierto»: ya se hizo la primera pregunta; si se cortó antes, se vuelve a empezar)
+    else{await exDice(id,"Seguimos. "+S.pregunta,{fase:"pregunta"});if(run!==id)return}
+    while(run===id&&S&&S.idx<S.agenda.length){
+      const idea=S.agenda[S.idx];barra();
+      const r=await oirRespuesta(id);if(run!==id)return;
+      const texto=r.texto;
+      // «repetí la pregunta» no gasta un pedido a la IA (hasta 4 veces por pregunta; después se toma como respuesta)
+      if(texto&&!r.pasar&&pidioRepetir(texto)&&S.repet<4){S.repet++;await exDice(id,"Claro. "+S.pregunta,{cls:"ex rep",fase:"pregunta"});if(run!==id)return;continue}
+      const ev=await evaluar(id,idea,texto);if(run!==id||!ev)return;
+      if(ev.repite){   // preguntó algo del tema (o pidió que se lo digan de otra forma): se contesta y se vuelve a preguntar lo mismo
+        S.repet++;S.pregunta=ev.pregunta;
+        await exDice(id,ev.devolucion,{fase:"devolucion"});if(run!==id)return;
+        await exDice(id,S.pregunta,{fase:"pregunta"});if(run!==id)return;continue}
+      S.res.push({id:idea.id,titulo:idea.titulo,ico:idea.ico||"",v:ev.v,dijo:texto||"",falto:ev.falto,ia:ev.ia,pasar:!!r.pasar});
+      S.idx++;S.repet=0;
+      if(S.idx<S.agenda.length)S.pregunta=ev.pregunta;   // (la pregunta nueva se guarda ANTES de que el examinador comente: si se corta ahí, «Seguir» retoma por ella y no por la vieja)
+      barra();
+      await exDice(id,ev.devolucion,{fase:"devolucion"});if(run!==id)return;
+      if(S.idx<S.agenda.length){await exDice(id,S.pregunta,{fase:"pregunta"});if(run!==id)return}
+    }
+    if(run===id)finalizar(id);
+  }catch(e){
+    console.warn("[oral] error:",e);rklog("error: "+(e&&e.message||e));
+    if(run===id){detener();estado("Algo falló en el examen ("+esc((e&&e.message)||e)+"). Probá de nuevo.");mostrarPausa("error")}
+  }
+}
+
+// ---- empezar, pausar, terminar
+function detener(){   // suelta el micrófono, la voz, la pantalla y todo lo que esté esperando
+  pantalla(false);capDetener();ttsGen++;try{if(synth)synth.cancel()}catch(e){}
+  abortarEscucha();finishNow=null;recAbort=null;tapRes=null;typedRes=null;micUI(false);
+  document.removeEventListener("click",_desb,true);document.removeEventListener("touchend",_desb,true);document.removeEventListener("keydown",_desb,true);
+}
+function parar(){   // al cambiar de pestaña o de pantalla
+  run++;detener();
+  if(S&&S.corriendo)S.corriendo=false;
+  S=null;
+  const p=document.getElementById("pEst");if(p)p.classList.remove("en-oral");
+}
+async function iniciar(){   // sale de un toque en «Empezar»: lo primero (sin esperar nada) es desbloquear la voz
+  parar();
+  desbloquearVoz(true);pantalla(true);calentarIA();
+  ["click","touchend","keydown"].forEach(ev=>document.addEventListener(ev,_desb,{capture:true,passive:true}));
+  const agenda=armarAgenda(T,CFG.modo);if(!agenda.length)return;
+  const id=++run;
+  const ia=fbListo();
+  S={t:T,agenda,idx:0,pregunta:"",abierto:false,fase:"",fallasTrans:0,res:[],charla:[],ia,iaFallos:0,repet:0,corriendo:true,terminado:false,pasar:false,repetir:false,avisoVoz:false,modo:agenda.length===T.items.filter(x=>x&&x.resumen).length?"completo":"corto",
+    vocab:T.items.map(x=>x.titulo).join("; ").slice(0,500),t0:Date.now()};
+  ENT=ia?(IS_IOS?"toque":"auto"):(SRc?"dictado":"texto");
+  const p=document.getElementById("pEst");if(p)p.classList.add("en-oral");
+  pintarExamen();setEnt(ENT);fase("piensa");estado("");enfocar("oralExam");
+  if(ENT!=="texto"){
+    estado("Permitile al navegador usar el micrófono (aparece un cartel arriba)…");
+    const m=await prepMic();if(run!==id)return;estado("");
+    if(m==="denied"){setEnt("texto");estado(MSG_MIC_DENEGADO())}
+    else if(m==="nodev"){setEnt("texto");estado("No se encontró micrófono. Podés contestar escribiendo.")}
+    else if(m.indexOf("error:")===0){micPerm="unknown";if(ENT==="auto")setEnt("toque");estado("El micrófono no abrió ahora ("+esc(m.slice(6))+"). Probá <b>🎤 Tocar y contestar</b>; si no anda, usá <b>⌨️ Escribir</b>.")}
+  }
+  bucle(id);
+}
+function mostrarPausa(motivo){
+  const c=q("oralCtl");if(!c)return;
+  micUI(false);const w=q("oralType");if(w)w.hidden=true;
+  const h=q("oralPausa");if(h){h.hidden=false;h.innerHTML=`<p><b>${motivo==="error"?"El examen se frenó.":"⏸️ Examen en pausa."}</b> Cuando quieras, seguimos con la pregunta donde quedamos.</p><button class="btn grande" id="oralSeguir">▶️ Seguir</button>`;enfocar("oralSeguir")}
+  ["oralHablar","oralListo"].forEach(i=>{if(q(i))q(i).hidden=true});if(q("oralFila"))q("oralFila").hidden=true;
+}
+function pausar(){   // se fue a otra aplicación o apagó la pantalla: se suelta el micrófono y se espera a que vuelva
+  if(!enCurso())return;
+  run++;detener();S.pausado=true;rklog("pausa (la página pasó a segundo plano)");mostrarPausa("pausa");
+}
+// Mientras hay un cartel de confirmación abierto («¿Terminar?», «¿Dejar el examen?») el examen se frena por detrás —sin tarjeta de pausa—: si no, el examinador seguía hablando y el micrófono se abría
+// (y una pregunta sin contestar se perdía). «No, seguir» lo retoma por la misma pregunta.
+function frenar(){
+  if(!enCurso()||S.pausado)return false;
+  run++;detener();S.pausado=true;S.pausaAviso=true;rklog("pausa (hay un cartel abierto)");return true;
+}
+function reanudar(){if(S&&S.pausaAviso){S.pausaAviso=false;seguir()}}
+function seguir(){
+  if(!S||!S.pausado&&!q("oralSeguir"))return;
+  S.pausado=false;S.pausaAviso=false;const id=++run;S.corriendo=true;
+  const h=q("oralPausa");if(h)h.hidden=true;if(q("oralFila"))q("oralFila").hidden=false;
+  ["click","touchend","keydown"].forEach(ev=>document.addEventListener(ev,_desb,{capture:true,passive:true}));
+  desbloquearVoz(true);pantalla(true);bucle(id);
+}
+function terminarYa(){
+  if(!S||S.terminado)return;
+  const hecho0=S.res.length,frenado=frenar();
+  const ir=()=>{
+    if(!S||S.terminado)return;
+    const hecho=S.res.length;   // (se cuenta al confirmar, no al abrir el cartel)
+    const id=++run;detener();S.pausaAviso=false;
+    if(!hecho){parar();pintarIntro();return}
+    finalizar(id)};
+  if(H.confirmar)H.confirmar(hecho0?"¿Terminar el examen ahora? Te muestro el resultado de lo que contestaste hasta acá.":"¿Dejar el examen oral?",ir,hecho0?"Terminar":"Dejarlo",frenado?reanudar:null);else ir();
+}
+
+// ---- el resultado
+function resumenDe(){
+  const c={bien:0,parcial:0,mal:0,nose:0};S.res.forEach(r=>{c[r.v]=(c[r.v]||0)+1});
+  const n=S.res.length,pct=n?Math.round(100*(c.bien+.5*c.parcial)/n):0;
+  return {c,n,pct,sin:S.agenda.length-n,todoIA:S.res.length>0&&S.res.every(r=>r.ia)};
+}
+function finalizar(id){
+  if(run!==id||!S||S.terminado)return;   // (una sola vez: si no, el historial guardaba el mismo examen dos veces)
+  detener();S.corriendo=false;S.terminado=true;
+  const R=resumenDe();
+  if(R.n)guardarHist(T.id,{f:FECHA(),p:R.pct,n:R.n,tot:S.agenda.length,b:R.c.bien,pa:R.c.parcial,m:R.c.mal+R.c.nose,modo:S.modo,ia:R.todoIA});
+  pintarResultado(R);
+}
+const VER={bien:["✅","Lo sabe"],parcial:["🟡","A medias"],mal:["❌","A repasar"],nose:["❌","No contestó"]};
+function filaRes(r,sinVer){
+  const [ic,tx]=VER[r.v]||VER.mal;
+  return `<li class="or-fila ${r.v}"><div class="or-t"><span aria-hidden="true">${ic}</span> <b>${esc(r.ico)} ${esc(r.titulo)}</b> <small>${tx}${r.ia?"":" · sin IA"}${r.pasar?" · pasó":""}</small></div>`
+    +(r.v!=="bien"?(r.dijo?`<div class="or-dijo">Dijo: <i>«${esc(r.dijo)}»</i></div>`:"")+(r.falto?`<div class="or-falto">${esc(r.falto)}</div>`:"")+(sinVer?"":`<button class="btn sec chico" data-oral-ver="${esc(r.id)}">📖 Ver el resumen</button>`):"")+`</li>`;
+}
+function pintarResultado(R){
+  const raiz=q("oralRaiz");if(!raiz)return;
+  const rep=S.res.filter(r=>r.v==="mal"||r.v==="nose"),med=S.res.filter(r=>r.v==="parcial"),bien=S.res.filter(r=>r.v==="bien");
+  const msg=R.sin>0?"Examen sin terminar: quedaron "+R.sin+(R.sin===1?" idea":" ideas")+" sin preguntar.":R.pct>=85?"¡Excelente! Se sabe muy bien el tema.":R.pct>=65?"¡Muy bien! Un repaso de lo marcado y listo.":R.pct>=45?"Va por buen camino: falta repasar un poco.":"Todavía falta estudiar: leé de nuevo el resumen y probá otra vez.";
+  const sinPreg=S.agenda.filter(i=>!S.res.some(r=>r.id===i.id));
+  const lista=(tit,l)=>l.length?`<h3>${tit}</h3><ul class="or-lista">${l.map(r=>filaRes(r)).join("")}</ul>`:"";
+  const prim=rep[0]||med[0];
+  raiz.innerHTML=`<section class="oral-res" id="oralResultado" tabindex="-1" aria-label="Resultado del examen oral">
+    <div class="or-nota"><div class="or-pct">${R.pct}<small> %</small>${R.sin>0?`<span class="or-de">de lo contestado</span>`:""}</div><div><div class="or-msg">${esc(msg)}</div><div class="or-cuenta">✅ ${R.c.bien} bien · 🟡 ${R.c.parcial} a medias · ❌ ${R.c.mal+R.c.nose} a repasar${R.sin?` · ⏭️ ${R.sin} sin preguntar`:""}</div></div></div>
+    <p class="nota-aj">Contestó ${R.n} de ${S.agenda.length} preguntas del tema «${esc(T.nombre)}». ${R.todoIA?"Corrección hecha por la IA, comparando con el texto del resumen.":"Alguna respuesta se corrigió sin IA (por palabras clave): es menos precisa."} Es una ayuda para practicar, no una nota oficial.</p>
+    ${lista("❌ Para repasar",rep)}${lista("🟡 A medias",med)}
+    ${bien.length?`<h3>✅ Lo sabe</h3><ul class="or-lista bien">${bien.map(r=>filaRes(r)).join("")}</ul>`:""}
+    ${sinPreg.length?`<h3>⏭️ Sin preguntar</h3><ul class="or-lista sin">${sinPreg.map(i=>`<li class="or-fila"><div class="or-t"><b>${esc(i.ico||"")} ${esc(i.titulo)}</b></div></li>`).join("")}</ul>`:""}
+    <button class="btn grande" id="oralOtro">🔁 Hacer otro examen oral</button>
+    ${prim?`<button class="btn sec" data-oral-ver="${esc(prim.id)}">📖 Repasar el resumen</button>`:""}
+    <details class="oral-charla"><summary>Ver la charla completa</summary><div class="oral-chat">${S.charla.map(x=>`<div class="ob ${x.r==="E"?"ex":"kid"}"><span class="quien">${x.r==="E"?"Examinador":esc(ALUMNO()||"Vos")}</span>${esc(x.t)}</div>`).join("")}</div></details>
+  </section>`;
+  const p=document.getElementById("pEst");if(p)p.classList.remove("en-oral");
+  enfocar("oralResultado");
+  try{const r=raiz.querySelector(".oral-res");(r||raiz).scrollIntoView({block:"start",behavior:"smooth"})}catch(e){}
+}
+
+// ---- las pantallas
+function informe(){
+  const v=synth?synth.getVoices().filter(x=>/^es/i.test(x.lang)).map(x=>x.name+" ("+x.lang+")").slice(0,6).join(", "):"sin voz del navegador";
+  return ["Examen oral · "+(T?T.id:"-"),"navegador: "+navigator.userAgent,"iOS: "+IS_IOS+" · IA configurada: "+fbListo()+" · dictado del navegador: "+!!SRc+" · modo: "+ENT+" · micrófono: "+micPerm,
+    "voz elegida: "+(voz?voz.name+" ("+voz.lang+")":"ninguna")+" · voces en español: "+(v||"ninguna"),""].concat(LOG).join("\n");
+}
+function pintarIntro(){
+  if(!RAIZ||!T)return;
+  const n=T.items.filter(x=>x&&x.resumen&&x.titulo).length,hay=n>CORTO+1,modo=hay?CFG.modo:"completo";
+  T_MONTAJE=performance.now();
+  const hist=(leerHist()[T.id]||[]),ult=hist[hist.length-1],completos=hist.filter(x=>x.tot>0&&x.n>=x.tot),mejor=completos.length?Math.max(...completos.map(x=>x.p)):0;   // «mejor»: sólo de exámenes terminados
+  const min=k=>Math.max(2,Math.round(k*.65));
+  RAIZ.innerHTML=`<div class="oral" id="oralRaiz">
+   <section class="oral-intro" id="oralIntro">
+    <p class="oral-que">El examinador (una IA) te hace preguntas <b>en voz alta</b> sobre <b>${esc(T.nombre)}</b> y vos contestás hablando, <b>con tus palabras</b>. Sirve para comprobar que te acordás de lo que estudiaste: al final te dice qué ideas te sabés bien y cuáles tenés que repasar.</p>
+    ${hay?`<div class="oral-modos" role="group" aria-label="Cuántas preguntas">
+      <button type="button" class="oral-modo" aria-pressed="${modo==="completo"}" data-oral-modo="completo">🔶 Completo<small>las ${n} ideas del tema · unos ${min(n)} min</small></button>
+      <button type="button" class="oral-modo" aria-pressed="${modo==="corto"}" data-oral-modo="corto">🔹 Corto<small>${CORTO} preguntas · unos ${min(CORTO)} min</small></button></div>`:`<p class="nota-aj">Son ${n} preguntas, una por cada idea del tema.</p>`}
+    <button class="btn grande" id="oralEmpezar">🎤 Empezar el examen oral</button>
+    ${ult?`<p class="oral-ult">Último examen oral de este tema: <b>${ult.p} %</b>${ult.tot>0&&ult.n<ult.tot?` (${ult.n} de ${ult.tot}: quedó sin terminar)`:""} (${esc(fmtFechaCorta(ult.f))} · ${ult.modo==="corto"?"corto":"completo"}${ult.ia?"":" · sin IA"})${completos.length>1?` · mejor: <b>${mejor} %</b>`:""}</p>`:""}
+    <details class="oral-ayuda"><summary>¿Cómo funciona?</summary><ul>
+      <li>Tocá <b>Empezar</b> y permití el micrófono. El examinador hace una pregunta por vez; cuando él termina de hablar, <b>contestá en voz alta</b>. Si hacés una pausa larga, entiende que terminaste.</li>
+      <li>${IS_IOS?"En el iPhone hay que tocar <b>🎤 Tocar y contestar</b> en cada respuesta.":"Si el micrófono no se abre solo, vas a ver el botón <b>🎤 Tocar y contestar</b>."} También podés <b>⌨️ escribir</b> la respuesta.</li>
+      <li>Si no entendés, pedile que <b>repita</b> la pregunta. Si no te acordás, decí «no sé»: te cuenta la respuesta y seguís.</li>
+      <li>${fbListo()?"La IA compara lo que decís con el texto del resumen. Para eso se manda a la IA de Google (Gemini) el <b>audio de tu respuesta</b> y el texto de las ideas que se preguntan; en este sitio no se guarda ningún audio.":"En este equipo no hay IA configurada: el examen se corrige con un método simple (palabras clave del resumen)."}</li></ul></details>
+    <div class="oral-cfg"><label class="fila"><input type="checkbox" id="oralVoz" ${CFG.voz?"checked":""}><span>🔊 Que el examinador hable en voz alta</span></label>
+      <label class="fila" title="Cuánto espera el micrófono cuando hacés una pausa, antes de darse cuenta de que terminaste de hablar">⏳ Pausas <select id="oralPausaSel"><option value="normal"${CFG.pausa==="normal"?" selected":""}>Normal</option><option value="larga"${CFG.pausa==="larga"?" selected":""}>Más paciencia</option></select></label>
+      <p class="nota-aj">«Más paciencia»: el micrófono espera más antes de dar por terminada tu respuesta (para cuando te corta mientras pensás).</p></div>
+    <details class="oral-diag"><summary>🔧 Si algo no anda</summary><button type="button" class="btn sec chico" id="oralProbarVoz">🔊 Probar la voz del examinador</button><button type="button" class="btn sec chico" id="oralCopiar">📋 Copiar informe</button><span id="oralCopiado" class="nota-aj" role="status"></span></details>
+   </section></div>`;
+  const p=document.getElementById("pEst");if(p)p.classList.remove("en-oral");
+}
+function pintarExamen(){
+  const raiz=q("oralRaiz");if(!raiz)return;
+  raiz.innerHTML=`<section class="oral-exam" id="oralExam" tabindex="-1" aria-label="Examen oral">
+    <div class="oral-top"><b id="oralN">Pregunta 1 de ${S.agenda.length}</b><button type="button" class="btn sec chico" id="oralVozBtn" aria-label="Voz del examinador" aria-pressed="${CFG.voz}">${CFG.voz?"🔊":"🔇"}</button><button type="button" class="btn sec chico" id="oralTerminar">Terminar</button></div>
+    <span class="prog" aria-hidden="true"><i id="oralBar" style="width:0"></i></span>
+    <div class="oral-chat" id="oralChat" aria-live="polite"></div>
+    <div class="oral-ctl" id="oralCtl">
+      <div class="oral-mic" id="oralMic" role="status" aria-live="polite" hidden><span class="oral-dot" aria-hidden="true"></span><div class="oral-live"><b id="oralMicT">Te escucho…</b><div class="oral-lvl" aria-hidden="true"><i id="oralLvl"></i></div><span id="oralHeard"></span></div></div>
+      <div class="oral-st" id="oralSt" role="status" hidden></div>
+      <div class="oral-type" id="oralType" hidden><label class="vh" for="oralIn">Tu respuesta</label><input id="oralIn" type="text" enterkeyhint="send" autocomplete="off" placeholder="Escribí lo que querés contestar…"><button type="button" class="btn" id="oralSend">Enviar</button></div>
+      <button type="button" class="btn grande" id="oralHablar" hidden>🎤 Tocar y contestar</button>
+      <button type="button" class="btn sec" id="oralListo" hidden>✔️ Listo, terminé</button>
+      <div class="oral-pausa" id="oralPausa" hidden></div>
+      <div class="oral-fila" id="oralFila"><button type="button" class="btn sec chico" id="oralRep" aria-label="Repetir la pregunta">🔁 Repetir</button><button type="button" class="btn sec chico" id="oralKb">⌨️ Escribir</button><button type="button" class="btn sec chico" id="oralPasar" aria-label="Pasar a la pregunta siguiente">⏭️ Pasar</button></div>
+    </div></section>`;
+}
+
+// ---- los toques (un solo oyente en el contenedor)
+function alToque(e){
+  const b=e.target.closest&&e.target.closest("button");if(!b||!RAIZ||!RAIZ.contains(b))return;
+  if(b.dataset.oralModo){CFG.modo=b.dataset.oralModo;guardarCfg();RAIZ.querySelectorAll("[data-oral-modo]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));return}
+  if(b.dataset.oralVer){if(H.ver)H.ver(b.dataset.oralVer);return}
+  switch(b.id){
+    case "oralEmpezar":case "oralOtro":
+      if(window.__INT_SIN_ESPERA!==true&&performance.now()-T_MONTAJE<400)return;   // un doble toque (el segundo cae sobre la pantalla nueva) no arranca el examen
+      if(b.id==="oralOtro"){parar();pintarIntro();return}
+      return iniciar().catch(e=>{console.warn("[oral] no se pudo empezar:",e);rklog("no se pudo empezar: "+(e&&e.message||e));estado("No se pudo empezar el examen ("+esc((e&&e.message)||e)+"). Probá de nuevo.")});
+    case "oralTerminar":return terminarYa();
+    case "oralSeguir":return seguir();
+    case "oralListo":if(finishNow)finishNow();return;
+    case "oralVozBtn":CFG.voz=!CFG.voz;guardarCfg();if(S){S.sinVoz=false;S.vozFalla=0}b.textContent=CFG.voz?"🔊":"🔇";b.setAttribute("aria-pressed",String(CFG.voz));if(!CFG.voz){ttsGen++;try{synth&&synth.cancel()}catch(x){}}return;
+    case "oralSend":{const i=q("oralIn"),v=i.value.trim();if(v&&typedRes){i.value="";typedRes(v)}return}
+    case "oralRep":if(S&&S.pregunta&&(S.fase==="pregunta"||S.fase==="escucha")&&!S.repetir){S.repetir=true;if(typedRes||finishNow||recAbort){cambioDeModo=true;abortarEscucha()}}return;
+    case "oralPasar":if(S&&S.pregunta&&(S.fase==="pregunta"||S.fase==="escucha")&&!S.pasar){S.pasar=true;abortarEscucha()}return;
+    case "oralKb":{
+      if(!S)return;
+      if(ENT==="texto"){   // volver al micrófono: el permiso se pide de nuevo DENTRO del toque
+        micPerm="unknown";const m=fbListo()?(IS_IOS?"toque":"auto"):(SRc?"dictado":"texto");
+        if(m==="texto"){estado("Este navegador no tiene micrófono para dictar: contestá escribiendo.");return}
+        setEnt(m);{const w=q("oralType");if(w)w.hidden=true}cambioDeModo=true;abortarEscucha();return;
+      }
+      setEnt("texto");cambioDeModo=true;abortarEscucha();return}
+    case "oralProbarVoz":{desbloquearVoz(true);const id=++run;detener();hablarTrozo("Hola "+(ALUMNO()||"")+", ¿me escuchás? Soy tu examinador.").then(ok=>{const c=q("oralCopiado");if(c)c.textContent=ok?"Si lo escuchaste, la voz anda.":"No sonó la voz. Revisá el volumen y el modo silencio, o seguí leyendo el texto en pantalla."});return}
+    case "oralCopiar":{
+      const t=informe(),ok=()=>{const c=q("oralCopiado");if(c)c.textContent="✅ Informe copiado: pegalo en el chat."};
+      const viejo=()=>{const ta=document.createElement("textarea");ta.value=t;ta.style.cssText="position:fixed;left:-999px;top:0";document.body.appendChild(ta);ta.select();let r=false;try{r=document.execCommand("copy")}catch(x){}ta.remove();const c=q("oralCopiado");if(c)c.textContent=r?"✅ Informe copiado: pegalo en el chat.":"No pude copiarlo solo."};
+      try{navigator.clipboard.writeText(t).then(ok,viejo)}catch(x){viejo()}
+      return}
+  }
+}
+function alCambio(e){
+  if(!RAIZ||!RAIZ.contains(e.target))return;
+  if(e.target.id==="oralVoz"){CFG.voz=e.target.checked;guardarCfg()}
+  else if(e.target.id==="oralPausaSel"){CFG.pausa=e.target.value==="larga"?"larga":"normal";guardarCfg()}
+}
+function alTecla(e){if(e.key==="Enter"&&e.target&&e.target.id==="oralIn"){e.preventDefault();const b=q("oralSend");if(b)b.click()}}
+
+function montar(t,cont,hooks){
+  parar();
+  if(RAIZ){RAIZ.removeEventListener("click",alToque);RAIZ.removeEventListener("change",alCambio);RAIZ.removeEventListener("keydown",alTecla)}
+  T=t;H=hooks||{};RAIZ=cont;
+  RAIZ.addEventListener("click",alToque);RAIZ.addEventListener("change",alCambio);RAIZ.addEventListener("keydown",alTecla);
+  pintarIntro();
+}
+// se fue a otra aplicación o apagó la pantalla: se suelta el micrófono (en iPhone, si no, queda abierto) y se pausa
+document.addEventListener("visibilitychange",()=>{if(document.hidden)pausar()});
+window.addEventListener("pagehide",()=>{if(S&&S.corriendo)pausar();else detener()});
+
+const ultimo=t=>{const l=(t&&leerHist()[t.id])||[];return l.length?l[l.length-1]:null};
+const ultimoTxt=t=>{const u=ultimo(t);return u?u.p+" %"+(u.tot>0&&u.n<u.tot?" ("+u.n+" de "+u.tot+")":""):""};   // «74 %» o «100 % (2 de 14)» si quedó sin terminar
+INT.oral={disponible,montar,parar,enCurso,ultimo,ultimoTxt,frenar,reanudar,
+  _t:{armarAgenda,claves,evaluarLocal,preguntaPlantilla,pidioRepetir,esNoSe,sistemaIA,mensajeIA,informe,CORTO,estado:()=>S,cfg:()=>CFG,ent:()=>ENT,fbListo,leerHist}};
+})();

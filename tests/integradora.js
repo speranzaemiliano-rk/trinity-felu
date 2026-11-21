@@ -26,7 +26,7 @@ const j=o=>JSON.stringify(o);
 // ---------- 1) los datos, contrastados con una tabla aparte (si alguien cambia una capital mal, esto lo agarra)
 const sb={window:{}};vm.createContext(sb);
 vm.runInContext(fs.readFileSync(path.join(RAIZ,'integradora','contenido.js'),'utf8'),sb);vm.runInContext(fs.readFileSync(path.join(RAIZ,'integradora','mapa.js'),'utf8'),sb);vm.runInContext(fs.readFileSync(path.join(RAIZ,'integradora','mapa-limitrofes.js'),'utf8'),sb);
-const SCRIPTS=[...fs.readFileSync(path.join(RAIZ,'integradora','index.html'),'utf8').matchAll(/<script src="([^"?]+)/g)].map(m=>m[1]).filter(f=>f!=='app.js'&&!['contenido.js','mapa.js','mapa-limitrofes.js'].includes(f));
+const SCRIPTS=[...fs.readFileSync(path.join(RAIZ,'integradora','index.html'),'utf8').matchAll(/<script src="([^"?]+)/g)].map(m=>m[1]).filter(f=>f!=='app.js'&&f!=='oral.js'&&!/^\.\.\//.test(f)&&!['contenido.js','mapa.js','mapa-limitrofes.js'].includes(f));   // (oral.js es del navegador —micrófono, voz, IA—: tiene su propia prueba, tests/integradora_oral.js; y ../firebase-config.js es del sitio)
 SCRIPTS.forEach(f=>vm.runInContext(fs.readFileSync(path.join(RAIZ,'integradora',f),'utf8'),sb));   // dibujos.js, ideas.js y los temas (nat-*.js, soc-*.js), en el orden de la página
 const INT=sb.window.INT,MAPA=sb.window.MAPA,LIM=sb.window.MAPA_LIM;
 const NORMT=s=>String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
@@ -539,7 +539,7 @@ for(const tid of temasIds){
   // estudiar: las pestañas
   await p.click('#bEstudiar');await p.waitForSelector('#pEst .tab');
   const tabs=await p.evaluate(()=>[...document.querySelectorAll('#pEst .tab')].map(b=>({id:b.dataset.tab,t:b.innerText.trim(),on:b.classList.contains('on')})));
-  chk(NT+'la pantalla de estudio trae sus pestañas ('+def.estudio.map(e=>e.id).join(', ')+') con sus títulos y en orden, y arranca en el resumen',tabs.map(t=>t.id).join()===def.estudio.map(e=>e.id).join()&&tabs[0].on&&tabs.slice(1).every(t=>!t.on)&&tabs.every((t,i)=>t.t===def.estudio[i].titulo),j(tabs));
+  chk(NT+'la pantalla de estudio trae sus pestañas ('+def.estudio.map(e=>e.id).join(', ')+') con sus títulos y en orden, más «🎤 Examen oral» al final (se prueba aparte, en tests/integradora_oral.js), y arranca en el resumen',tabs.map(t=>t.id).join()===def.estudio.map(e=>e.id).concat('oral').join()&&tabs[0].on&&tabs.slice(1).every(t=>!t.on)&&def.estudio.every((e,i)=>tabs[i].t===e.titulo)&&tabs[tabs.length-1].t==='🎤 Examen oral',j(tabs));
   const res=await p.evaluate(()=>({grupos:[...document.querySelectorAll('#pEst .grupo h2')].map(h=>h.innerText.trim()),cards:[...document.querySelectorAll('#pEst .con')].map(c=>({id:c.id,t:c.querySelector('h3').innerText.trim(),p:c.querySelector('p').innerText.trim()})),nota:(document.querySelector('#pEst .nota-aj')||{innerText:''}).innerText}));
   chk(NT+'el resumen es una tarjeta por idea con SU resumen exacto, agrupadas con los títulos de los grupos, y al pie dice las páginas del libro y que si algo no coincide vale el libro',res.cards.length===def.conceptos.length&&def.conceptos.every(c=>res.cards.some(k=>k.id==='c-'+c.id&&k.p===c.resumen&&k.t.includes(c.titulo)))&&res.grupos.join('|')===def.grupos.join('|')&&res.nota.includes(def.paginas)&&/vale el libro/.test(res.nota),j({g:res.grupos,n:res.cards.length,nota:res.nota}).slice(0,300));
   if(def.cuadro){

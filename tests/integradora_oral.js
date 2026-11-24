@@ -689,6 +689,21 @@ await p.waitForSelector('#oralSeguir',{timeout:5000});
 chk('si el examen se pausa mientras piensa, los puntitos se sacan (no quedan colgados)',await p.evaluate(()=>!document.getElementById('oralPensando')));
 chk('sin errores de página (puntitos)',p.errs.length===0,JSON.stringify(p.errs));await t.ctx.close();
 
+// (h) las frases de voz: no se parte una pregunta en el «¿» (antes «Ahora decime,» y «¿qué hacía…?» sonaban como dos frases), y la devolución con la pregunta suenan juntas sólo si entran en una frase
+t=await pagina({});p=t.p;
+const DEVO_L='Eso es, el Consejo de Indias hacía las leyes para América y además nombraba a los funcionarios que iban para allá.',PREG_L='Ahora decime, ¿qué hacía la Casa de Contratación de Sevilla con los barcos que viajaban a América?';
+const tz=await p.evaluate(([d,q])=>{const Z=INT.oral._t.trozos;return {largo:Z(d+' '+q),corto:Z('¡Eso es! Ahora contame, ¿qué hacía el cabildo?'),sr:Z('¿Qué hizo el Sr. Pérez? Contame.'),sin:Z('Texto sin punto final'),muchas:Z('Una oración corta. '.repeat(30)).map(x=>x.length)}},[DEVO_L,PREG_L]);
+chk('el texto se parte en frases de voz por oraciones: la pregunta con «¿» queda entera («Ahora decime, ¿qué hacía…?» no se corta en el «¿»), y lo corto o sin puntuación es una sola frase',tz.largo.length===2&&tz.largo[0]===DEVO_L&&tz.largo[1]===PREG_L&&tz.corto.length===1&&tz.sr.length===1&&tz.sin.length===1&&tz.muchas.every(n=>n<=180)&&tz.muchas.length>=3,JSON.stringify(tz));
+await t.ctx.close();
+t=await pagina({});p=t.p;
+await p.evaluate(([d,q])=>{window.__guion=[{devolucion:d,pregunta:q}]},[DEVO_L,PREG_L]);
+await abrirOral(p,'colonias');await empezar(p,{modo:'corto'});await p.waitForSelector('#oralType:not([hidden])');
+await p.fill('#oralIn','el consejo de indias hacía las leyes');await p.click('#oralSend');
+await p.waitForFunction(q=>window.__voces.some(x=>x.texto===q),PREG_L,{timeout:10000});
+const vh=await p.evaluate(()=>window.__voces.map(x=>x.texto).filter(x=>x!=='ok'));
+chk('si la devolución y la pregunta no entran juntas en una frase de voz ('+(DEVO_L+' '+PREG_L).length+' caracteres) suenan por separado, como antes, y sin partir la pregunta',vh.includes(DEVO_L)&&vh.includes(PREG_L)&&vh.indexOf(DEVO_L)+1===vh.indexOf(PREG_L),JSON.stringify(vh.slice(-3)));
+chk('sin errores de página (frases de voz)',p.errs.length===0,JSON.stringify(p.errs));await t.ctx.close();
+
 // ---------- 11) el diseño y el contraste de la intro, el examen y el resultado
 const TAM=[['celular chico 320×568',320,568],['Android chico 360×640',360,640],['iPhone 14 390×844',390,844],['tableta vertical 768×1024',768,1024],['iPhone 8 de costado 667×375',667,375],['compu 1280×800',1280,800]];
 for(const [nombre,w,h] of (RAPIDO?TAM.slice(0,1).concat(TAM.slice(2,3)):TAM)){

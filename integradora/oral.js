@@ -261,12 +261,14 @@ function hablarTrozo(t){   // → true si sonó
     setTimeout(fin,maxMs);
   });
 }
-function trozos(t){   // la frase se parte en oraciones (la voz de Chrome se corta si es muy larga)
-  const partes=String(t).match(/[^.!?¿]+[.!?]*|[¿][^?]*\?/g)||[String(t)],out=[];let cur="";
-  partes.forEach(x=>{if((cur+x).length>180&&cur){out.push(cur.trim());cur=x}else cur+=x});if(cur.trim())out.push(cur.trim());
+const MAX_TROZO=180;   // largo máximo de cada frase de voz (la de Chrome se corta si es muy larga)
+function trozos(t){   // el texto se parte en oraciones y se juntan hasta MAX_TROZO. Una pregunta con «¿» no se parte en el «¿»: «Ahora decime, ¿qué hacía…?» es UNA oración
+  const sueltas=String(t).match(/[¿][^?]*\?[.!?]*|[^.!?¿]+[.!?]*|[.!?]+/g)||[String(t)],oraciones=[];let acc="";
+  sueltas.forEach(x=>{acc+=x;if(/[.!?]\s*$/.test(acc)){oraciones.push(acc);acc=""}});if(acc.trim())oraciones.push(acc);   // (lo que quedó sin punto final, como lo de antes de un «¿», se pega a lo que sigue)
+  const out=[];let cur="";
+  oraciones.forEach(x=>{if((cur+x).length>MAX_TROZO&&cur){out.push(cur.trim());cur=x}else cur+=x});if(cur.trim())out.push(cur.trim());
   return out.length?out:[String(t)];
 }
-
 // ---------------- qué ideas se preguntan
 function armarAgenda(t,modo){
   const items=(t.items||[]).filter(it=>it&&it.resumen&&it.titulo);
@@ -493,7 +495,7 @@ async function exDice(id,texto,opc){
 // La devolución y la pregunta que sigue suenan como UNA sola frase (así habla una persona: sin el hueco entre una y otra); en la charla siguen siendo dos burbujas.
 // Mientras suena, «Pasar» y «Repetir» siguen apagados (fase «devolucion»): se prenden al abrirse el micrófono, cuando ya se oyó la pregunta entera.
 async function exDiceJuntas(id,devo,preg){
-  if(!devo||run!==id||!S||!CFG.voz||!synth||S.sinVoz||(devo+" "+preg).length>240){   // sin comentario, sin voz o demasiado largo: una por una, como siempre
+  if(!devo||run!==id||!S||!CFG.voz||!synth||S.sinVoz||(devo+" "+preg).length>MAX_TROZO){   // sin comentario, sin voz o más largo que una frase de voz (se partiría igual): una por una, como siempre
     if(devo){await exDice(id,devo,{fase:"devolucion"});if(run!==id)return false}
     return exDice(id,preg,{fase:"pregunta"});
   }
@@ -972,5 +974,5 @@ window.addEventListener("pagehide",()=>{if(S&&S.corriendo)pausar();else detener(
 const ultimo=t=>{const l=(t&&leerHist()[t.id])||[];return l.length?l[l.length-1]:null};
 const ultimoTxt=t=>{const u=ultimo(t);return u?u.p+" %"+(u.tot>0&&u.n<u.tot?" ("+u.n+" de "+u.tot+")":""):""};   // «74 %» o «100 % (2 de 14)» si quedó sin terminar
 INT.oral={disponible,montar,parar,enCurso,ultimo,ultimoTxt,frenar,reanudar,
-  _t:{armarAgenda,claves,evaluarLocal,preguntaPlantilla,pidioRepetir,esNoSe,sistemaIA,mensajeIA,informe,CORTO,estado:()=>S,cfg:()=>CFG,ent:()=>ENT,fbListo,leerHist,vozElegida:()=>voz?voz.name+" · "+voz.lang:""}};
+  _t:{trozos,armarAgenda,claves,evaluarLocal,preguntaPlantilla,pidioRepetir,esNoSe,sistemaIA,mensajeIA,informe,CORTO,estado:()=>S,cfg:()=>CFG,ent:()=>ENT,fbListo,leerHist,vozElegida:()=>voz?voz.name+" · "+voz.lang:""}};
 })();

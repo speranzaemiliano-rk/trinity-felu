@@ -102,7 +102,7 @@ async function _fbGenerar(o){
               txt=await una(false);_sinPensar[nombre]=true;rklog("IA: "+nombre+" no acepta «pensar poco»: se sigue sin esa opción");   // (se anota recién si sin la opción anduvo: si no, el problema era otro)
             }
           }else txt=await una(false);
-          _fbBueno=nombre;fin(resolve,txt);
+          if(!hecho){_fbBueno=nombre;fin(resolve,txt)}   // (si otro modelo ya ganó, éste no cambia cuál se anota)
         }catch(e){
           ultimo=e;console.warn("[IA oral] "+nombre+":",e);pend--;
           if(hecho)return;
@@ -370,8 +370,8 @@ function normVeredicto(x){   // «Bien.», «correcto», «a medias»… → uno
 }
 // Los campos del pedido llevan un número adelante («p1_veredicto»…): la IA los escribe en orden alfabético y así el veredicto sale antes que el comentario (y la transcripción antes que todo)
 const campo=(o,n)=>{const k=Object.keys(o).find(x=>x===n||x.endsWith("_"+n));return k===undefined?undefined:o[k]};
-const TXT=(x,n)=>String(x==null?"":x).replace(/\s+/g," ").trim().slice(0,n);
-const limpiarTrans=t=>{const s=String(t==null?"":t).trim().replace(/^["“«]+|["”»]+$/g,"").trim();return /^[(\[].*[)\]]$/.test(s)?"":s};   // «(silencio)», «[sin voz]»…
+const TXT=(x,n)=>(typeof x==="string"||typeof x==="number"?String(x):"").replace(/\s+/g," ").trim().slice(0,n);   // (un objeto o una lista no se leen como «[object Object]»)
+const limpiarTrans=t=>{const s=(typeof t==="string"||typeof t==="number"?String(t):"").trim().replace(/^["“«]+|["”»]+$/g,"").trim();return /^[(\[].*[)\]]$/.test(s)?"":s};   // «(silencio)», «[sin voz]»…
 function normTurno(o){
   if(!o||typeof o!=="object"||Array.isArray(o))throw new Error("respuesta vacía");
   return {v:normVeredicto(campo(o,"veredicto")),falto:TXT(campo(o,"falto"),180),devolucion:TXT(campo(o,"devolucion"),420),pregunta:TXT(campo(o,"pregunta"),260)};
@@ -404,6 +404,7 @@ async function pedirTurnoAudio(t,blob,o,ayuda){
   const txt=await _fbGenerar({system:sistemaIA(t,true),partes:[msg,{inlineData:{mimeType:"audio/wav",data:await _blobB64(blob)}}],json:true,pensar:true,temp:.6,tokens:1200,
     ms:20000+Math.min(30000,Math.round(blob.size/32000*400)),hedge:6000,schema:S=>ESQ_TURNO(S,true)});
   const j=_jsonDe(txt);
+  if(campo(j,"transcripcion")===undefined||campo(j,"veredicto")===undefined)throw new Error("respuesta incompleta de la IA");   // (con el esquema vienen siempre: si falta uno no se da por buena una corrección inventada, se vuelve al camino de siempre)
   return {texto:limpiarTrans(campo(j,"transcripcion")),ev:normTurno(j)};
 }
 const PROMPT_TRANSCRIBIR="Transcribí exactamente lo que dice la persona que habla en este audio. Es un chico argentino de 10 años que explica con sus palabras un tema de la escuela, en español rioplatense. Respondé SOLO con la transcripción, sin comillas, sin comentarios y sin corregir lo que dice. Si no hay voz o sólo hay ruido, respondé con una cadena vacía.";
@@ -412,17 +413,21 @@ async function transcribir(blob,ayuda){   // el camino de siempre: sólo pasa la
     temp:0,tokens:1200,ms:12000+Math.min(30000,Math.round(blob.size/32000*400)),hedge:3000,pensar:true});
   return limpiarTrans(t);
 }
-// → el texto de lo que dijo. Si se puede, la misma llamada ya lo corrige y deja la corrección lista en TURNOS; si esa llamada falla se vuelve a pasar sólo a texto (como antes)
-async function vozATexto(blob,ayuda){
-  if(S&&S.ia&&S.agenda&&S.agenda[S.idx]){
+// → el texto de lo que dijo. Si se puede, la misma llamada ya lo corrige y deja la corrección lista en TURNOS; si esa llamada falla, o no oyó palabras, se vuelve a pasar sólo a texto (como antes).
+// «esp»: la llamada salió por adelantado con una pausa. Si falla, NO pide además el respaldo (se decide al final, cuando se sabe que de verdad hace falta); y tras 2 fallas seguidas de la junta se deja de usar.
+async function vozATexto(blob,ayuda,esp){
+  if(S&&S.ia&&!S.sinJunto&&S.agenda&&S.agenda[S.idx]){
     const o={idea:S.agenda[S.idx],pregunta:S.pregunta,sig:S.agenda[S.idx+1]||null,n:S.idx+1,tot:S.agenda.length,antes:S.ultDevo||[]};
     try{
       const r=await pedirTurnoAudio(T,blob,o,ayuda);
-      if(r.texto)TURNOS.set(mensajeIA(Object.assign({},o,{texto:r.texto})),{p:Promise.resolve(r.ev),falla:false});
-      return r.texto;
+      if(S)S.juntoFallas=0;
+      if(r.texto){TURNOS.set(mensajeIA(Object.assign({},o,{texto:r.texto})),{p:Promise.resolve(r.ev),falla:false});return r.texto}
+      rklog("IA: la llamada junta no oyó palabras: se prueba pasando sólo a texto");   // (una voz que no se oye no debería venir con una corrección: se pide una segunda opinión de la forma de siempre)
     }catch(e){
       if(errorDeAcceso(e))throw e;   // sin permiso no se arregla pidiéndolo de otra forma
-      rklog("IA: la voz y la corrección juntas fallaron ("+_iaMsg(e).slice(0,80)+"): se pasa a texto por separado");console.warn("[IA oral] voz y corrección juntas:",e);
+      if(S&&(S.juntoFallas=(S.juntoFallas||0)+1)>=2&&!S.sinJunto){S.sinJunto=true;rklog("IA: la llamada junta falló 2 veces seguidas: se deja y se pasa a texto por separado")}
+      rklog("IA: la voz y la corrección juntas fallaron ("+_iaMsg(e).slice(0,80)+")"+(esp?"":": se pasa a texto por separado"));console.warn("[IA oral] voz y corrección juntas:",e);
+      if(esp)throw e;
     }
   }
   return transcribir(blob,ayuda);
@@ -524,15 +529,15 @@ function esperarTexto(){
 function grabar(id){
   return new Promise(async res=>{
     const chunks=[];let done=false,spoke=false,lastVoice=0,t0=0,nf=0,th=0.02,rate=44100,pk=0,ultFuerte=0,capT=null,vigia=null;
-    let i0=-1,iN=-1,t1=0,spec=null;   // i0 / iN: primer y último fragmento con voz (se recorta el silencio de los costados) · t1: cuándo empezó a hablar · spec: lo que ya se mandó a la IA con la pausa de ahora
+    let i0=-1,iN=-1,t1=0,spec=null,nSpec=0;   // i0 / iN: primer y último fragmento con voz (se recorta el silencio de los costados) · t1: cuándo empezó a hablar · spec: lo que ya se mandó a la IA con la pausa de ahora · nSpec: cuántas veces ya se adelantó
     const limpiar=()=>{clearTimeout(capT);clearTimeout(vigia);finishNow=null;recAbort=null;capDetener();nivel(0);listoOcultar()};
     recAbort=()=>{if(done)return;done=true;limpiar();micUI(false);res(null)};
-    // sin el silencio de los costados (queda un poco antes y después de la voz): sube menos, la IA lo entiende antes y no «oye» palabras donde no hay
-    const wav=()=>_aWav(i0>=0?chunks.slice(Math.max(0,i0-8),Math.min(chunks.length,iN+6)):chunks,rate);
+    // sin el silencio de los costados (queda ~0,7 s antes de la voz y ~1,2 s después, por si dijo algo bajito al final): sube menos, la IA lo entiende antes y no «oye» palabras donde no hay
+    const wav=()=>_aWav(i0>=0?chunks.slice(Math.max(0,i0-8),Math.min(chunks.length,iN+14)):chunks,rate);
     const mandar=()=>vozATexto(wav(),spoke&&S?S.vocab:"");
     // Con la primera pausa (SPEC_MS) la respuesta ya se manda a la IA, sin esperar a que el silencio dé por terminado el turno: cuando se cumple el silencio, lo más probable es que ya esté lista.
     // Si el chico retoma antes, lo adelantado se descarta (spec=null) y se vuelve a pedir con todo lo que dijo.
-    const especular=()=>{const p=mandar();p.catch(()=>{});spec={lv:lastVoice,p};rklog("IA: la respuesta sale por adelantado (pausa de "+SPEC_MS+" ms)")};
+    const especular=()=>{nSpec++;const p=vozATexto(wav(),spoke&&S?S.vocab:"",true);p.catch(()=>{});spec={lv:lastVoice,p};rklog("IA: la respuesta sale por adelantado (pausa de "+SPEC_MS+" ms)")};
     const terminar=async()=>{
       if(done)return;done=true;limpiar();
       const seg=chunks.reduce((n,c)=>n+c.length,0)/rate;
@@ -540,7 +545,14 @@ function grabar(id){
       micUI(true,"Pensando lo que dijiste…",true);pensando(true);fase("piensa");
       const tFin=performance.now(),adelantada=!!(spec&&spec.lv===lastVoice);
       try{
-        const t=await (adelantada?spec.p:mandar());   // si la pausa de recién ya se mandó (y no volvió a hablar), esa respuesta ya viene en camino o está lista
+        let t;
+        if(adelantada){   // si la pausa de recién ya se mandó (y no volvió a hablar), esa respuesta ya viene en camino o está lista
+          try{t=await spec.p}
+          catch(e){   // …y si falló (sin pedir el respaldo), se pasa a texto de la forma de siempre
+            if(run!==id)return res(null);if(errorDeAcceso(e))throw e;
+            rklog("IA: la que salió por adelantado falló ("+_iaMsg(e).slice(0,60)+"): se pasa a texto");t=await transcribir(wav(),spoke&&S?S.vocab:"");
+          }
+        }else t=await mandar();
         rklog("IA: voz y corrección listas "+Math.round(performance.now()-tFin)+" ms después de darla por terminada"+(adelantada?" (adelantada con la pausa)":" (sin adelantar)")+" · grabó "+seg.toFixed(1)+" s");
         if(run!==id)return res(null);   // (primero se mira si el examen sigue: una respuesta tardía no toca la pantalla de la corrida nueva)
         micUI(false);if(S)S.fallasTrans=0;
@@ -590,7 +602,7 @@ function grabar(id){
         }
         if(spoke&&now-lastVoice>SIL[CFG.pausa])terminar();
         else if(!spoke&&now-t0>SIN_HABLA_MS)terminar();
-        else if(spoke&&!spec&&S&&S.ia&&now-lastVoice>=SPEC_MS&&lastVoice-t1>=SPEC_MIN_MS)especular();
+        else if(spoke&&!spec&&nSpec<3&&S&&S.ia&&now-lastVoice>=SPEC_MS&&lastVoice-t1>=SPEC_MIN_MS)especular();   // (como mucho 3 por respuesta: quien hace muchas pausas no gasta una llamada por cada una)
       };
       micUI(true,"Te escucho… contestá ahora");
       finishNow=()=>terminar();capT=setTimeout(terminar,TOPE_RESP_MS);listoTarde();
@@ -630,6 +642,7 @@ async function escucharUna(id){
   if(ENT==="toque"){const go=await esperarToque();if(go==="cancel")return null}
   if(run!==id)return null;
   if(ENT==="auto"&&CFG.voz){await pausa(250);if(run!==id)return null}   // el final de la voz del examinador no tiene que llegar al micrófono (parlantes de la compu)
+  if(S&&(S.pasar||S.repetir))return null;   // (un toque en «Pasar» o «Repetir» durante esa espera no quedaba atendido: no había nada que abortar)
   return ENT==="dictado"?dictar(id):ENT==="texto"?esperarTexto():grabar(id);
 }
 // Cambiar de modo (hablar ↔ escribir) o pedir que se repita la pregunta a mitad de una respuesta no es «no te escuché»: se vuelve a escuchar
@@ -705,7 +718,7 @@ async function abrir(id){
   fase("devolucion");
   // El saludo suena enseguida (es de la aplicación) y mientras tanto la IA prepara la primera pregunta: así no hay un silencio de varios segundos al empezar.
   const pedido=S.ia?pedirTurno(T,{primera:true,sig:idea,tot:S.agenda.length}).then(ev=>({ev}),e=>({e})):null;
-  await exDice(id,saludoLocal(),{fase:"devolucion"});if(run!==id)return;
+  if(!S.saludado){S.saludado=true;await exDice(id,saludoLocal(),{fase:"devolucion"});if(run!==id)return}   // (se anota al empezar a saludar: si se pausa ahí, o mientras la IA prepara la pregunta, al seguir no saluda de nuevo)
   let ev=null;
   if(pedido){
     fase("piensa");micUI(true,"El profe está pensando la primera pregunta…",true);pensando(true);
@@ -767,7 +780,7 @@ async function iniciar(){   // sale de un toque en «Empezar»: lo primero (sin 
   const agenda=armarAgenda(T,CFG.modo);if(!agenda.length)return;
   const id=++run;
   const ia=fbListo();
-  S={t:T,agenda,idx:0,pregunta:"",abierto:false,fase:"",fallasTrans:0,res:[],charla:[],ultDevo:[],ia,iaFallos:0,repet:0,corriendo:true,terminado:false,pasar:false,repetir:false,avisoVoz:false,modo:agenda.length===T.items.filter(x=>x&&x.resumen).length?"completo":"corto",
+  S={t:T,agenda,idx:0,pregunta:"",abierto:false,fase:"",fallasTrans:0,res:[],charla:[],ultDevo:[],saludado:false,ia,iaFallos:0,repet:0,corriendo:true,terminado:false,pasar:false,repetir:false,avisoVoz:false,modo:agenda.length===T.items.filter(x=>x&&x.resumen).length?"completo":"corto",
     vocab:T.items.map(x=>x.titulo).join("; ").slice(0,500),t0:Date.now()};
   ENT=ia?(IS_IOS?"toque":"auto"):(SRc?"dictado":"texto");
   const p=document.getElementById("pEst");if(p)p.classList.add("en-oral");
@@ -794,7 +807,9 @@ function pausar(){   // se fue a otra aplicación o apagó la pantalla: se suelt
 // Mientras hay un cartel de confirmación abierto («¿Terminar?», «¿Dejar el examen?») el examen se frena por detrás —sin tarjeta de pausa—: si no, el examinador seguía hablando y el micrófono se abría
 // (y una pregunta sin contestar se perdía). «No, seguir» lo retoma por la misma pregunta.
 function frenar(){
-  if(!enCurso()||S.pausado)return false;
+  if(!enCurso())return false;
+  if(S.pausaAviso)return true;   // ya lo frenó otro cartel (el foco del teclado puede llegar a «Terminar» por debajo del cartel y abrir otro): «No, seguir» de éste también lo retoma
+  if(S.pausado)return false;
   run++;detener();S.pausado=true;S.pausaAviso=true;rklog("pausa (hay un cartel abierto)");return true;
 }
 function reanudar(){if(S&&S.pausaAviso){S.pausaAviso=false;seguir()}}
@@ -862,7 +877,7 @@ function pintarResultado(R){
 function informe(){
   const v=synth?synth.getVoices().filter(x=>/^es/i.test(x.lang)).map(x=>x.name+" ("+x.lang+")").slice(0,6).join(", "):"sin voz del navegador";
   return ["Examen oral · "+(T?T.id:"-"),"navegador: "+navigator.userAgent,"iOS: "+IS_IOS+" · IA configurada: "+fbListo()+" · dictado del navegador: "+!!SRc+" · modo: "+ENT+" · micrófono: "+micPerm,
-    "voz elegida: "+(voz?voz.name+" ("+voz.lang+")":"ninguna")+(CFG.vozNombre?" (a mano)":"")+" · velocidad: "+CFG.vel+" · voces en español: "+(v||"ninguna"),
+    "voz elegida: "+(voz?voz.name+" ("+voz.lang+")":"ninguna")+(CFG.vozNombre&&voz&&vozId(voz)===CFG.vozNombre?" (a mano)":"")+" · velocidad: "+CFG.vel+" · voces en español: "+(v||"ninguna"),
     "modelo que respondió: "+(_fbBueno||"ninguno todavía")+" · sin «pensar poco»: "+(Object.keys(_sinPensar).join(", ")||"ninguno")+" · pausa: "+CFG.pausa,""].concat(LOG).join("\n");
 }
 const pesoRegion=x=>/^es[-_]AR/i.test(x.lang)?0:/^es[-_](419|US|MX)/i.test(x.lang)?1:/^es[-_]ES/i.test(x.lang)?2:3;
@@ -974,5 +989,5 @@ window.addEventListener("pagehide",()=>{if(S&&S.corriendo)pausar();else detener(
 const ultimo=t=>{const l=(t&&leerHist()[t.id])||[];return l.length?l[l.length-1]:null};
 const ultimoTxt=t=>{const u=ultimo(t);return u?u.p+" %"+(u.tot>0&&u.n<u.tot?" ("+u.n+" de "+u.tot+")":""):""};   // «74 %» o «100 % (2 de 14)» si quedó sin terminar
 INT.oral={disponible,montar,parar,enCurso,ultimo,ultimoTxt,frenar,reanudar,
-  _t:{trozos,armarAgenda,claves,evaluarLocal,preguntaPlantilla,pidioRepetir,esNoSe,sistemaIA,mensajeIA,informe,CORTO,estado:()=>S,cfg:()=>CFG,ent:()=>ENT,fbListo,leerHist,vozElegida:()=>voz?voz.name+" · "+voz.lang:""}};
+  _t:{fbGenerar:_fbGenerar,trozos,armarAgenda,claves,evaluarLocal,preguntaPlantilla,pidioRepetir,esNoSe,sistemaIA,mensajeIA,informe,CORTO,estado:()=>S,cfg:()=>CFG,ent:()=>ENT,fbListo,leerHist,vozElegida:()=>voz?voz.name+" · "+voz.lang:""}};
 })();

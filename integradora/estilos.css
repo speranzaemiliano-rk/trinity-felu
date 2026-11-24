@@ -438,6 +438,7 @@ svg.dibujo .vir-ba text{font:800 20px var(--body);fill:var(--ink);text-anchor:en
 .oral-ayuda summary,.oral-diag summary,.oral-charla summary{font-weight:800;cursor:pointer;min-height:36px;display:flex;align-items:center}
 .oral-ayuda ul{margin:8px 0 0;padding-left:20px;display:grid;gap:6px;font-weight:600;font-size:.95rem}
 .oral-cfg{display:grid;gap:8px}
+.oral-cfg>*{min-width:0}   /* (un selector con un nombre de voz largo no ensancha la columna ni saca la pantalla de costado) */
 .oral-cfg select{font:700 1rem var(--body);padding:8px;border-radius:10px;border:2px solid var(--line);background:var(--bg);color:var(--ink);min-width:0;max-width:100%;flex:1 1 140px}
 .oral-cfg .nota-aj{margin:0 2px}
 .oral-cfg .fila{flex-wrap:wrap}

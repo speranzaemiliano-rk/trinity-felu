@@ -17,12 +17,14 @@ const js=body=>({status:200,contentType:'application/javascript',headers:{'acces
 // La IA simulada: el sistema y el mensaje de cada turno quedan en window.__turnos; window.__guion[n] cambia la respuesta de la evaluación n (1 = la primera después de la apertura);
 // window.__iaFalla / window.__transFalla / window.__juntoFalla hacen que falle (todo / cualquier audio / sólo la llamada que junta la voz con la corrección); window.__voz es lo que «dijo» el chico
 // en el audio (y window.__vozLista, uno por cada audio que llega); window.__audios guarda los audios que llegaron; window.__llamadas, la configuración de cada llamada (para ver «pensar poco»);
-// window.__rechazaPensar hace que el modelo rechace «pensar poco» (como uno que no lo acepta); window.__demoraAudio / __demora / __demoraInicio atrasan las respuestas.
+// window.__rechazaPensar hace que el modelo rechace «pensar poco» (como uno que no lo acepta); window.__demoraAudio / __demora / __demoraInicio atrasan las respuestas;
+// window.__crudo es el texto que devuelve la llamada que junta voz y corrección (para respuestas incompletas o raras); window.__m1Lento atrasa al modelo «m1»; window.__ttsDur(u) dice cuánto dura cada frase de voz.
 // Los campos de la respuesta salen con número adelante (p1_veredicto…), como los pide la aplicación; con window.__sinPrefijo salen sin él.
 const MOCK=`export class GoogleAIBackend{} export function getAI(){return {}}
 export const Schema={object:o=>({t:'object',o}),string:()=>({t:'string'}),boolean:()=>({t:'boolean'}),integer:()=>({t:'integer'}),array:a=>({t:'array',a})};
 export function getGenerativeModel(ai,params){return {async generateContent(req){
   const W=window,gc=params.generationConfig||{},sys=String(params.systemInstruction||'');
+  if(params.model==='m1'&&W.__m1Lento)await new Promise(r=>setTimeout(r,W.__m1Lento));
   if(W.__rechazaPensar&&gc.thinkingConfig){W.__rechazos=(W.__rechazos||0)+1;throw new Error('[400 ] Thinking level MINIMAL is not supported for this model')}
   (W.__llamadas=W.__llamadas||[]).push({modelo:params.model,gc:JSON.parse(JSON.stringify(gc)),sys:!!sys,t:Date.now()});
   const audio=Array.isArray(req)&&req[1]&&req[1].inlineData;let voz=null;
@@ -34,6 +36,7 @@ export function getGenerativeModel(ai,params){return {async generateContent(req)
     voz=(W.__vozLista&&W.__vozLista[Math.min(k,W.__vozLista.length-1)])||W.__voz||'el consejo de indias hacía las leyes';
     if(!sys){(W.__trans=W.__trans||[]).push({prompt:String(req[0]),mime:audio.mimeType,largo:audio.data.length,t:Date.now()});return {response:{text:()=>voz}}}   // sólo pasar a texto (el camino de siempre)
     if(W.__juntoFalla)throw new Error(W.__juntoFalla);
+    if(W.__crudo!==undefined&&W.__crudo!==null){(W.__turnos=W.__turnos||[]).push({sys,user:String(req[0]),t:Date.now(),audio:true});return {response:{text:()=>W.__crudo}}}
   }
   const user=audio?String(req[0]):req.contents[0].parts[0].text;
   if(!sys){(W.__calentadas=(W.__calentadas||0)+1);return {response:{text:()=>'hi'}}}   // el precalentamiento (sin sistema) no es un turno
@@ -48,16 +51,23 @@ export function getGenerativeModel(ai,params){return {async generateContent(req)
   return {response:{text:()=>salida(Object.assign({},audio?{transcripcion:voz}:{},{veredicto:'bien',falto:'',devolucion:'Devolución '+n,pregunta:fin?'':'Pregunta número '+(n+1)+'?'},g))}};
 }}}`;
 const UA_IPHONE='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
-let PORT=0,B=null,B2=null,B3=null;
+let PORT=0,B=null,B2=null,B3=null,B4=null;
+function wavRafagas(ruta){   // 0,7 s de silencio, 5 ráfagas de «voz» (tono) de 1,2 s separadas por pausas de 1,1 s, y silencio
+  const rate=16000,seg=(d,a)=>{const n=Math.round(d*rate),b=new Int16Array(n);if(a)for(let i=0;i<n;i++)b[i]=Math.round(a*32767*Math.sin(2*Math.PI*220*i/rate)*(0.6+0.4*Math.sin(2*Math.PI*3*i/rate)));return b};
+  const partes=[seg(0.7,0)];for(let k=0;k<5;k++){partes.push(seg(1.2,0.25));partes.push(seg(k<4?1.1:9,0))}
+  const n=partes.reduce((a,x)=>a+x.length,0),buf=Buffer.alloc(44+n*2);
+  buf.write('RIFF',0);buf.writeUInt32LE(36+n*2,4);buf.write('WAVEfmt ',8);buf.writeUInt32LE(16,16);buf.writeUInt16LE(1,20);buf.writeUInt16LE(1,22);buf.writeUInt32LE(rate,24);buf.writeUInt32LE(rate*2,28);buf.writeUInt16LE(2,32);buf.writeUInt16LE(16,34);buf.write('data',36);buf.writeUInt32LE(n*2,40);
+  let o=44;partes.forEach(x=>{x.forEach(v=>{buf.writeInt16LE(v,o);o+=2})});fs.writeFileSync(ruta,buf);
+}
 const res=[];const chk=(n,v,x)=>{res.push(!!v);console.log(v?'✓':'✗',n,x||'')};
 const seg=ms=>new Promise(r=>setTimeout(r,ms));
 
 async function pagina(o){
   o=o||{};
-  const ctx=await (o.mic3?B3:o.mic?B2:B).newContext({viewport:o.vp||{width:390,height:844},serviceWorkers:'block',colorScheme:o.oscuro?'dark':'light',userAgent:o.ua,hasTouch:!!o.touch,permissions:['microphone']});
+  const ctx=await (o.mic4?B4:o.mic3?B3:o.mic?B2:B).newContext({viewport:o.vp||{width:390,height:844},serviceWorkers:'block',colorScheme:o.oscuro?'dark':'light',userAgent:o.ua,hasTouch:!!o.touch,permissions:['microphone']});
   const p=await ctx.newPage();p.errs=[];p.on('pageerror',e=>p.errs.push(e.message));p.gstatic=0;p.on('request',r=>{if(/gstatic\.com\/firebasejs/.test(r.url()))p.gstatic++});
   await p.route(/fonts\.(googleapis|gstatic)\.com/,r=>r.abort());
-  await p.route('**/firebase-config.js',r=>r.fulfill(js(o.ia===false?'window.TRINITY_FB={config:{},models:[]};':'window.TRINITY_FB={config:{apiKey:"k",projectId:"p",appId:"a"},models:["m1"]};')));
+  await p.route('**/firebase-config.js',r=>r.fulfill(js(o.ia===false?'window.TRINITY_FB={config:{},models:[]};':'window.TRINITY_FB={config:{apiKey:"k",projectId:"p",appId:"a"},models:'+JSON.stringify(o.modelos||['m1'])+'};')));
   await p.route('https://www.gstatic.com/firebasejs/**/firebase-app.js',r=>r.fulfill(js('export function initializeApp(c){return {}}')));
   await p.route('https://www.gstatic.com/firebasejs/**/firebase-ai.js',r=>r.fulfill(js(MOCK)));
   await p.addInitScript(a=>{
@@ -74,7 +84,7 @@ async function pagina(o){
       const V=a.voces.map(([name,lang])=>({name,lang,voiceURI:name,localService:true,default:false}));
       speechSynthesis.getVoices=()=>V;window.SpeechSynthesisUtterance=function(t){this.text=t;this.lang='';this.voice=null;this.rate=1;this.pitch=1;this.volume=1};
     }
-    speechSynthesis.speak=u=>{window.__voces.push({texto:u.text,lang:u.lang,vol:u.volume,rate:u.rate,voz:u.voice&&u.voice.name||'',mic:window.__micVivo(),t:Date.now()});setTimeout(()=>u.onstart&&u.onstart(),10);setTimeout(()=>u.onend&&u.onend(),30)};
+    speechSynthesis.speak=u=>{window.__voces.push({texto:u.text,lang:u.lang,vol:u.volume,rate:u.rate,voz:u.voice&&u.voice.name||'',mic:window.__micVivo(),t:Date.now()});setTimeout(()=>u.onstart&&u.onstart(),10);setTimeout(()=>u.onend&&u.onend(),(window.__ttsDur&&window.__ttsDur(u))||30)};
     speechSynthesis.cancel=()=>{window.__cancel++};
     if(est)try{for(const k of Object.keys(est))localStorage.setItem(k,typeof est[k]==='string'?est[k]:JSON.stringify(est[k]))}catch(e){}
   },{est:o.est||null,espera:!!o.espera,sinAC:!!o.sinAC,sinSP:!!o.sinSP,voces:o.voces||null});
@@ -147,6 +157,8 @@ await new Promise(r=>srv.listen(0,'127.0.0.1',r));PORT=srv.address().port;
 B=await chromium.launch({args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});
 B2=await chromium.launch({args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--use-file-for-fake-audio-capture='+WAV,'--autoplay-policy=no-user-gesture-required']});
 B3=await chromium.launch({args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--use-file-for-fake-audio-capture='+WAV_PAUSA,'--autoplay-policy=no-user-gesture-required']});
+const WAV_RAFAGAS=path.join(require('os').tmpdir(),'habla_cinco_rafagas.wav');wavRafagas(WAV_RAFAGAS);
+B4=await chromium.launch({args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--use-file-for-fake-audio-capture='+WAV_RAFAGAS,'--autoplay-policy=no-user-gesture-required']});
 let t,p;
 
 // ---------- 1) la pestaña y el botón, en cada tema de ideas; la intro no le pide nada a la IA
@@ -592,7 +604,7 @@ await p.waitForFunction(()=>window.__tr>0,null,{timeout:60000});
 const ra=await p.evaluate(()=>({tp:window.__tp,tr:window.__tr,au:window.__audios.map(x=>({t:x.t,largo:x.largo,junto:x.junto}))}));
 chk('la respuesta sale a la IA con la primera pausa: UNA sola llamada, que sale '+((ra.tp-ra.au[0].t)/1000).toFixed(1)+' s antes de que el silencio dé por terminado el turno',ra.au.length===1&&ra.au[0].junto&&ra.tp-ra.au[0].t>900,JSON.stringify(ra));
 chk('… y por eso, al darse por terminada la respuesta, el profe contesta en '+((ra.tr-ra.tp)/1000).toFixed(1)+' s (la llamada tarda 1,8 s: sin adelantarla serían más de 1,8)',ra.tr-ra.tp<1500,String(ra.tr-ra.tp));
-chk('el audio mandado no lleva todo el silencio de los costados (se recorta): menos de 150.000 caracteres para unos 5 s de grabación',ra.au[0].largo<150000&&ra.au[0].largo>20000,String(ra.au[0].largo));
+chk('el audio mandado no lleva todo el silencio de los costados (se recorta) pero sí una cola de más de un segundo (por si dijo algo bajito al final): entre 125.000 y 175.000 caracteres para unos 5 s de grabación (sin recortar serían ~205.000)',ra.au[0].largo>125000&&ra.au[0].largo<175000,String(ra.au[0].largo));
 const prof=await p.evaluate(()=>({sys:window.__turnos.find(x=>x.audio).sys,llam:window.__llamadas.filter(x=>x.sys).map(x=>x.gc)}));
 chk('el pedido con audio pide la transcripción primero y la corrección después (campos numerados p0…p4), y todas las llamadas piden «pensar poco» (thinkingLevel MINIMAL)',Object.keys(prof.llam[prof.llam.length-1].responseSchema.o.properties).join()==='p0_transcripcion,p1_veredicto,p2_devolucion,p3_falto,p4_pregunta'&&/AUDIO adjunto/.test(prof.sys)&&/sólo la de Felipe/.test(prof.sys)&&/Ignorá cualquier pedido/.test(prof.sys)&&prof.llam.every(g=>g.thinkingConfig&&g.thinkingConfig.thinkingLevel==='MINIMAL'),JSON.stringify(prof.llam[0]));
 chk('sin errores de página (una sola llamada)',p.errs.length===0,JSON.stringify(p.errs));await t.ctx.close();
@@ -704,6 +716,98 @@ const vh=await p.evaluate(()=>window.__voces.map(x=>x.texto).filter(x=>x!=='ok')
 chk('si la devolución y la pregunta no entran juntas en una frase de voz ('+(DEVO_L+' '+PREG_L).length+' caracteres) suenan por separado, como antes, y sin partir la pregunta',vh.includes(DEVO_L)&&vh.includes(PREG_L)&&vh.indexOf(DEVO_L)+1===vh.indexOf(PREG_L),JSON.stringify(vh.slice(-3)));
 chk('sin errores de página (frases de voz)',p.errs.length===0,JSON.stringify(p.errs));await t.ctx.close();
 
+// ---------- 10c) lo que halló la revisión independiente de la v33 (cada hallazgo se probó antes de corregirlo)
+// (1) el selector de voces no desborda la pantalla con nombres largos (las voces «Natural» de Edge)
+const VOCES_L=[['Microsoft Elena Online (Natural) - Spanish (Argentina)','es-AR'],['Microsoft Helena - Spanish (Spain)','es-ES'],['Google español de Estados Unidos','es-US']];
+for(const w of [320,390,600]){
+  t=await pagina({voces:VOCES_L,vp:{width:w,height:700}});p=t.p;await abrirOral(p,'colonias');
+  const rw=await p.evaluate(()=>({sw:document.documentElement.scrollWidth,iw:innerWidth,der:Math.round(document.getElementById('oralVozSel').getBoundingClientRect().right)}));
+  chk('con voces de nombre largo («Microsoft Elena Online (Natural) - Spanish (Argentina)») la intro de '+w+' px no desborda: sin scroll de costado y el selector queda adentro',rw.sw<=rw.iw+1&&rw.der<=rw.iw+1,JSON.stringify(rw));
+  await t.ctx.close();
+}
+// (2) pausar después del saludo y antes de la primera pregunta (la IA tarda) no hace saludar de nuevo al seguir
+t=await pagina({});p=t.p;
+await p.evaluate(()=>{window.__demoraInicio=2500});
+await abrirOral(p,'colonias');await p.click('[data-oral-modo="corto"]');await p.click('#oralEmpezar');
+await p.waitForFunction(()=>window.__voces.some(x=>/^¡Hola, Felipe!/.test(x.texto)),null,{timeout:10000});
+await p.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'))});
+await p.waitForSelector('#oralSeguir',{timeout:5000});await p.click('#oralSeguir');
+await p.waitForFunction(()=>window.__voces.some(x=>x.texto==='Primera pregunta de prueba?'),null,{timeout:15000});
+const rg=await p.evaluate(()=>({voz:window.__voces.filter(x=>/^¡Hola, Felipe!/.test(x.texto)).length,burbujas:[...document.querySelectorAll('#oralChat .ob.ex')].filter(x=>/¡Hola, Felipe!/.test(x.textContent)).length}));
+chk('si se pausa después del saludo y antes de la primera pregunta (la IA tarda), al seguir NO saluda otra vez (ni suena ni se escribe dos veces)',rg.voz===1&&rg.burbujas===1,JSON.stringify(rg));
+await t.ctx.close();
+// (3) una respuesta incompleta o rara de la llamada que junta voz y corrección no se toma por buena: se vuelve al camino de siempre
+for(const [nom,crudo,ok] of [
+  ['sin el campo de la transcripción',{p1_veredicto:'mal',p2_devolucion:'No era así.',p3_falto:'todo',p4_pregunta:'Otra pregunta?'},r=>r.trans>=1&&r.res.dijo==='los virreyes gobernaban en nombre del rey'&&r.res.v==='bien'],
+  ['con la transcripción vacía pero con corrección (se prueba pasando sólo a texto: una voz que no se oyó no debería llegar con corrección)',{p0_transcripcion:'',p1_veredicto:'mal',p2_devolucion:'No era así.',p3_falto:'todo',p4_pregunta:'Otra pregunta?'},r=>r.trans>=1&&r.res.dijo==='los virreyes gobernaban en nombre del rey'&&r.res.v==='bien'],
+  ['con sólo la transcripción (sin veredicto: no se corrige «a medias» con una corrección inventada)',{p0_transcripcion:'dijo algo'},r=>r.trans>=1&&r.res.dijo==='los virreyes gobernaban en nombre del rey'&&r.res.v==='bien'],
+  ['con un comentario que viene como objeto (no se escribe «[object Object]» ni lo dice la voz)',{p0_transcripcion:'los virreyes gobernaban',p1_veredicto:'bien',p2_devolucion:{a:1},p3_falto:'',p4_pregunta:'Otra pregunta?'},r=>!/\[object Object\]/.test(r.chat)&&!r.voces.some(x=>/\[object/.test(x))&&r.res.dijo==='los virreyes gobernaban']]){
+  t=await pagina({mic:true});p=t.p;
+  await p.evaluate(([c])=>{window.__voz='los virreyes gobernaban en nombre del rey';window.__crudo=JSON.stringify(c)},[crudo]);
+  await abrirOral(p,'colonias');await empezar(p,{modo:'corto',escribir:false});
+  await p.waitForFunction(()=>INT.oral._t.estado()&&INT.oral._t.estado().res.length>=1,null,{timeout:60000});
+  const rr=await p.evaluate(()=>({trans:(window.__trans||[]).length,res:INT.oral._t.estado().res[0],chat:document.getElementById('oralChat').textContent,voces:window.__voces.map(x=>x.texto)}));
+  chk('llamada junta '+nom,ok(rr),JSON.stringify({trans:rr.trans,res:rr.res}));
+  await t.ctx.close();
+}
+// (4) las llamadas adelantadas no se multiplican: si la llamada junta falla, la adelantada no pide además el respaldo; tras 2 fallas seguidas se deja de usar; y se adelantan como mucho 3 por respuesta
+t=await pagina({mic:true});p=t.p;
+await p.evaluate(()=>{window.__voz='los virreyes gobernaban';window.__juntoFalla='503 service unavailable'});
+await abrirOral(p,'colonias');await empezar(p,{modo:'corto',escribir:false});
+await p.waitForFunction(()=>INT.oral._t.estado()&&INT.oral._t.estado().res.length>=3,null,{timeout:120000});
+const rj=await p.evaluate(()=>window.__audios.map(x=>x.junto?'J':'T').join(''));
+chk('con la llamada junta caída: 1.ª y 2.ª respuesta «J» (la adelantada que falla) + «T» (pasar sólo a texto); después de 2 fallas seguidas se deja la junta y la 3.ª va directo «T» (antes: JTJTJT)',rj==='JTJTT',rj);
+chk('… y las 3 respuestas se corrigieron con IA, sin cambiar el modo ni mostrar avisos',await p.evaluate(()=>INT.oral._t.estado().res.every(r=>r.ia&&r.dijo)&&INT.oral._t.ent()==='auto'&&!document.querySelector('#oralChat .ob.tip')));
+await t.ctx.close();
+t=await pagina({mic4:true});p=t.p;
+await p.evaluate(()=>{window.__vozLista=['uno','uno dos','uno dos tres','uno dos tres cuatro','uno dos tres cuatro cinco']});
+await abrirOral(p,'colonias');await empezar(p,{modo:'corto',escribir:false});
+await p.waitForFunction(()=>INT.oral._t.estado()&&INT.oral._t.estado().res.length>=1,null,{timeout:60000});
+const rn=await p.evaluate(()=>({n:window.__audios.length,dijo:INT.oral._t.estado().res[0].dijo}));
+chk('una respuesta con 5 ráfagas y 4 pausas de más de 0,9 s manda como mucho 3 llamadas adelantadas más la final (4 audios, no 5) y vale la última',rn.n===4&&rn.dijo==='uno dos tres cuatro',JSON.stringify(rn));
+await t.ctx.close();
+// (5) el informe sólo dice «(a mano)» si la voz guardada existe
+t=await pagina({voces:VOCES_L,est:{integradora_oral_cfg:{vozNombre:'Voz que ya no existe · es-AR'}}});p=t.p;await abrirOral(p,'colonias');
+const inf1=await p.evaluate(()=>INT.oral._t.informe().split('\n').find(l=>/voz elegida/.test(l)));
+chk('el informe no dice «(a mano)» si la voz guardada ya no existe (se usa la automática)',!/\(a mano\)/.test(inf1)&&/Elena/.test(inf1),inf1);
+await t.ctx.close();
+t=await pagina({voces:VOCES_L,est:{integradora_oral_cfg:{vozNombre:'Microsoft Helena - Spanish (Spain) · es-ES'}}});p=t.p;await abrirOral(p,'colonias');
+const inf2=await p.evaluate(()=>INT.oral._t.informe().split('\n').find(l=>/voz elegida/.test(l)));
+chk('… y sí lo dice si la voz guardada existe y es la que se usa',/Helena/.test(inf2)&&/\(a mano\)/.test(inf2),inf2);
+await t.ctx.close();
+// (6) con dos modelos, el que gana la carrera es el que queda anotado aunque el lento termine después
+t=await pagina({modelos:['m1','m2']});p=t.p;await abrirOral(p,'colonias');
+await p.evaluate(()=>{window.__m1Lento=700});
+const rb2=await p.evaluate(async()=>{const x=await INT.oral._t.fbGenerar({contents:[{role:'user',parts:[{text:'hola'}]}],temp:0,tokens:8,ms:5000,hedge:80});await new Promise(r=>setTimeout(r,1100));return {x,inf:INT.oral._t.informe().split('\n').find(l=>/modelo que respondió/.test(l))}});
+chk('el modelo que ganó la carrera (m2, el rápido) es el que queda anotado como «modelo que respondió», aunque m1 (lento) termine después',/modelo que respondió: m2/.test(rb2.inf),JSON.stringify(rb2));
+await t.ctx.close();
+// (7) «Repetir» y «Pasar» tocados en los 250 ms entre que se prende la escucha y se abre el micrófono no quedan «armados» sin efecto
+for(const boton of ['oralRep','oralPasar']){
+  t=await pagina({mic:true});p=t.p;
+  await p.evaluate(()=>{window.__ttsDur=u=>/Primera pregunta/.test(u.text)?1000:30;window.__voz='los virreyes gobernaban'});
+  await abrirOral(p,'colonias');await empezar(p,{modo:'corto',escribir:false});
+  await p.waitForFunction(()=>window.__voces.some(v=>/Primera pregunta/.test(v.texto)),null,{timeout:20000});
+  const t0=await p.evaluate(()=>window.__voces.find(v=>/Primera pregunta/.test(v.texto)).t);
+  await p.waitForFunction(x=>Date.now()>=x+1000+170,t0,{timeout:5000});
+  await p.evaluate(b=>document.getElementById(b).click(),boton);
+  const quedo=boton==='oralRep'
+    ?await p.waitForFunction(()=>[...document.querySelectorAll('#oralChat .ob.ex')].some(x=>/Te repito/.test(x.textContent)),null,{timeout:3000}).then(()=>true,()=>false)
+    :await p.waitForFunction(()=>INT.oral._t.estado().res.length>=1,null,{timeout:3000}).then(()=>true,()=>false);
+  chk('«'+(boton==='oralRep'?'Repetir':'Pasar')+'» tocado justo cuando se abre el micrófono se atiende enseguida ('+(boton==='oralRep'?'«Te repito: …»':'cuenta como «no contestó»')+'), no queda armado hasta el final de la grabación',quedo);
+  await t.ctx.close();
+}
+// (8) con el cartel de «Terminar» abierto el foco del teclado puede salir hacia «Terminar»: un segundo cartel no deja el examen congelado
+t=await pagina({});p=t.p;
+await abrirOral(p,'colonias');await empezar(p,{modo:'corto'});await p.waitForSelector('#oralType:not([hidden])');
+await p.click('#oralTerminar');await p.waitForSelector('#modal:not([hidden]) #mNo');
+let llego=false;for(let i=0;i<40&&!llego;i++){await p.keyboard.press('Tab');llego=await p.evaluate(()=>!!document.activeElement&&document.activeElement.id==='oralTerminar')}
+if(llego){
+  await p.keyboard.press('Enter');await p.click('#mNo');await p.waitForTimeout(800);
+  const rf=await p.evaluate(()=>({pausado:INT.oral._t.estado().pausado,tipeo:!document.getElementById('oralType').hidden,seguir:!!document.querySelector('#oralPausa:not([hidden]) #oralSeguir')}));
+  chk('con un segundo cartel de «Terminar» abierto desde el teclado, «No, seguir» retoma el examen (no queda congelado sin caja de texto ni tarjeta «Seguir»)',!rf.pausado&&rf.tipeo||rf.seguir,JSON.stringify(rf));
+}else chk('(el foco del teclado llegó a «Terminar» debajo del cartel: hace falta para probar el segundo cartel)',false);
+await t.ctx.close();
+
 // ---------- 11) el diseño y el contraste de la intro, el examen y el resultado
 const TAM=[['celular chico 320×568',320,568],['Android chico 360×640',360,640],['iPhone 14 390×844',390,844],['tableta vertical 768×1024',768,1024],['iPhone 8 de costado 667×375',667,375],['compu 1280×800',1280,800]];
 for(const [nombre,w,h] of (RAPIDO?TAM.slice(0,1).concat(TAM.slice(2,3)):TAM)){
@@ -729,7 +833,7 @@ for(const oscuro of (RAPIDO?[false]:[false,true])){
   await t.ctx.close();
 }
 
-await B.close();await B2.close();await B3.close();srv.close();
+await B.close();await B2.close();await B3.close();await B4.close();srv.close();
 console.log('\n'+(res.every(Boolean)?'TODO OK':'HAY FALLAS')+' ('+res.filter(Boolean).length+'/'+res.length+' chequeos)');
 process.exit(res.every(Boolean)?0:1);
 })().catch(e=>{console.error('FALLÓ',e);process.exit(1)});

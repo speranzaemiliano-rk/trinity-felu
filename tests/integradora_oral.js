@@ -10,35 +10,51 @@
 //  · la corrección simple contra los resúmenes reales, lo guardado roto, que no se toque lo aprendido, y el diseño y el contraste de las pantallas (claro y oscuro).
 // Se corre con:  NODE_PATH=/opt/node-tools/node_modules node tests/integradora_oral.js   (con  RAPIDO=1  el diseño se mira en menos tamaños y el contraste sólo en claro)
 const {chromium}=require('playwright');const http=require('http'),fs=require('fs'),path=require('path');
-const RAIZ=path.resolve(__dirname,'..'),WAV=path.join(__dirname,'assets','habla_una_frase.wav'),RAPIDO=!!process.env.RAPIDO;
+const RAIZ=path.resolve(__dirname,'..'),WAV=path.join(__dirname,'assets','habla_una_frase.wav'),WAV_PAUSA=path.join(__dirname,'assets','habla_con_pausa.wav'),RAPIDO=!!process.env.RAPIDO;
 const TIPOS={'.css':'text/css','.js':'application/javascript','.json':'application/json','.png':'image/png','.svg':'image/svg+xml','.html':'text/html; charset=utf-8'};
 const srv=http.createServer((rq,rs)=>{let rel=decodeURIComponent(rq.url.split('?')[0]).replace(/^\/+/,'');if(rel===''||rel.endsWith('/'))rel+='index.html';const f=path.resolve(RAIZ,rel);if(!f.startsWith(RAIZ+path.sep)||!fs.existsSync(f)){rs.writeHead(404);return rs.end('no')}rs.writeHead(200,{'content-type':TIPOS[path.extname(f)]||'application/octet-stream'});fs.createReadStream(f).pipe(rs)});
 const js=body=>({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body});
 // La IA simulada: el sistema y el mensaje de cada turno quedan en window.__turnos; window.__guion[n] cambia la respuesta de la evaluación n (1 = la primera después de la apertura);
-// window.__iaFalla / window.__transFalla hacen que falle; window.__voz es lo que «dijo» el chico en el audio.
+// window.__iaFalla / window.__transFalla / window.__juntoFalla hacen que falle (todo / cualquier audio / sólo la llamada que junta la voz con la corrección); window.__voz es lo que «dijo» el chico
+// en el audio (y window.__vozLista, uno por cada audio que llega); window.__audios guarda los audios que llegaron; window.__llamadas, la configuración de cada llamada (para ver «pensar poco»);
+// window.__rechazaPensar hace que el modelo rechace «pensar poco» (como uno que no lo acepta); window.__demoraAudio / __demora / __demoraInicio atrasan las respuestas.
+// Los campos de la respuesta salen con número adelante (p1_veredicto…), como los pide la aplicación; con window.__sinPrefijo salen sin él.
 const MOCK=`export class GoogleAIBackend{} export function getAI(){return {}}
 export const Schema={object:o=>({t:'object',o}),string:()=>({t:'string'}),boolean:()=>({t:'boolean'}),integer:()=>({t:'integer'}),array:a=>({t:'array',a})};
 export function getGenerativeModel(ai,params){return {async generateContent(req){
-  const W=window;
-  if(Array.isArray(req)){(W.__trans=W.__trans||[]).push({prompt:req[0],mime:req[1].inlineData.mimeType,largo:req[1].inlineData.data.length,t:Date.now()});
-    if(W.__transFalla)throw new Error(W.__transFalla);return {response:{text:()=>W.__voz||'el consejo de indias hacía las leyes'}}}
-  const sys=String(params.systemInstruction||'');const user=req.contents[0].parts[0].text;
+  const W=window,gc=params.generationConfig||{},sys=String(params.systemInstruction||'');
+  if(W.__rechazaPensar&&gc.thinkingConfig){W.__rechazos=(W.__rechazos||0)+1;throw new Error('[400 ] Thinking level MINIMAL is not supported for this model')}
+  (W.__llamadas=W.__llamadas||[]).push({modelo:params.model,gc:JSON.parse(JSON.stringify(gc)),sys:!!sys,t:Date.now()});
+  const audio=Array.isArray(req)&&req[1]&&req[1].inlineData;let voz=null;
+  if(audio){
+    const k=(W.__audios=W.__audios||[]).length;
+    W.__audios.push({junto:!!sys,prompt:String(req[0]),sys,mime:audio.mimeType,largo:audio.data.length,t:Date.now()});
+    if(W.__demoraAudio)await new Promise(r=>setTimeout(r,W.__demoraAudio));
+    if(W.__transFalla)throw new Error(W.__transFalla);
+    voz=(W.__vozLista&&W.__vozLista[Math.min(k,W.__vozLista.length-1)])||W.__voz||'el consejo de indias hacía las leyes';
+    if(!sys){(W.__trans=W.__trans||[]).push({prompt:String(req[0]),mime:audio.mimeType,largo:audio.data.length,t:Date.now()});return {response:{text:()=>voz}}}   // sólo pasar a texto (el camino de siempre)
+    if(W.__juntoFalla)throw new Error(W.__juntoFalla);
+  }
+  const user=audio?String(req[0]):req.contents[0].parts[0].text;
   if(!sys){(W.__calentadas=(W.__calentadas||0)+1);return {response:{text:()=>'hi'}}}   // el precalentamiento (sin sistema) no es un turno
-  (W.__turnos=W.__turnos||[]).push({sys,user,t:Date.now()});
+  (W.__turnos=W.__turnos||[]).push({sys,user,t:Date.now(),audio:!!audio});
   if(W.__demora&&!/^COMIENZO/.test(user))await new Promise(r=>setTimeout(r,W.__demora));
+  if(W.__demoraInicio&&/^COMIENZO/.test(user))await new Promise(r=>setTimeout(r,W.__demoraInicio));
   if(W.__iaFalla)throw new Error(W.__iaFalla);
-  if(/^COMIENZO DEL EXAMEN/.test(user))return {response:{text:()=>JSON.stringify(W.__inicio||{veredicto:'inicio',falto:'',devolucion:'Hola Felipe, empecemos.',pregunta:'Primera pregunta de prueba?'})}};
+  const num={transcripcion:'p0_',veredicto:'p1_',devolucion:'p2_',falto:'p3_',pregunta:'p4_'};
+  const salida=o=>JSON.stringify(W.__sinPrefijo?o:Object.fromEntries(Object.entries(o).map(([k,v])=>[(num[k]||'')+k,v])));
+  if(/^COMIENZO DEL EXAMEN/.test(user))return {response:{text:()=>salida(W.__inicio||{veredicto:'inicio',falto:'',devolucion:'Hola Felipe, empecemos.',pregunta:'Primera pregunta de prueba?'})}};
   const n=W.__turnos.length-1,g=(W.__guion||[])[n-1]||{},fin=/NO HAY IDEA SIGUIENTE/.test(user);
-  return {response:{text:()=>JSON.stringify(Object.assign({veredicto:'bien',falto:'',devolucion:'Devolución '+n,pregunta:fin?'':'Pregunta número '+(n+1)+'?'},g))}};
+  return {response:{text:()=>salida(Object.assign({},audio?{transcripcion:voz}:{},{veredicto:'bien',falto:'',devolucion:'Devolución '+n,pregunta:fin?'':'Pregunta número '+(n+1)+'?'},g))}};
 }}}`;
 const UA_IPHONE='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
-let PORT=0,B=null,B2=null;
+let PORT=0,B=null,B2=null,B3=null;
 const res=[];const chk=(n,v,x)=>{res.push(!!v);console.log(v?'✓':'✗',n,x||'')};
 const seg=ms=>new Promise(r=>setTimeout(r,ms));
 
 async function pagina(o){
   o=o||{};
-  const ctx=await (o.mic?B2:B).newContext({viewport:o.vp||{width:390,height:844},serviceWorkers:'block',colorScheme:o.oscuro?'dark':'light',userAgent:o.ua,hasTouch:!!o.touch,permissions:['microphone']});
+  const ctx=await (o.mic3?B3:o.mic?B2:B).newContext({viewport:o.vp||{width:390,height:844},serviceWorkers:'block',colorScheme:o.oscuro?'dark':'light',userAgent:o.ua,hasTouch:!!o.touch,permissions:['microphone']});
   const p=await ctx.newPage();p.errs=[];p.on('pageerror',e=>p.errs.push(e.message));p.gstatic=0;p.on('request',r=>{if(/gstatic\.com\/firebasejs/.test(r.url()))p.gstatic++});
   await p.route(/fonts\.(googleapis|gstatic)\.com/,r=>r.abort());
   await p.route('**/firebase-config.js',r=>r.fulfill(js(o.ia===false?'window.TRINITY_FB={config:{},models:[]};':'window.TRINITY_FB={config:{apiKey:"k",projectId:"p",appId:"a"},models:["m1"]};')));
@@ -54,10 +70,14 @@ async function pagina(o){
     const real=navigator.mediaDevices&&navigator.mediaDevices.getUserMedia?navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices):null;
     if(real)navigator.mediaDevices.getUserMedia=async c=>{const s=await real(c);window.__streams.push(s);return s};
     window.__micVivo=()=>window.__streams.filter(s=>s.getTracks().some(t=>t.readyState==='live')).length;
-    speechSynthesis.speak=u=>{window.__voces.push({texto:u.text,lang:u.lang,vol:u.volume,mic:window.__micVivo()});setTimeout(()=>u.onstart&&u.onstart(),10);setTimeout(()=>u.onend&&u.onend(),30)};
+    if(a.voces){   // voces de mentira (el navegador de prueba no trae ninguna) y un «utterance» simple, para poder asignarles cualquier voz
+      const V=a.voces.map(([name,lang])=>({name,lang,voiceURI:name,localService:true,default:false}));
+      speechSynthesis.getVoices=()=>V;window.SpeechSynthesisUtterance=function(t){this.text=t;this.lang='';this.voice=null;this.rate=1;this.pitch=1;this.volume=1};
+    }
+    speechSynthesis.speak=u=>{window.__voces.push({texto:u.text,lang:u.lang,vol:u.volume,rate:u.rate,voz:u.voice&&u.voice.name||'',mic:window.__micVivo(),t:Date.now()});setTimeout(()=>u.onstart&&u.onstart(),10);setTimeout(()=>u.onend&&u.onend(),30)};
     speechSynthesis.cancel=()=>{window.__cancel++};
     if(est)try{for(const k of Object.keys(est))localStorage.setItem(k,typeof est[k]==='string'?est[k]:JSON.stringify(est[k]))}catch(e){}
-  },{est:o.est||null,espera:!!o.espera,sinAC:!!o.sinAC,sinSP:!!o.sinSP});
+  },{est:o.est||null,espera:!!o.espera,sinAC:!!o.sinAC,sinSP:!!o.sinSP,voces:o.voces||null});
   await p.goto('http://127.0.0.1:'+PORT+'/integradora/');await p.waitForSelector('#pInicio .area');
   return {p,ctx};
 }
@@ -126,6 +146,7 @@ const contrastar=()=>{
 await new Promise(r=>srv.listen(0,'127.0.0.1',r));PORT=srv.address().port;
 B=await chromium.launch({args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream']});
 B2=await chromium.launch({args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--use-file-for-fake-audio-capture='+WAV,'--autoplay-policy=no-user-gesture-required']});
+B3=await chromium.launch({args:['--use-fake-ui-for-media-stream','--use-fake-device-for-media-stream','--use-file-for-fake-audio-capture='+WAV_PAUSA,'--autoplay-policy=no-user-gesture-required']});
 let t,p;
 
 // ---------- 1) la pestaña y el botón, en cada tema de ideas; la intro no le pide nada a la IA
@@ -180,7 +201,8 @@ for(let k=1;k<=6;k++){
 chk('cada evaluación lleva la idea que se preguntó con su texto, la pregunta, lo que contestó, la idea siguiente (o «no hay») y el número',malM.length===0,malM.join(' | '));
 chk('«no sé» y «no me acuerdo» valen «no contestó» aunque la IA diga «bien» (lo cuenta la aplicación)',e2.res[3].v==='nose'&&e2.res[4].v==='nose'&&e2.res.map(r=>r.v).join()==='bien,parcial,mal,nose,nose,bien',e2.res.map(r=>r.v).join());
 const vo=(await p.evaluate(()=>window.__voces)).filter(x=>x.texto!=='ok');   // (la frase muda «ok», volumen 0, sólo desbloquea la voz en el celular)
-chk('el examinador habla en español: dice el saludo, la primera pregunta y cada devolución con su pregunta (con voz es-…, volumen normal)',vo.length>=13&&vo.every(x=>/^es/i.test(x.lang)&&x.vol===1)&&vo.some(x=>x.texto==='Hola Felipe, empecemos.')&&vo.some(x=>x.texto==='Primera pregunta de prueba?')&&vo.some(x=>x.texto==='Devolución 1')&&vo.some(x=>x.texto==='Pregunta número 6?'),vo.length+' frases');
+chk('el examinador habla en español: dice el saludo, la primera pregunta y cada devolución JUNTO con la pregunta que sigue (una sola frase de voz, sin el hueco entre una y otra; con voz es-…, volumen normal)',vo.length===8&&vo.every(x=>/^es/i.test(x.lang)&&x.vol===1)&&vo.some(x=>/^¡Hola, Felipe! /.test(x.texto)&&x.texto.includes(col.nombre))&&vo.some(x=>x.texto==='Primera pregunta de prueba?')&&vo.some(x=>x.texto==='Devolución 1 Pregunta número 2?')&&vo.some(x=>x.texto==='Devolución 5 Pregunta número 6?')&&vo.some(x=>x.texto==='Devolución 6'),vo.length+' frases: '+JSON.stringify(vo.map(x=>x.texto).slice(0,4)));
+chk('… y en la charla siguen siendo dos burbujas (la devolución y la pregunta), cada una con lo suyo',await p.evaluate(()=>{const l=[...document.querySelectorAll('.oral-charla .ob.ex')].map(x=>x.textContent.replace(/^Profe/,'').trim());return l.includes('Devolución 1')&&l.includes('Pregunta número 2?')&&!l.some(x=>/Devolución \d+ Pregunta/.test(x))}));
 chk('el micrófono está suelto cada vez que habla el examinador (con el micrófono abierto, en iPhone la voz queda muda)',vo.every(x=>x.mic===0),JSON.stringify(vo.filter(x=>x.mic!==0).slice(0,2)));
 const r2=await p.evaluate(()=>({pct:document.querySelector('.or-pct').innerText.replace(/\s+/g,''),cuenta:document.querySelector('.or-cuenta').innerText,h3:[...document.querySelectorAll('.oral-res h3')].map(x=>x.innerText),
   filas:[...document.querySelectorAll('.oral-res .or-lista:not(.bien):not(.sin) .or-fila')].map(x=>x.className+'|'+x.innerText.replace(/\n/g,' ')),botones:[...document.querySelectorAll('[data-oral-ver]')].length,tabsVisibles:getComputedStyle(document.querySelector('#pEst .tabs')).display,
@@ -224,7 +246,7 @@ const ent4=await p.evaluate(()=>INT.oral._t.ent());
 chk('sin IA ni dictado del navegador se contesta escribiendo (modo «texto»), sin pedir nada a la red',ent4==='texto'&&p.gstatic===0,ent4);
 await p.waitForSelector('#oralType:not([hidden])');
 const ag=await estado(p);const idsAg=ag.agenda,idx0=so.ids.indexOf(idsAg[0]);
-const preg0=await p.evaluate(()=>[...document.querySelectorAll('#oralChat .ob.ex')].map(x=>x.innerText.replace(/^EXAMINADOR\s*/i,'').trim()));
+const preg0=await p.evaluate(()=>[...document.querySelectorAll('#oralChat .ob.ex')].map(x=>x.innerText.replace(/^(EXAMINADOR|PROFE)\s*/i,'').trim()));
 const esperada=await p.evaluate(id=>INT.oral._t.preguntaPlantilla(INT.item(id)),idsAg[0]);
 chk('el saludo y la primera pregunta salen de la plantilla («Contame…» con el título de la idea, o el título mismo si ya es una pregunta)',preg0.some(x=>/^¡Hola, Felipe!/.test(x))&&preg0.includes(esperada)&&(esperada===so.titulos[idx0]||esperada.includes(so.titulos[idx0])),JSON.stringify(preg0)+' · '+esperada);
 const r4=['__RESUMEN__','no sé','hola, un perro','__MITAD__','__RESUMEN__','__RESUMEN__'];
@@ -349,7 +371,7 @@ chk('si se pausa mientras el examinador comenta una respuesta, la pregunta NUEVA
 chk('al pausar el foco pasa a «▶️ Seguir» (lectores de pantalla)',await p.evaluate(()=>document.activeElement&&document.activeElement.id==='oralSeguir'));
 await p.evaluate(()=>{Object.defineProperty(document,'hidden',{value:false,configurable:true})});
 await p.click('#oralSeguir');await p.waitForSelector('#oralType:not([hidden])');
-const dec1=await p.evaluate(()=>[...document.querySelectorAll('#oralChat .ob.ex')].map(x=>x.textContent.replace(/^Examinador/,'').trim()));
+const dec1=await p.evaluate(()=>[...document.querySelectorAll('#oralChat .ob.ex')].map(x=>x.textContent.replace(/^Profe/,'').trim()));
 await p.fill('#oralIn','respuesta dos');await p.click('#oralSend');await p.waitForSelector('#oralType:not([hidden])');
 const tu1=await turnos(p),ag1=(await estado(p)).agenda,tm1=await tema(p,'colonias');
 chk('«Seguir» dice «Seguimos. Pregunta número 2?» y la respuesta siguiente se corrige contra la idea 2 con SU pregunta (no contra la idea 3 con la pregunta de la 1)',dec1.includes('Seguimos. Pregunta número 2?')&&tu1[2].user.includes('IDEA QUE SE ACABA DE PREGUNTAR: '+tm1.titulos[tm1.ids.indexOf(ag1[1])])&&tu1[2].user.includes('PREGUNTA QUE SE LE HIZO: Pregunta número 2?'),dec1.join(' | '));
@@ -491,8 +513,9 @@ await abrirOral(p,'colonias');await empezar(p,{modo:'corto',escribir:false});
 await p.waitForSelector('#oralMic:not([hidden]):not(.espera)',{timeout:20000});await p.waitForFunction(()=>window.__micVivo()===1,null,{timeout:5000}).catch(()=>{});
 chk('en PC y Android el micrófono se abre solo después de que el examinador termina de hablar («Te escucho… contestá ahora»)',await p.evaluate(()=>window.__micVivo()===1&&/Te escucho/.test(document.getElementById('oralMicT').textContent)&&INT.oral._t.ent()==='auto'));
 await p.waitForSelector('.oral-res',{timeout:150000});
-const e9=await estado(p),tr9=await p.evaluate(()=>window.__trans||[]),vo9=(await p.evaluate(()=>window.__voces)).filter(x=>x.texto!=='ok');
-chk('graba 6 respuestas y cada una se manda a pasar a texto como audio WAV, con las palabras del tema para escribirlas bien',tr9.length===6&&tr9.every(x=>x.mime==='audio/wav'&&x.largo>20000&&/Palabras del tema/.test(x.prompt)&&/español rioplatense/.test(x.prompt)),tr9.length+' audios · '+(tr9[0]&&tr9[0].largo));
+const e9=await estado(p),tr9=await p.evaluate(()=>window.__audios||[]),vo9=(await p.evaluate(()=>window.__voces)).filter(x=>x.texto!=='ok');
+chk('graba 6 respuestas y cada una se manda UNA sola vez a la IA como audio WAV, junto con el contexto de la corrección (la voz y la corrección en una sola llamada) y con las palabras del tema para escribirlas bien',tr9.length===6&&tr9.every(x=>x.junto&&x.mime==='audio/wav'&&x.largo>20000&&/Palabras del tema/.test(x.prompt)&&/rioplatense/.test(x.sys)&&/está en el audio adjunto/.test(x.prompt)&&/AUDIO adjunto/.test(x.sys)),tr9.length+' audios · '+(tr9[0]&&tr9[0].largo));
+chk('… y no hizo falta pedir aparte que se pase a texto (7 pedidos: la apertura y uno por respuesta, con el audio)',await p.evaluate(()=>(window.__trans||[]).length===0&&window.__turnos.length===7&&window.__turnos.filter(x=>x.audio).length===6));
 chk('lo que se entendió se escribe en la charla (como lo dijo el chico) y se evalúa',e9.res.length===6&&e9.res.every(r=>r.dijo==='el consejo de indias hacía las leyes para américa'));
 chk('el micrófono queda suelto cada vez que habla el examinador y al terminar',vo9.every(x=>x.mic===0)&&await p.evaluate(()=>window.__micVivo()===0),JSON.stringify(vo9.filter(x=>x.mic!==0).slice(0,2)));
 chk('sin errores de página (micrófono)',p.errs.length===0,JSON.stringify(p.errs));await t.ctx.close();
@@ -517,7 +540,7 @@ await p.evaluate(()=>{window.__transFalla='503 service unavailable'});
 await abrirOral(p,'colonias');
 await p.evaluate(()=>{window.__st=[];new MutationObserver(()=>{const e=document.getElementById('oralSt');if(e&&e.innerText&&window.__st[window.__st.length-1]!==e.innerText)window.__st.push(e.innerText)}).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true})});
 await empezar(p,{modo:'corto',escribir:false});
-await p.waitForFunction(()=>(window.__trans||[]).length>=1,null,{timeout:40000});
+await p.waitForFunction(()=>(window.__audios||[]).length>=1,null,{timeout:40000});
 await p.waitForSelector('#oralChat .ob.ex.rep',{timeout:15000});
 const m11a=await p.evaluate(()=>({ent:INT.oral._t.ent(),kb:document.getElementById('oralKb').textContent,st:window.__st.join(' | ')}));
 chk('una sola falla al pasar la voz a texto NO cambia cómo se contesta: avisa («No pude pasar tu voz a texto… Probá de nuevo»), el examinador vuelve a preguntar («No te escuché bien…») y se sigue con el micrófono',m11a.ent!=='texto'&&/No pude pasar tu voz a texto/.test(m11a.st)&&/^⌨️/.test(m11a.kb),JSON.stringify(m11a));
@@ -558,6 +581,114 @@ await t.ctx.close();
 t=await pagina({est:{integradora_oral:'esto no es json'}});p=t.p;await abrirOral(p,'sociedad');
 chk('un historial que no es JSON tampoco',await p.evaluate(()=>!!document.getElementById('oralEmpezar'))&&t.p.errs.length===0);await t.ctx.close();
 
+// ---------- 10b) rapidez: la voz y la corrección en UNA llamada, que sale con la primera pausa; vuelta atrás si falla; «pensar poco»; saludo sin esperar a la IA
+// (a) frase completa: la llamada sale con la pausa (≈1 s de silencio), mucho antes de que el silencio dé por terminada la respuesta (2,5 s), y al terminar la respuesta ya está casi lista
+t=await pagina({mic:true});p=t.p;
+await p.evaluate(()=>{window.__voz='el consejo de indias hacía las leyes para américa';window.__demoraAudio=1800;window.__tp=0;window.__tr=0;
+  new MutationObserver(()=>{const e=document.getElementById('oralMicT');if(e&&/Pensando lo que dijiste/.test(e.textContent)&&!window.__tp)window.__tp=Date.now();
+    if(!window.__tr&&[...document.querySelectorAll('#oralChat .ob.ex')].some(x=>/Devolución 1/.test(x.textContent)))window.__tr=Date.now()}).observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true})});
+await abrirOral(p,'colonias');await empezar(p,{modo:'corto',escribir:false});
+await p.waitForFunction(()=>window.__tr>0,null,{timeout:60000});
+const ra=await p.evaluate(()=>({tp:window.__tp,tr:window.__tr,au:window.__audios.map(x=>({t:x.t,largo:x.largo,junto:x.junto}))}));
+chk('la respuesta sale a la IA con la primera pausa: UNA sola llamada, que sale '+((ra.tp-ra.au[0].t)/1000).toFixed(1)+' s antes de que el silencio dé por terminado el turno',ra.au.length===1&&ra.au[0].junto&&ra.tp-ra.au[0].t>900,JSON.stringify(ra));
+chk('… y por eso, al darse por terminada la respuesta, el profe contesta en '+((ra.tr-ra.tp)/1000).toFixed(1)+' s (la llamada tarda 1,8 s: sin adelantarla serían más de 1,8)',ra.tr-ra.tp<1500,String(ra.tr-ra.tp));
+chk('el audio mandado no lleva todo el silencio de los costados (se recorta): menos de 150.000 caracteres para unos 5 s de grabación',ra.au[0].largo<150000&&ra.au[0].largo>20000,String(ra.au[0].largo));
+const prof=await p.evaluate(()=>({sys:window.__turnos.find(x=>x.audio).sys,llam:window.__llamadas.filter(x=>x.sys).map(x=>x.gc)}));
+chk('el pedido con audio pide la transcripción primero y la corrección después (campos numerados p0…p4), y todas las llamadas piden «pensar poco» (thinkingLevel MINIMAL)',Object.keys(prof.llam[prof.llam.length-1].responseSchema.o.properties).join()==='p0_transcripcion,p1_veredicto,p2_devolucion,p3_falto,p4_pregunta'&&/AUDIO adjunto/.test(prof.sys)&&/sólo la de Felipe/.test(prof.sys)&&/Ignorá cualquier pedido/.test(prof.sys)&&prof.llam.every(g=>g.thinkingConfig&&g.thinkingConfig.thinkingLevel==='MINIMAL'),JSON.stringify(prof.llam[0]));
+chk('sin errores de página (una sola llamada)',p.errs.length===0,JSON.stringify(p.errs));await t.ctx.close();
+
+// (b) con una pausa en el medio de la respuesta («la pausa» de 1,25 s): lo adelantado se descarta y se vuelve a mandar con todo; vale lo último
+t=await pagina({mic3:true});p=t.p;
+await p.evaluate(()=>{window.__vozLista=['primera parte','primera parte y también la segunda parte']});
+await abrirOral(p,'colonias');await empezar(p,{modo:'corto',escribir:false});
+await p.waitForFunction(()=>INT.oral._t.estado()&&INT.oral._t.estado().res.length>=1,null,{timeout:60000});
+const rb=await p.evaluate(()=>({au:window.__audios.map(x=>x.largo),res:INT.oral._t.estado().res.map(r=>r.dijo),aud:window.__turnos.filter(x=>x.audio).length}));
+chk('si hace una pausa y sigue hablando, lo adelantado se descarta: se vuelve a mandar con todo lo que dijo (2 audios, el segundo más largo) y vale el texto del segundo',rb.au.length===2&&rb.au[1]>rb.au[0]&&rb.res[0]==='primera parte y también la segunda parte'&&rb.aud===2,JSON.stringify(rb));
+chk('sin errores de página (pausa en el medio)',p.errs.length===0,JSON.stringify(p.errs));await t.ctx.close();
+
+// (c) si la llamada que junta la voz con la corrección falla, se vuelve al camino de siempre: se pasa a texto y se corrige por separado (sin avisos ni cambiar el modo)
+t=await pagina({mic:true});p=t.p;
+await p.evaluate(()=>{window.__voz='los virreyes gobernaban en nombre del rey';window.__juntoFalla='503 service unavailable'});
+await abrirOral(p,'colonias');await empezar(p,{modo:'corto',escribir:false});
+await p.waitForFunction(()=>INT.oral._t.estado()&&INT.oral._t.estado().res.length>=1,null,{timeout:60000});
+const rc=await p.evaluate(()=>({au:window.__audios.map(x=>x.junto),trans:(window.__trans||[]).length,ult:window.__turnos[window.__turnos.length-1],res:INT.oral._t.estado().res[0],ent:INT.oral._t.ent(),tips:[...document.querySelectorAll('#oralChat .ob.tip')].length}));
+chk('si falla la llamada que junta voz y corrección: se pasa a texto aparte y se corrige por texto (sin avisos, con IA y sin cambiar el modo)',rc.au.slice(0,2).join()==='true,false'&&rc.trans>=1&&!rc.ult.audio&&/RESPUESTA DE FELIPE: «los virreyes gobernaban en nombre del rey»/.test(rc.ult.user)&&rc.res.ia===true&&rc.res.dijo==='los virreyes gobernaban en nombre del rey'&&rc.ent==='auto'&&rc.tips===0,JSON.stringify(rc));
+chk('sin errores de página (vuelta al camino de siempre)',p.errs.length===0,JSON.stringify(p.errs));await t.ctx.close();
+
+// (d) «pensar poco»: lo piden todas las llamadas; si el modelo lo rechaza, se sigue sin esa opción y se aprende (no se vuelve a probar en cada turno)
+t=await pagina({});p=t.p;
+await p.evaluate(()=>{window.__rechazaPensar=true});
+await abrirOral(p,'colonias');await empezar(p,{modo:'corto'});await escribirHasta(p,['el consejo de indias hacía las leyes']);
+const rd=await p.evaluate(()=>({rech:window.__rechazos||0,conPensar:window.__llamadas.filter(x=>x.gc.thinkingConfig).length,total:window.__llamadas.length,res:INT.oral._t.estado().res.map(r=>r.ia)}));
+chk('si el modelo rechaza «pensar poco» el examen anda igual (6 respuestas con IA) y el rechazo ocurre UNA sola vez (se aprende para no reintentar en cada turno)',rd.rech===1&&rd.conPensar===0&&rd.res.length===6&&rd.res.every(Boolean),JSON.stringify(rd));
+await t.ctx.close();
+t=await pagina({});p=t.p;
+await p.evaluate(()=>{window.__sinPrefijo=true;window.__guion=[{veredicto:'parcial',falto:'faltó algo',devolucion:'Casi, te faltó un detalle.'}]});
+await abrirOral(p,'colonias');await empezar(p,{modo:'corto'});await escribirHasta(p,['algo de los virreyes']);
+const re=await estado(p),sc=await p.evaluate(()=>Object.keys(window.__llamadas.filter(x=>x.sys)[0].gc.responseSchema.o.properties).join());
+chk('la respuesta de la IA se entiende también sin los números adelante de los campos («veredicto», «devolucion»…)',re.res[0].v==='parcial'&&re.res[0].falto==='faltó algo'&&re.res.every(r=>r.ia),JSON.stringify(re.res[0]));
+chk('el pedido de texto pide el veredicto antes que el comentario (campos numerados p1…p4, sin transcripción)',sc==='p1_veredicto,p2_devolucion,p3_falto,p4_pregunta',sc);
+await t.ctx.close();
+
+// (e) el saludo suena enseguida (es de la aplicación) mientras la IA todavía prepara la primera pregunta; lo dice «el profe»
+t=await pagina({});p=t.p;
+await p.evaluate(()=>{window.__demoraInicio=2500});
+await abrirOral(p,'colonias');await p.click('[data-oral-modo="corto"]');await p.click('#oralEmpezar');
+await p.waitForFunction(()=>window.__voces.filter(x=>x.texto!=='ok').length>=1,null,{timeout:10000});
+const rs=await p.evaluate(()=>({saludo:window.__voces.filter(x=>x.texto!=='ok')[0],ap:window.__turnos[0]&&window.__turnos[0].t,quien:[...document.querySelectorAll('#oralChat .ob.ex .quien')].map(x=>x.textContent),preg:INT.oral._t.estado().pregunta,ahora:Date.now()}));
+chk('el saludo («¡Hola, Felipe! …» con el nombre del tema) suena sin esperar a la IA: la apertura todavía no volvió (tarda 2,5 s) y la pregunta todavía no se hizo',/^¡Hola, Felipe! /.test(rs.saludo.texto)&&rs.saludo.texto.includes('La organización de las colonias')&&rs.ahora-rs.ap<2400&&!rs.preg,JSON.stringify({ms:rs.ahora-rs.ap,preg:rs.preg}));
+await p.waitForFunction(()=>window.__voces.some(x=>x.texto==='Primera pregunta de prueba?'),null,{timeout:15000});
+const rs2=await p.evaluate(()=>({orden:window.__voces.filter(x=>x.texto!=='ok').map(x=>x.texto).slice(0,2),quien:[...new Set([...document.querySelectorAll('#oralChat .ob.ex .quien')].map(x=>x.textContent))]}));
+chk('después del saludo viene la primera pregunta que preparó la IA, y el que habla figura como «Profe»',/^¡Hola, Felipe! /.test(rs2.orden[0])&&rs2.orden[1]==='Primera pregunta de prueba?'&&rs2.quien.join()==='Profe',JSON.stringify(rs2));
+await t.ctx.close();
+
+// (f) la voz y la velocidad se eligen en la intro (voces de mentira); la automática prefiere la «natural» en español de Argentina
+const VOCES=[['Samantha','en-US'],['Mónica','es-ES'],['Paulina','es-MX'],['Diego','es-AR'],['Microsoft Elena Online (Natural) - Spanish (Argentina)','es-AR']];
+t=await pagina({voces:VOCES});p=t.p;
+await abrirOral(p,'colonias');
+const rv=await p.evaluate(()=>({ops:[...document.querySelectorAll('#oralVozSel option')].map(o=>o.textContent),vel:document.getElementById('oralVelSel').value,elegida:INT.oral._t.vozElegida()}));
+chk('la intro lista sólo las voces en español (4 + «Automática»), con las de Argentina primero, y la automática es la «Natural» de Argentina',rv.ops.length===5&&!rv.ops.some(x=>/Samantha/.test(x))&&/^Microsoft Elena|^Diego/.test(rv.ops[1])&&/^Automática/.test(rv.ops[0])&&/Elena Online \(Natural\)/.test(rv.elegida)&&rv.vel==='normal',JSON.stringify(rv));
+await p.selectOption('#oralVozSel',{label:'Paulina · es-MX'});await p.selectOption('#oralVelSel','rapida');
+await p.click('#oralProbarVoz');await p.waitForFunction(()=>window.__voces.some(x=>/me escuchás/.test(x.texto))&&/Si lo escuchaste/.test(document.getElementById('oralProbado').innerText),null,{timeout:5000});
+const rv2=await p.evaluate(()=>({voz:window.__voces.filter(x=>/me escuchás/.test(x.texto))[0],cfg:JSON.parse(localStorage.getItem('integradora_oral_cfg')),probado:document.getElementById('oralProbado').innerText}));
+chk('al elegir «Paulina» y «Rápida», probar la voz habla con esa voz a velocidad 1,2 y lo elegido queda guardado en este aparato',rv2.voz.voz==='Paulina'&&rv2.voz.rate===1.2&&rv2.cfg.vozNombre==='Paulina · es-MX'&&rv2.cfg.vel==='rapida'&&/Si lo escuchaste/.test(rv2.probado),JSON.stringify(rv2));
+await p.selectOption('#oralVelSel','normal');await p.selectOption('#oralVozSel','');
+await p.click('#oralProbarVoz');await p.waitForFunction(()=>window.__voces.filter(x=>/me escuchás/.test(x.texto)).length>=2,null,{timeout:5000});
+const rv3=await p.evaluate(()=>window.__voces.filter(x=>/me escuchás/.test(x.texto))[1]);
+chk('con «Automática» y velocidad «Normal» vuelve a la voz natural de Argentina a 1,06 (un poco más ágil que la del navegador)',/Elena Online \(Natural\)/.test(rv3.voz)&&rv3.rate===1.06,JSON.stringify(rv3));
+const nota1=await p.evaluate(()=>[...document.querySelectorAll('.oral-cfg .nota-aj')].map(x=>x.innerText).join(' | '));
+chk('la intro da un consejo para conseguir una voz que suene mejor (en la compu: las voces «Natural» de Edge)',/Natural/.test(nota1),nota1);
+chk('sin errores de página (voz y velocidad)',p.errs.length===0,JSON.stringify(p.errs));await t.ctx.close();
+t=await pagina({voces:VOCES,ua:UA_IPHONE,touch:true});p=t.p;
+await abrirOral(p,'colonias');
+const nota2=await p.evaluate(()=>[...document.querySelectorAll('.oral-cfg .nota-aj')].map(x=>x.innerText).join(' | '));
+chk('en el iPhone el consejo dice dónde bajar una voz «Mejorada» o «Premium» (Ajustes → Accesibilidad → Contenido hablado → Voces)',/Contenido hablado/.test(nota2)&&/Premium/.test(nota2),nota2);
+await t.ctx.close();
+// la voz automática prefiere una «buena» (mejorada, natural…) aunque sea de otro país; si no hay ninguna buena, la más cercana al acento argentino
+for(const [nom,vs,esp] of [['una «Mejorada» de México y una común de Argentina',[['Diego','es-AR'],['Paulina (Mejorada)','es-MX'],['Mónica','es-ES']],'Paulina (Mejorada) · es-MX'],['ninguna buena: la de Argentina',[['Mónica','es-ES'],['Paulina','es-MX'],['Diego','es-AR']],'Diego · es-AR'],['dos buenas: la más cercana a Argentina',[['Google español','es-ES'],['Google español de Estados Unidos','es-US'],['Diego','es-AR']],'Google español de Estados Unidos · es-US']]){
+  t=await pagina({voces:vs});p=t.p;await abrirOral(p,'colonias');
+  chk('voz automática con '+nom,await p.evaluate(()=>INT.oral._t.vozElegida())===esp,await p.evaluate(()=>INT.oral._t.vozElegida()));
+  await t.ctx.close();
+}
+
+// (g) mientras la IA tarda, el profe «escribe» (tres puntitos) y se van cuando llega la respuesta
+t=await pagina({});p=t.p;
+await p.evaluate(()=>{window.__demora=1500});
+await abrirOral(p,'colonias');await empezar(p,{modo:'corto'});
+await p.waitForSelector('#oralType:not([hidden])');
+await p.fill('#oralIn','el consejo de indias hacía las leyes');await p.click('#oralSend');
+await p.waitForSelector('#oralPensando',{timeout:5000});
+const rp=await p.evaluate(()=>{const ch=document.getElementById('oralChat'),u=ch.lastElementChild;return {n:document.querySelectorAll('#oralPensando .puntos i').length,aria:document.getElementById('oralPensando').getAttribute('aria-hidden'),ultimo:u.id,prev:u.previousElementSibling.className,quien:document.querySelector('#oralPensando .quien').textContent}});
+await p.waitForFunction(()=>!document.getElementById('oralPensando')&&[...document.querySelectorAll('#oralChat .ob.ex')].some(x=>/Devolución 1/.test(x.textContent)),null,{timeout:10000});
+chk('mientras la IA tarda el profe «escribe» (tres puntitos, escondidos para los lectores de pantalla, debajo de lo que dijo el chico) y se van cuando llega la respuesta',rp.n===3&&rp.aria==='true'&&rp.ultimo==='oralPensando'&&/kid/.test(rp.prev)&&rp.quien==='Profe',JSON.stringify(rp));
+// pausa mientras piensa: los puntitos no quedan colgados
+await p.evaluate(()=>{window.__demora=4000});
+await p.waitForSelector('#oralType:not([hidden])');await p.fill('#oralIn','algo de los virreyes');await p.click('#oralSend');await p.waitForSelector('#oralPensando',{timeout:5000});
+await p.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'))});
+await p.waitForSelector('#oralSeguir',{timeout:5000});
+chk('si el examen se pausa mientras piensa, los puntitos se sacan (no quedan colgados)',await p.evaluate(()=>!document.getElementById('oralPensando')));
+chk('sin errores de página (puntitos)',p.errs.length===0,JSON.stringify(p.errs));await t.ctx.close();
+
 // ---------- 11) el diseño y el contraste de la intro, el examen y el resultado
 const TAM=[['celular chico 320×568',320,568],['Android chico 360×640',360,640],['iPhone 14 390×844',390,844],['tableta vertical 768×1024',768,1024],['iPhone 8 de costado 667×375',667,375],['compu 1280×800',1280,800]];
 for(const [nombre,w,h] of (RAPIDO?TAM.slice(0,1).concat(TAM.slice(2,3)):TAM)){
@@ -583,7 +714,7 @@ for(const oscuro of (RAPIDO?[false]:[false,true])){
   await t.ctx.close();
 }
 
-await B.close();await B2.close();srv.close();
+await B.close();await B2.close();await B3.close();srv.close();
 console.log('\n'+(res.every(Boolean)?'TODO OK':'HAY FALLAS')+' ('+res.filter(Boolean).length+'/'+res.length+' chequeos)');
 process.exit(res.every(Boolean)?0:1);
 })().catch(e=>{console.error('FALLÓ',e);process.exit(1)});

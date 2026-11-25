@@ -1424,7 +1424,7 @@ document.querySelectorAll("nav button").forEach(b=>b.addEventListener("click",()
 }));
 
 // ---- diagnóstico de sonido (para saber qué falla en un celular sin consola)
-const BUILD="2026-11-25 · English 1.º: inglés de 1.er grado, escrito y oral";
+const BUILD="2026-11-25 · English 1.º: Conversar, veredicto y micrófono";
 (function(){
   const log=$("dsLog");
   const L=(ok,t)=>{const li=document.createElement("li");li.className=ok===true?"ok":ok===false?"no":"";li.textContent=t;log.appendChild(li)};

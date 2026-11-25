@@ -143,11 +143,17 @@ async function prepMic(){   // pide el permiso UNA vez al empezar (el cartel del
   try{const st=await abrirMic({audio:true});st.getTracks().forEach(t=>t.stop());audioSesion("auto");micPerm="ok";rklog("permiso de micrófono: ok");return "ok"}
   catch(e){audioSesion("auto");const n=e&&e.name;micPerm=(n==="NotAllowedError"||n==="SecurityError")?"denied":(n==="NotFoundError"||n==="OverconstrainedError")?"nodev":"error:"+(n||"desconocido");rklog("permiso de micrófono: "+micPerm);return micPerm}
 }
-function _aWav(chunks,rate){   // 16 kHz, mono, 16 bits; si el micrófono grabó muy bajito se sube el volumen (máx. 20×)
+function _nivelRobusto(a){   // el valor que sólo superan el 0,5 % de las muestras: casi el pico, pero un golpecito suelto no lo infla (y una voz bajita no queda sin subir)
+  const B=8192,H=new Uint32Array(B);
+  for(let i=0;i<a.length;i++){let v=a[i]<0?-a[i]:a[i];if(!(v<1))v=0.99999;H[(v*B)|0]++}
+  const tope=a.length*0.005;let acum=0;
+  for(let b=B-1;b>=0;b--){acum+=H[b];if(acum>tope)return (b+1)/B}
+  return 0;
+}
+function _aWav(chunks,rate){   // 16 kHz, mono, 16 bits. El volumen se SUBE siempre a un buen nivel (hasta 40×): una voz bajita llegaba a la IA casi inaudible
   let n=0;chunks.forEach(c=>n+=c.length);
   const all=new Float32Array(n);let o=0;chunks.forEach(c=>{all.set(c,o);o+=c.length});
-  let pk=0;for(let i=0;i<n;i++){const a=Math.abs(all[i]);if(a>pk)pk=a}
-  const g=pk>0.003&&pk<0.5?Math.min(20,0.8/pk):1;
+  const p=_nivelRobusto(all),g=p>0.0015&&p<0.6?Math.min(40,0.6/p):1;
   const to=16000,ratio=rate/to,len=Math.floor(n/ratio),dv=new DataView(new ArrayBuffer(44+len*2));
   const w=(off,s)=>{for(let i=0;i<s.length;i++)dv.setUint8(off+i,s.charCodeAt(i))};
   w(0,"RIFF");dv.setUint32(4,36+len*2,true);w(8,"WAVE");w(12,"fmt ");dv.setUint32(16,16,true);dv.setUint16(20,1,true);dv.setUint16(22,1,true);
@@ -161,7 +167,16 @@ const MSG_DENEGADO=()=>IS_IOS?"El iPhone no dejó usar el micrófono. En Safari 
 
 // ---------------- escuchar una respuesta
 // Se abre el micrófono, se espera a que el chico hable y se corta solo cuando termina (un silencio) o cuando se toca de nuevo el micrófono.
-// → {blob} | {mudo:true} (no se oyó voz) | {cancelado:true} | {error:"…"}
+// → {blob, ms, pico, bajo} | {mudo:true, bajo} (no se oyó voz; «bajo»: pero sí algo de sonido, muy bajito) | {cancelado:true} | {error:"…"}
+// LA VOZ BAJITA. Un micrófono de celular o de notebook «oye» a un chico que habla suave o lejos con menos volumen que el umbral fijo de antes (0,018 ≈ −35 dB) y la pantalla decía «No te escuché» aunque hablara.
+// Ahora: (1) lo que se oye se multiplica por la SENSIBILIDAD elegida (SENS) antes de decidir si hay voz; (2) el umbral sigue al ruido del lugar: sube con un ventilador y baja en silencio;
+// (3) el medidor va en decibeles y arranca en el ruido de fondo, así que se mueve también con una voz suave; (4) si a los 2,5 s no hay voz pero sí algo de sonido, avisa «te oigo muy bajito» (onBajo);
+// (5) el audio que va a la IA se sube siempre a un buen volumen (_aWav).
+const SENS={normal:1,alta:2,muy:4},SENS_DEF="alta";
+const UMBRAL_MIN=0.012;   // ya multiplicado por la sensibilidad: con «alta» la voz se detecta desde 0,006 del micrófono ≈ −44 dB (antes, desde 0,018)
+const TECHO_RAW=0.012;    // lo más alto que puede contar el ruido de fondo para el umbral, en valores del micrófono y SIN la sensibilidad (como antes: el umbral máximo no baja al subirla, y un ruido fuerte al abrir —el arranque del control de volumen— no se toma por voz)
+const NIVEL_BAJO=0.02;                     // una voz que en el micrófono no pasa de acá (≈ −34 dB, sin sensibilidad) se avisa como «bajita»
+const _db=x=>20*Math.log10(Math.max(x,1e-5));
 let corrida=0,finalizar=null;
 async function escuchar(o){
   o=o||{};
@@ -178,36 +193,48 @@ async function escuchar(o){
     return {error:"No se pudo abrir el micrófono ("+(n||"error")+"). Probá de nuevo."};
   }
   if(id!==corrida){capDetener();return {cancelado:true}}
+  const K=typeof o.mic==="number"&&o.mic>0?o.mic:(SENS[o.mic]||SENS[SENS_DEF]);
   return new Promise(res=>{
-    const frames=[];let primeraVoz=-1,ultimaVoz=-1,vocales=0,piso=1,pedido=false,fin=false;
+    const frames=[];let primeraVoz=-1,ultimaVoz=-1,prevVoz=-1,suelo=1,pico=0,picoVoz=0,pedido=false,fin=false,avisado=false,vozAvisada=false;
     const t0=performance.now(),max=o.max||8000,sil=o.sil||1500,espera=o.espera||(max>10000?9000:6500);
     let tVoz=0;
+    const hayAlgo=()=>pico>=Math.max(0.0025,suelo/K*2.5);   // algo de sonido por encima del ruido de fondo (en valores del micrófono, sin la sensibilidad)
+    // Un ruido corto y bajito (un golpe, un soplido, una silla) se parece a una palabra dicha bajito: con la sensibilidad alta cuenta como voz. Para no cerrar la grabación a los 1,5 s de ese ruido
+    // y perder la respuesta del chico, lo corto (menos de ≈ 0,7 s entre el primer y el último cuadro con voz) y bajito espera más antes de darse por terminado. Lo normal, o lo más fuerte, cierra a los 1,5 s de siempre.
+    const paciencia=()=>(ultimaVoz-primeraVoz<8&&picoVoz<NIVEL_BAJO)?Math.max(sil,3200):sil;
     const cerrar=como=>{
-      if(fin)return;fin=true;clearInterval(iv);cap.onFrame=null;finalizar=null;capDetener();rklog("escuchar: "+como);
+      if(fin)return;fin=true;clearInterval(iv);cap.onFrame=null;finalizar=null;capDetener();rklog("escuchar: "+como+" · pico "+pico.toFixed(4)+" · ruido "+(suelo/K).toFixed(4)+" · sens "+K);
       if(como==="cancelado")return res({cancelado:true});
-      if(vocales<2||primeraVoz<0)return res({mudo:true});
+      if(primeraVoz<0)return res({mudo:true,bajo:hayAlgo()});
       const a=Math.max(0,primeraVoz-4),b=Math.min(frames.length-1,ultimaVoz+5);   // un poco de aire antes y después de lo que dijo
-      res({blob:_aWav(frames.slice(a,b+1).map(f=>f.d),cap.rate),ms:Math.round((b-a+1)*4096/cap.rate*1000)});
+      let pv=0;for(let i=primeraVoz;i<=ultimaVoz;i++)if(frames[i].r>pv)pv=frames[i].r;
+      res({blob:_aWav(frames.slice(a,b+1).map(f=>f.d),cap.rate),ms:Math.round((b-a+1)*4096/cap.rate*1000),pico:pv,bajo:pv<NIVEL_BAJO});
     };
     finalizar=cerrar;
     cap.onFrame=f=>{
       if(fin)return;
-      let s=0;for(let i=0;i<f.length;i++)s+=f[i]*f[i];const rms=Math.sqrt(s/f.length);
-      const k=frames.length;frames.push({d:new Float32Array(f),r:rms});
-      if(k<6)piso=Math.min(piso,Math.max(rms,0.0005));   // el ruido de fondo: lo más bajo de la primera medio segundo
-      const umbral=Math.max(0.018,Math.min(piso,0.012)*3);   // (el piso de ruido no puede ser alto: si el chico habla justo al tocar, la primera medio segundo ya es voz y el umbral quedaría por encima de lo que dice)
-      const voz=rms>umbral;
-      if(voz){vocales++;if(primeraVoz<0&&vocales>=2)primeraVoz=k-1;ultimaVoz=k;tVoz=performance.now()}
-      if(o.onNivel)try{o.onNivel(Math.min(100,Math.round(rms*500)))}catch(e){}
+      let s=0;for(let i=0;i<f.length;i++)s+=f[i]*f[i];const raw=Math.sqrt(s/f.length),rms=raw*K;
+      const k=frames.length;frames.push({d:new Float32Array(f),r:raw});
+      if(k<6)suelo=Math.min(suelo,Math.max(rms,0.0005));   // el ruido de fondo: lo más bajo de la primera medio segundo
+      const umbral=Math.max(UMBRAL_MIN,Math.min(suelo,TECHO_RAW*K)*3);   // (el ruido de fondo no puede contar como alto: si el chico habla justo al tocar, la primera medio segundo ya es voz y el umbral quedaría por encima de lo que dice)
+      const voz=k>=2&&rms>umbral;   // (los dos primeros cuadros, ≈ 0,2 s, pueden traer el «golpe» de abrir el micrófono: no cuentan como voz, aunque se graban igual)
+      if(k>=3&&raw>pico)pico=raw;   // (los primeros cuadros pueden traer el «golpe» de abrir el micrófono)
+      if(voz){
+        if(raw>picoVoz)picoVoz=raw;
+        if(primeraVoz<0&&prevVoz>=0&&k-prevVoz<=3){primeraVoz=prevVoz;if(!vozAvisada&&o.onVoz){vozAvisada=true;try{o.onVoz()}catch(e){}}}   // dos tramos con voz seguidos (o con un hueco de uno o dos): ahí empezó; un golpe suelto no cuenta
+        prevVoz=k;ultimaVoz=k;tVoz=performance.now();
+      }else if(k>=6)suelo=rms<suelo?rms:suelo+(Math.min(rms,suelo*1.5)-suelo)*0.06;   // el ruido de fondo baja de una y sube de a poco (un chico que habla bajito no lo hace subir)
+      if(o.onNivel)try{o.onNivel(Math.max(0,Math.min(100,Math.round((_db(rms)-_db(Math.max(suelo,0.002))-3)/30*100))))}catch(e){}   // 0 = ruido de fondo · 100 = 33 dB más fuerte
     };
     if(o.alAbrir)try{o.alAbrir()}catch(e){}
     const iv=setInterval(()=>{
       if(fin)return;const t=performance.now()-t0;
       if(pedido)return cerrar("pedido");                                       // se tocó el micrófono otra vez: «ya dije»
-      if(primeraVoz>=0&&performance.now()-tVoz>=sil)return cerrar("silencio");  // habló y se calló
+      if(primeraVoz>=0&&performance.now()-tVoz>=paciencia())return cerrar("silencio");  // habló y se calló
       if(primeraVoz<0&&t>=espera)return cerrar("mudo");                        // no dijo nada
       if(t>=max)return cerrar("tope");
       if(!_cap||!_cap.stream.getTracks().some(x=>x.readyState==="live"))return cerrar("cortado");   // se cortó el micrófono (otra app, llamada…)
+      if(!avisado&&primeraVoz<0&&t>=2500&&hayAlgo()){avisado=true;if(o.onBajo)try{o.onBajo()}catch(e){}}   // «te oigo muy bajito»
     },90);
     terminarAhora=()=>{pedido=true};
   });
@@ -215,6 +242,16 @@ async function escuchar(o){
 let terminarAhora=null;
 const terminar=()=>{if(terminarAhora)terminarAhora()};
 function parar(){corrida++;terminarAhora=null;if(finalizar)finalizar("cancelado");else capDetener()}
+// «Probar el micrófono» (Ajustes, para los grandes): escucha unos segundos y dice cómo se oyó. No se manda nada a la IA y no se guarda ningún audio.
+// → {res:"bien"|"bajito"|"fuerte"|"nada"|"error"|"cancelado", pico, msg}
+async function probar(o){
+  o=o||{};
+  const r=await escuchar({mic:o.mic,max:6000,sil:1200,espera:5500,onNivel:o.onNivel,alAbrir:o.alAbrir,onBajo:o.onBajo,onVoz:o.onVoz});
+  if(r.cancelado)return {res:"cancelado"};
+  if(r.error)return {res:"error",msg:r.error};
+  if(r.mudo)return {res:r.bajo?"bajito":"nada",pico:0};
+  return {res:r.pico<NIVEL_BAJO?"bajito":r.pico>0.4?"fuerte":"bien",pico:r.pico};
+}
 
 // ---------------- pasar la voz a texto
 let MOCK=null;   // sólo para las pruebas: {generar: async partes => texto}
@@ -435,7 +472,7 @@ async function preparar(ST){
 }
 const disponible=ST=>({ia:!!(fbListo()||MOCK)&&!(ST&&ST.ia===false)&&!iaCaida&&micPerm!=="denied"&&micPerm!=="nodev"});
 const msgPermiso=p=>p==="denied"?MSG_DENEGADO():p==="nodev"?"No se encontró un micrófono en este aparato. Se contesta con «Lo dije».":"";
-I1.oral={configurada:fbListo,disponible,preparar,escuchar,terminar,parar,transcribir,evaluar,aceptaDe,msgPermiso,
-  _t:{N,lev,evPalabra,evSerie,evFecha,evFrase,evAbierta,comoNumero,limpiarTexto,aWav:_aWav,log:LOG,
+I1.oral={configurada:fbListo,disponible,preparar,escuchar,terminar,parar,probar,transcribir,evaluar,aceptaDe,msgPermiso,SENS,
+  _t:{N,lev,evPalabra,evSerie,evFecha,evFrase,evAbierta,comoNumero,limpiarTexto,aWav:_aWav,nivelRobusto:_nivelRobusto,log:LOG,
     mock:m=>{MOCK=m;fallas=0;iaCaida=false},reset:()=>{fallas=0;iaCaida=false;micPerm="unknown";corrida++},estado:()=>({fallas,iaCaida,micPerm})}};
 })();

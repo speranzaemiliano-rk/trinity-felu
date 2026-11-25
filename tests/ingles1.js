@@ -25,14 +25,22 @@ const leer=f=>fs.readFileSync(path.join(RAIZ,f),'utf8');
 const pausa=ms=>new Promise(r=>setTimeout(r,ms));
 
 // un WAV con algo parecido a una voz (armónicos con un vaivén, como sílabas) y después silencio: lo usa Chrome como «micrófono» de mentira
-const hacerWav=(ruta,vozMs,silMs)=>{
-  const SR=48000,n=Math.round(SR*(vozMs+silMs)/1000),nv=Math.round(SR*vozMs/1000),b=Buffer.alloc(44+n*2);
+const hacerWav=(ruta,vozMs,silMs,amp,ruido,o)=>{   // amp: volumen de la voz (por defecto fuerte: .32) · ruido: ruido de fondo (amplitud) · o.desde: ms que pasan antes de la voz · o.rafaga: [desde ms, duración ms, amplitud] de un ruido corto
+  amp=amp==null?.32:amp;ruido=ruido||0;o=o||{};let sem=12345;const rnd=()=>{sem=(sem*1664525+1013904223)>>>0;return sem/4294967296-.5};
+  const SR=48000,n=Math.round(SR*((o.desde||0)+vozMs+silMs)/1000),v0=Math.round(SR*(o.desde||0)/1000),nv=Math.round(SR*vozMs/1000),b=Buffer.alloc(44+n*2);
+  const [rd,rl,ra]=o.rafaga||[0,0,0],r0=Math.round(SR*rd/1000),nr=Math.round(SR*rl/1000);
   b.write('RIFF',0);b.writeUInt32LE(36+n*2,4);b.write('WAVE',8);b.write('fmt ',12);b.writeUInt32LE(16,16);b.writeUInt16LE(1,20);b.writeUInt16LE(1,22);b.writeUInt32LE(SR,24);b.writeUInt32LE(SR*2,28);b.writeUInt16LE(2,32);b.writeUInt16LE(16,34);b.write('data',36);b.writeUInt32LE(n*2,40);
-  for(let i=0;i<n;i++){let v=0;if(i<nv){const t=i/SR,env=.5+.5*Math.sin(2*Math.PI*3.2*t);v=.32*env*(Math.sin(2*Math.PI*140*t)+.6*Math.sin(2*Math.PI*280*t)+.35*Math.sin(2*Math.PI*560*t))/1.6}b.writeInt16LE(Math.round(v*32767),44+i*2)}
+  for(let i=0;i<n;i++){let v=ruido*2*rnd();if(i>=r0&&i<r0+nr)v+=ra*2*rnd();if(i>=v0&&i<v0+nv){const t=(i-v0)/SR,env=.5+.5*Math.sin(2*Math.PI*3.2*t);v+=amp*env*(Math.sin(2*Math.PI*140*t)+.6*Math.sin(2*Math.PI*280*t)+.35*Math.sin(2*Math.PI*560*t))/1.6}b.writeInt16LE(Math.round(Math.max(-1,Math.min(1,v))*32767),44+i*2)}
   fs.writeFileSync(ruta,b);
 };
 const WAV_VOZ=path.join(os.tmpdir(),'ingles1_voz.wav'),WAV_SIL=path.join(os.tmpdir(),'ingles1_silencio.wav');
 hacerWav(WAV_VOZ,1300,9000);hacerWav(WAV_SIL,0,9000);
+const WAV_BAJA=path.join(os.tmpdir(),'ingles1_voz_baja.wav'),WAV_RUIDO=path.join(os.tmpdir(),'ingles1_ruido.wav');
+hacerWav(WAV_BAJA,1300,9000,.02);hacerWav(WAV_RUIDO,0,9000,0,.004);   // una voz bajita (el micrófono la oye con un nivel de ≈ 0,01) y un cuarto con ruido de fondo y nadie hablando
+const WAV_RAFAGA=path.join(os.tmpdir(),'ingles1_rafaga.wav'),WAV_RUIDO12=path.join(os.tmpdir(),'ingles1_ruido12.wav'),WAV_FUERTE=path.join(os.tmpdir(),'ingles1_voz_fuerte.wav');
+hacerWav(WAV_RAFAGA,1300,9000,.1,0,{desde:2300,rafaga:[200,300,.012]});   // un ruido corto y bajito (300 ms) al abrir y la voz 2 s después
+hacerWav(WAV_RUIDO12,1300,9000,.1,.012,{desde:2500});                       // ruido de fondo constante (el que despierta al control de volumen del navegador) y la voz a los 2,5 s
+hacerWav(WAV_FUERTE,1300,9000,1);                                           // una voz tan fuerte que se recorta
 
 // ---------- 1) los archivos y el contenido
 const html=leer('ingles1/index.html');
@@ -80,23 +88,29 @@ if(!BASE){srv=await servir();BASE='http://127.0.0.1:'+srv.address().port+'/'}
 const ARGS=['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream'];
 const b=await chromium.launch({args:ARGS.concat(['--use-file-for-fake-audio-capture='+WAV_VOZ+'%noloop'])});
 const bSil=await chromium.launch({args:ARGS.concat(['--use-file-for-fake-audio-capture='+WAV_SIL+'%noloop'])});
+const bBaja=await chromium.launch({args:ARGS.concat(['--use-file-for-fake-audio-capture='+WAV_BAJA+'%noloop'])});
+const bRuido=await chromium.launch({args:ARGS.concat(['--use-file-for-fake-audio-capture='+WAV_RUIDO+'%noloop'])});
+const bRafaga=await chromium.launch({args:ARGS.concat(['--use-file-for-fake-audio-capture='+WAV_RAFAGA+'%noloop'])});
+const bRuido12=await chromium.launch({args:ARGS.concat(['--use-file-for-fake-audio-capture='+WAV_RUIDO12+'%noloop'])});
+const bFuerte=await chromium.launch({args:ARGS.concat(['--use-file-for-fake-audio-capture='+WAV_FUERTE+'%noloop'])});
 
 // ---------- utilidades de página
-// o: {vp, oscuro, rm (movimiento reducido), rapido (sin esperas: __I1_SIN_ESPERA), estado (lo guardado), bloquear (localStorage que falla), sinMic (permiso denegado), silencio (micrófono mudo), sinIr}
+// o: {vp, oscuro, rm (movimiento reducido), rapido (sin esperas: __I1_SIN_ESPERA), estado (lo guardado), bloquear (localStorage que falla), sinMic (permiso denegado), silencio (micrófono mudo), nav (otro navegador: voz bajita, ruido…), sinAGC (sin el control automático de volumen del navegador: como un iPhone), sinIr}
 const abrir=async(o={})=>{
-  const ctx=await (o.silencio?bSil:b).newContext({viewport:o.vp||{width:390,height:844},hasTouch:true,deviceScaleFactor:1,colorScheme:o.oscuro?'dark':'light',reducedMotion:o.rm?'reduce':'no-preference',serviceWorkers:'block',permissions:['microphone']});
+  const ctx=await (o.nav||(o.silencio?bSil:b)).newContext({viewport:o.vp||{width:390,height:844},hasTouch:true,deviceScaleFactor:1,colorScheme:o.oscuro?'dark':'light',reducedMotion:o.rm?'reduce':'no-preference',serviceWorkers:'block',permissions:['microphone']});
   const p=await ctx.newPage();p.errs=[];p.externos=[];p.ctx=ctx;
   const propio=new URL(BASE).hostname;
   await ctx.route(u=>u.hostname!==propio&&!/^(127\.0\.0\.1|localhost)$/.test(u.hostname),r=>{p.externos.push(new URL(r.request().url()).hostname);r.abort()});
   p.on('pageerror',e=>{p.errs.push('pageerror: '+e.message);console.log('   [error de la página]',e.message.slice(0,200))});
   p.on('console',m=>{if(m.type()==='error'&&!/Failed to load resource|net::ERR|ERR_FAILED/i.test(m.text())){p.errs.push('console: '+m.text());console.log('   [consola]',m.text().slice(0,200))}});
-  await ctx.addInitScript(({rapido,estado,bloquear,sinMic})=>{
+  await ctx.addInitScript(({rapido,estado,bloquear,sinMic,sinAGC})=>{
     window.__dichos=[];if(rapido)window.__I1_SIN_ESPERA=true;
+    if(sinAGC&&navigator.mediaDevices){const g=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);navigator.mediaDevices.getUserMedia=c=>{if(c&&c.audio&&typeof c.audio==='object')c.audio.autoGainControl=false;return g(c)}}
     const s=window.speechSynthesis;if(s){s.speak=u=>{if(u.volume!==0)window.__dichos.push(u.text);setTimeout(()=>{try{u.onstart&&u.onstart({});u.onend&&u.onend({})}catch(e){}},5)};s.cancel=()=>{};s.getVoices=()=>[]}
     if(bloquear)Object.defineProperty(window,'localStorage',{get(){throw new Error('bloqueado')}});
     else if(estado!==undefined&&!sessionStorage.getItem('__sem')){try{localStorage.setItem('ingles1_estado',estado);sessionStorage.setItem('__sem','1')}catch(e){}}
     if(sinMic&&navigator.mediaDevices)navigator.mediaDevices.getUserMedia=()=>Promise.reject(Object.assign(new Error('Permission denied'),{name:'NotAllowedError'}));
-  },{rapido:!!o.rapido,estado:o.estado,bloquear:!!o.bloquear,sinMic:!!o.sinMic});
+  },{rapido:!!o.rapido,estado:o.estado,bloquear:!!o.bloquear,sinMic:!!o.sinMic,sinAGC:!!o.sinAGC});
   if(!o.sinIr){await p.goto(BASE+'ingles1/');await p.waitForSelector('#pInicio .tema',{timeout:15000})}
   return p;
 };
@@ -650,6 +664,359 @@ chk('si no se oye ninguna voz: «No te escuché. Try again!», no se manda nada 
 await cerrar(p);
 }
 
+// ---------- 7b) el MICRÓFONO que escucha bajito: voces suaves, ruido de fondo, el ajuste de sensibilidad y la prueba del micrófono
+{
+// escucha una vez con la sensibilidad pedida y devuelve lo que vio la pantalla (resultado, avisos y el punto más alto del medidor)
+const ESC=(p,o)=>p.evaluate(async o=>{const niv=[];let bajo=0,voz=0;const x=await I1.oral.escuchar(Object.assign({onNivel:v=>niv.push(v),onBajo:()=>bajo++,onVoz:()=>voz++},o));
+  return {mudo:!!x.mudo,bajo:x.bajo,pico:x.pico==null?null:+x.pico.toFixed(4),ms:x.ms||0,error:x.error,nivMax:Math.max(0,...niv),avBajo:bajo,avVoz:voz}},o);
+let p=await abrir({rapido:true,nav:bBaja,sinAGC:true});   // una voz bajita (en el micrófono llega con un nivel de ≈ 0,01), sin el control de volumen del navegador (como un iPhone)
+let r=await ESC(p,{mic:'alta'});
+chk('MICRÓFONO BAJO: con la sensibilidad «alta» (la de siempre) se detecta una voz bajita (nivel ≈ 0,01), se avisa que fue bajita y el medidor se mueve ('+j(r)+')',!r.mudo&&r.bajo===true&&r.pico>0.004&&r.pico<0.02&&r.nivMax>=30&&r.avVoz===1&&!r.error,j(r));
+r=await ESC(p,{mic:'normal'});
+chk('MICRÓFONO BAJO: con «normal» esa misma voz NO alcanza (queda «mudo»), pero la pantalla se entera de que hubo sonido bajito y avisa «te oigo muy bajito» ('+j(r)+')',r.mudo===true&&r.bajo===true&&r.avBajo===1&&r.avVoz===0,j(r));
+r=await ESC(p,{mic:'muy'});
+chk('MICRÓFONO BAJO: con «muy alta» también se oye ('+j(r)+')',!r.mudo&&r.bajo===true&&r.avVoz===1,j(r));
+await cerrar(p);
+p=await abrir({rapido:true,nav:bRuido,sinAGC:true});
+r=await ESC(p,{mic:'muy'});
+chk('MICRÓFONO BAJO: un cuarto con ruido de fondo y nadie hablando NO se toma por voz, ni con la sensibilidad «muy alta» (y el medidor queda abajo) ('+j(r)+')',r.mudo===true&&r.avVoz===0&&r.nivMax<=15&&!r.error,j(r));
+await cerrar(p);
+// un ruido corto y bajito al abrir (un golpe, un soplido) y la voz que llega 2 s después: la grabación no se cierra a los 1,5 s del ruido
+p=await abrir({rapido:true,nav:bRafaga,sinAGC:true});
+r=await ESC(p,{mic:'alta'});
+chk('MICRÓFONO: un ruido corto y bajito (300 ms) al abrir y la voz 2 s después: se graba la VOZ (la grabación no se da por terminada a los 1,5 s del ruido) ('+j(r)+')',!r.mudo&&r.ms>=3000&&r.pico>0.03,j(r));
+await cerrar(p);
+// el arranque del control automático de volumen del navegador (ruido fuerte los primeros segundos) no se toma por voz
+p=await abrir({rapido:true,nav:bRuido12});
+r=await ESC(p,{mic:'alta'});
+chk('MICRÓFONO: con el control de volumen del navegador y ruido de fondo constante, el arranque no se toma por voz: se graba la voz que llega a los 2,5 s ('+j(r)+')',!r.mudo&&r.ms>=1500&&r.pico>0.03,j(r));
+await cerrar(p);
+// el audio que va a la IA se sube siempre a un buen volumen
+p=await abrir({rapido:true});
+const w=await p.evaluate(async()=>{
+  const T=I1.oral._t,dec=async b=>new Int16Array((await b.arrayBuffer()).slice(44));
+  const seno=(n,amp)=>{const a=new Float32Array(n);for(let i=0;i<n;i++)a[i]=amp*Math.sin(2*Math.PI*220*i/16000);return a};
+  const pico=a=>{let m=0;for(const v of a)m=Math.max(m,Math.abs(v));return m/32767};
+  const bajo=await dec(T.aWav([seno(16000,.01)],16000));
+  const golpe=seno(16000,.01);golpe[8000]=.9;const bg=await dec(T.aWav([golpe],16000));let mid=0;for(let i=7000;i<7900;i++)mid=Math.max(mid,Math.abs(bg[i]));
+  const fuerte=await dec(T.aWav([seno(16000,.8)],16000)),cero=await dec(T.aWav([new Float32Array(16000)],16000));
+  return {bajo:+pico(bajo).toFixed(3),conGolpe:+(mid/32767).toFixed(3),fuerte:+pico(fuerte).toFixed(3),cero:pico(cero),n:bajo.length}});
+chk('el audio que va a la IA se sube siempre a un buen volumen: una voz de 0,01 llega a ≈ 0,4, un golpe suelto no impide subirla, lo fuerte no se toca y el silencio queda en silencio ('+j(w)+')',w.bajo>0.35&&w.bajo<0.5&&w.conGolpe>0.3&&w.fuerte>0.75&&w.fuerte<0.82&&w.cero===0&&w.n===16000,j(w));
+await cerrar(p);
+// el ajuste: arranca en «alta», se guarda, se recuerda y la grabación lo usa; los valores absurdos no rompen nada
+p=await abrir({rapido:true});
+const m0=await p.evaluate(()=>I1_T.estado().mic);
+await p.evaluate(()=>{I1_T.pintarAjustes();I1_T.ir('pAjustes')});
+const ops=await p.evaluate(()=>[...document.querySelectorAll('#ajMic option')].map(o=>o.value+(o.selected?'*':'')).join());
+const etiquetas=await p.evaluate(()=>[...document.querySelectorAll('#ajMic option')].map(o=>o.textContent));
+await p.selectOption('#ajMic','muy');
+const m1=await p.evaluate(()=>({mic:I1_T.estado().mic,guardado:JSON.parse(localStorage.getItem('ingles1_estado')).mic}));
+await p.reload();await p.waitForSelector('#pInicio .tema');
+const m2=await p.evaluate(()=>I1_T.estado().mic);
+chk('Ajustes → «Sensibilidad del micrófono»: tiene normal / alta / muy alta (con nombres cortos, que entran en una pantalla de 320 px), arranca en «alta», se guarda y se recuerda al recargar ('+ops+')',m0==='alta'&&ops==='normal,alta*,muy'&&etiquetas.every(t=>t.length<=9)&&m1.mic==='muy'&&m1.guardado==='muy'&&m2==='muy',j([m0,ops,etiquetas,m1,m2]));
+await p.evaluate(async()=>{I1.oral._t.mock({generar:async()=>window.__dijo});window.__micPedido=[];const o=I1.oral.escuchar;I1.oral.escuchar=a=>{window.__micPedido.push(a&&a.mic);return o(a)};await I1.oral.preparar(I1_T.estado())});
+await p.evaluate(()=>{window.__dijo='red';const t=I1.TEMA.colores,q=I1_T.ORAL.nombrar(t,I1.ITEM.red);q.gen='nombrar';I1_T.probar(q,'oral');I1_T.ronda().permiso='ok'});
+await p.waitForSelector('#bMic');await p.click('#bMic');await p.waitForFunction(()=>/Escuché/.test(document.getElementById('oyo').innerText),null,{timeout:12000});
+chk('al hablar, la grabación usa la sensibilidad elegida en Ajustes',await p.evaluate(()=>window.__micPedido[0]==='muy'),j(await p.evaluate(()=>window.__micPedido)));
+await cerrar(p);
+const absurdos=[];
+for(const v of ['ultra',7,null,{},['muy'],'MUY','']){const q=await abrir({rapido:true,estado:JSON.stringify({v:1,mic:v})});absurdos.push(await q.evaluate(()=>I1_T.estado().mic));await cerrar(q)}
+chk('un valor absurdo de sensibilidad guardado se ignora y queda «alta» ('+absurdos.join()+')',absurdos.every(x=>x==='alta'),j(absurdos));
+// «Probar el micrófono» (Ajustes): escucha unos segundos y dice cómo se oyó
+const probar=async(o)=>{const q=await abrir(Object.assign({rapido:true},o));await q.evaluate(()=>{I1_T.pintarAjustes();I1_T.ir('pAjustes')});await q.click('#ajProbarMic');
+  const ocupado=await q.evaluate(()=>document.getElementById('ajProbarMic').disabled);
+  await q.waitForFunction(()=>!document.getElementById('ajProbarMic').disabled,null,{timeout:20000});
+  const t=await q.evaluate(()=>document.getElementById('ajMicRes').textContent);await cerrar(q);return {t,ocupado,errs:q.errs}};
+let pm=await probar({nav:bBaja,sinAGC:true,estado:JSON.stringify({v:1,mic:'normal'})});
+chk('Probar el micrófono con una voz bajita: dice «se oye muy bajito» y sugiere acercarse o subir la sensibilidad ('+pm.t+')',/Se oye muy bajito/.test(pm.t)&&/sensibilidad/.test(pm.t)&&pm.ocupado&&pm.errs.length===0,j(pm));
+pm=await probar({silencio:true});
+chk('Probar el micrófono sin sonido: dice «no se oyó nada» ('+pm.t+')',/No se oyó nada/.test(pm.t)&&pm.errs.length===0,j(pm));
+pm=await probar({});
+chk('Probar el micrófono con una voz normal: dice que se oye bien (o que se oye fuerte) ('+pm.t+')',/Se oye (bien|muy fuerte)/.test(pm.t)&&pm.errs.length===0,j(pm));
+pm=await probar({nav:bFuerte,sinAGC:true});
+chk('Probar el micrófono con una voz tan fuerte que se recorta: dice «se oye muy fuerte» ('+pm.t+')',/Se oye muy fuerte/.test(pm.t)&&pm.errs.length===0,j(pm));
+pm=await probar({sinMic:true});
+chk('Probar el micrófono sin permiso: explica cómo permitirlo ('+pm.t+')',/micrófono/i.test(pm.t)&&/permit/i.test(pm.t),j(pm));
+}
+
+// ---------- 7c) HABLAR dice sin vueltas si estuvo bien o no (✅ ¡Correcto! · 🟡 Casi · ❌ Todavía no), con lo que escuchó
+{
+const p=await abrir({rapido:true});
+await p.evaluate(async()=>{I1.oral._t.mock({generar:async()=>{window.__llamadas=(window.__llamadas||0)+1;return window.__dijo}});window.__llamadas=0;return I1.oral.preparar(I1_T.estado())});
+const preg=(tema,tp,id,modo)=>p.evaluate(([tema,tp,id,modo])=>{const t=I1.TEMA[tema],q=I1_T.ORAL[tp](t,id?I1.ITEM[id]:null);q.gen=tp;I1_T.probar(q,modo||'oral');I1_T.ronda().permiso='ok'},[tema,tp,id,modo]);
+const decir=async texto=>{await p.evaluate(t=>{window.__dijo=t},texto);await p.waitForSelector('#bMic');await p.click('#bMic');
+  await p.waitForFunction(()=>{const o=document.getElementById('oyo');return o&&o.innerText.trim()},null,{timeout:14000});await p.waitForTimeout(150);
+  return p.evaluate(()=>{const o=document.getElementById('oyo'),v=o.querySelector('.vere');return {cls:v?v.className:'',txt:o.innerText.replace(/\s+/g,' ').trim(),mod:!!o.querySelector('.mod'),oir:[...o.querySelectorAll('.mod .oir')].map(b=>b.dataset.dec),baj:!!o.querySelector('.baj'),msg:document.getElementById('msg').innerText}})};
+await preg('colores','nombrar','red');
+let v=await decir("it's red");
+chk('VEREDICTO bien: ✅ «¡Correcto!» con lo que escuchó, sin repetir la respuesta ('+v.txt+')',/vere ok/.test(v.cls)&&/¡Correcto!/.test(v.txt)&&/Escuché: «it's red»/.test(v.txt)&&!v.mod&&!v.baj,j(v));
+await preg('colores','nombrar','red');
+v=await decir('blue');
+chk('VEREDICTO mal (1.er intento): ❌ «Todavía no» con lo que escuchó, sin mostrar la respuesta todavía y con «Try again!» ('+v.txt+')',/vere no/.test(v.cls)&&/Todavía no/.test(v.txt)&&/Escuché: «blue»/.test(v.txt)&&!v.mod&&/Try again|Let's try/.test(v.msg),j(v));
+v=await decir('green');
+chk('VEREDICTO mal (2.º intento): ❌ y ahora sí «Había que decir: red» con el 🔊 para escucharlo ('+v.txt+')',/vere no/.test(v.cls)&&v.mod&&/Había que decir: «red»/.test(v.txt)&&v.oir.length===2&&v.oir.every(x=>/red/i.test(x)),j(v));
+await preg('colores','nombrar','pink');
+v=await decir('pinc');
+chk('VEREDICTO «casi»: 🟡 «Casi» y se puede intentar de nuevo ('+v.txt+')',/vere casi/.test(v.cls)&&/Casi/.test(v.txt)&&/Almost|Nearly/.test(v.msg),j(v));
+// la IA no entendió ninguna palabra (un ruido que se tomó por voz, una voz muy baja): no hay nada que juzgar → se avisa, NO cuenta como intento
+await preg('colores','nombrar','red');
+await p.evaluate(()=>{window.__dijo=''});await p.click('#bMic');await p.waitForFunction(()=>/No entendí/.test(document.getElementById('msg').innerText),null,{timeout:14000});
+const vacio=await p.evaluate(()=>({msg:document.getElementById('msg').innerText,oyo:document.getElementById('oyo').innerText.trim(),intentos:I1_T.ronda().qs[0].intentos||0,res:I1_T.ronda().res.length,mic:!!document.getElementById('bMic')}));
+chk('SIN PALABRAS (la IA no entendió nada): «No entendí lo que dijiste. Try again!», sin ❌ y SIN gastar un intento ('+vacio.msg+')',/No entendí lo que dijiste. Try again/.test(vacio.msg)&&vacio.oyo===''&&vacio.intentos===0&&vacio.res===0&&vacio.mic,j(vacio));
+v=await decir('blue');
+chk('…y lo que se diga después sigue siendo el PRIMER intento: ❌ «Todavía no» sin mostrar la respuesta todavía ('+v.txt+')',/vere no/.test(v.cls)&&!v.mod&&/Try again|Let's try/.test(v.msg),j(v));
+// en la prueba no se dice si estuvo bien
+await preg('colores','nombrar','red','prueba');
+v=await decir('blue');
+chk('en «Mi prueba» NO se dice si estuvo bien: sólo «Escuché: …», sin ✅/❌ ni la respuesta ('+v.txt+')',v.cls===''&&/Escuché: «blue»/.test(v.txt)&&!/Correcto|Todavía no|Había que decir/.test(v.txt+v.msg),j(v));
+chk('el veredicto no rompe nada (sin errores en la consola)',p.errs.length===0,j(p.errs));
+await cerrar(p);
+}
+{
+// con una voz bajita: se avisa en el momento (el cartel del micrófono), si no alcanza no se manda nada a la IA y, si se equivoca, el veredicto explica que se oyó bajito
+const p=await abrir({rapido:true,nav:bBaja,sinAGC:true,estado:JSON.stringify({v:1,mic:'normal'})});
+await p.evaluate(async()=>{I1.oral._t.mock({generar:async()=>{window.__llamadas=(window.__llamadas||0)+1;return window.__dijo}});window.__llamadas=0;return I1.oral.preparar(I1_T.estado())});
+await p.evaluate(()=>{const t=I1.TEMA.colores,q=I1_T.ORAL.nombrar(t,I1.ITEM.red);q.gen='nombrar';I1_T.probar(q,'oral');I1_T.ronda().permiso='ok'});
+await p.waitForSelector('#bMic');await p.click('#bMic');
+await p.waitForFunction(()=>/Te oigo muy bajito/.test(document.getElementById('micT').textContent),null,{timeout:9000});
+const vivo=await p.evaluate(()=>document.getElementById('micT').textContent);
+await p.waitForFunction(()=>/Te escuché muy bajito/.test(document.getElementById('msg').innerText),null,{timeout:12000});
+const fin=await p.evaluate(()=>({msg:document.getElementById('msg').innerText,llam:window.__llamadas,mic:!!document.getElementById('bMic'),res:I1_T.ronda().res.length}));
+chk('VOZ BAJITA con sensibilidad «normal»: mientras escucha el cartel dice «Te oigo muy bajito: acercate y hablá más fuerte»; al cerrar, «Te escuché muy bajito… Try again!», sin llamar a la IA y con el micrófono a mano ('+vivo+')',/acercate/.test(vivo)&&/Try again/.test(fin.msg)&&fin.llam===0&&fin.mic&&fin.res===0,j([vivo,fin]));
+await p.evaluate(()=>{window.__dijo='blue'});
+await p.evaluate(()=>{I1_T.estado().mic='alta'});
+await p.click('#bMic');await p.waitForFunction(()=>document.getElementById('oyo').innerText.trim(),null,{timeout:12000});await p.waitForTimeout(120);
+const mal=await p.evaluate(()=>({txt:document.getElementById('oyo').innerText.replace(/\s+/g,' '),baj:!!document.querySelector('#oyo .baj'),cls:document.querySelector('#oyo .vere').className}));
+chk('con la sensibilidad «alta» esa voz bajita SÍ se oye; si la IA entiende otra cosa el veredicto lo explica («Se oyó muy bajito: acercate…») ('+mal.txt+')',/vere no/.test(mal.cls)&&mal.baj&&/Se oyó muy bajito/.test(mal.txt),j(mal));
+await p.evaluate(()=>{window.__dijo='red'});
+await p.click('#bMic');await p.waitForFunction(()=>/vere ok/.test((document.querySelector('#oyo .vere')||{}).className||''),null,{timeout:12000});
+chk('…y si dijo bien, ✅ «¡Correcto!» sin ningún reproche por el volumen',await p.evaluate(()=>!document.querySelector('#oyo .baj')&&/Correcto/.test(document.getElementById('oyo').innerText)));
+chk('la voz bajita no rompe nada (sin errores en la consola)',p.errs.length===0,j(p.errs));
+await cerrar(p);
+}
+
+// ---------- 7d) CONVERSAR: el profe pregunta lo básico (nombre, edad, cómo está, gustos, colores, contar, objetos, cuerpo, día) y el chico contesta hablando
+{
+const p=await abrir({rapido:true,vp:{width:360,height:640}});
+// 1) la conversación que se arma: siempre válida, con la respuesta modelo aceptada por el evaluador y sin repetir vueltas
+const g=await p.evaluate(()=>{
+  const bad=[],ST=I1_T.estado(),largos=new Set(),subs=new Set();
+  for(const extra of [false,true])for(const nombre of ['','Valentina Sofía']){ST.extra=extra;ST.nombre=nombre;
+    for(let k=0;k<120;k++){const T=I1_T.armarConv();largos.add(T.length);T.forEach(t=>subs.add(t.sub));
+      if(T.length<9||T.length>10)bad.push('largo '+T.length);
+      if(T[0].sub!=='hola'||T[1].sub!=='nombre'||T[2].sub!=='edad'||T[3].sub!=='estado'||T[T.length-1].sub!=='chau')bad.push('orden fijo roto');
+      if(new Set(T.map(t=>t.sub)).size!==T.length)bad.push('vueltas repetidas');
+      T.forEach(t=>{
+        if(!t.dice||!t.es||!t.cuerpo||!t.ev||!t.mostrar||!t.dire||!(t.rea&&t.rea.length))bad.push('falta algo en «'+t.sub+'»');
+        if(/[<>]/.test(t.dice+t.dire+t.rea.join('')))bad.push('etiquetas en «'+t.sub+'»');
+        const ok=I1.oral.evaluar(t.ev,t.dire,ST);if(ok.res!=='ok')bad.push('«'+t.sub+'»: la respuesta modelo «'+t.dire+'» da '+ok.res);
+        if(I1.oral.evaluar(t.ev,'',ST).res==='ok')bad.push('«'+t.sub+'»: el silencio da ok');
+        if(I1.oral.evaluar(t.ev,'banana split',ST).res==='ok')bad.push('«'+t.sub+'»: cualquier cosa da ok');
+        t.ids.forEach(id=>{if(!(I1.ITEM[id]||I1.PATID[id]||I1.GUSTOS.some(x=>'g-'+x.id===id)))bad.push('«'+t.sub+'»: id desconocido '+id)})})}}
+  return {bad:[...new Set(bad)].slice(0,6),largos:[...largos].sort().join(),subs:[...subs].sort().join()}});
+chk('CONVERSAR: 480 conversaciones armadas (con y sin «más palabras», con y sin nombre) tienen 9 o 10 vueltas en orden (hola, nombre, edad, cómo está, … , chau), sin repetir, con respuesta modelo que el evaluador acepta, el silencio y «banana split» no valen y los ítems existen ('+g.largos+' vueltas; '+g.subs.split(',').length+' tipos)',g.bad.length===0&&g.largos==='10,9'&&g.subs.split(',').length>=10,j(g));
+// 2) entrar desde el inicio: el profe saluda y pregunta, el chico tiene el micrófono
+await p.evaluate(async()=>{I1.oral._t.mock({generar:async()=>{window.__llamadas=(window.__llamadas||0)+1;return window.__dijo}});window.__llamadas=0;return I1.oral.preparar(I1_T.estado())});
+const botonInicio=await p.evaluate(()=>{const b=document.getElementById('bConv');return {hay:!!b,txt:b?b.innerText.replace(/\s+/g,' '):''}});
+await p.click('#bConv');await p.waitForSelector('#pConv:not([hidden]) #bConvMic',{timeout:8000});
+const ini=await p.evaluate(()=>{const C=I1_T.conv();return {n:C.turnos.length,prof:document.querySelectorAll('#chat .burb.prof').length,dice:document.querySelector('#chat .burb.prof .dice b').innerText,oir:!!document.querySelector('#chat .burb.prof .dice .oir'),num:document.getElementById('convNum').textContent,hablado:window.__dichos.slice(),skip:!!document.getElementById('bConvSaltar')}});
+chk('CONVERSAR: el inicio tiene el botón «Conversar» y al tocarlo el profe saluda («Hello!»/«Hi!») con su 🔊, en voz alta, y el chico ve el micrófono, «Saltear» y el avance 1/'+ini.n+' ('+botonInicio.txt+')',botonInicio.hay&&/Conversar/.test(botonInicio.txt)&&/^(Hello|Hi)!$/.test(ini.dice)&&ini.oir&&ini.prof===1&&ini.num==='1/'+ini.n&&ini.hablado.some(x=>x.replace(/[!.?,]/g,'')===ini.dice.replace(/[!.?,]/g,''))&&ini.skip,j([botonInicio,ini]));
+// 3) la conversación entera contestando bien cada vuelta (la IA simulada «oye» la respuesta modelo), en un celular chico (360×640)
+const hechos=[],tapadas=[];
+for(let k=0;k<11;k++){
+  const T=await p.evaluate(()=>{const C=I1_T.conv();if(!C)return null;const t=C.turnos[C.i];return {i:C.i,sub:t.sub,dire:t.dire,tema:t.tema}});
+  if(!T)break;
+  // la pregunta nueva tiene que quedar a la vista, entre la barra de arriba y el pie fijo (el pie de la vuelta se dibuja después de la burbuja: antes la tapaba)
+  await p.waitForTimeout(700);
+  const vis=await p.evaluate(()=>{const ps=[...document.querySelectorAll('#chat .burb')],u=ps[ps.length-1],r=u.getBoundingClientRect(),c=document.getElementById('convCtl').getBoundingClientRect(),h=document.querySelector('#pConv .pbarra').getBoundingClientRect();return {abajo:Math.round(Math.max(0,r.bottom-c.top)),arriba:Math.round(Math.max(0,h.bottom-r.top)),alto:Math.round(r.height),libre:Math.round(innerHeight-h.bottom-c.height)}});
+  if(!(vis.arriba<=1&&(vis.abajo<=1||vis.alto>vis.libre)))tapadas.push(k+': '+j(vis));
+  const n=await p.evaluate(()=>document.querySelectorAll('#chat .burb.yo').length);
+  await p.evaluate(t=>{window.__dijo=t},T.dire);await p.click('#bConvMic');
+  await p.waitForFunction(n=>document.querySelectorAll('#chat .burb.yo').length>n,n,{timeout:18000});
+  const bub=await p.evaluate(()=>{const b=[...document.querySelectorAll('#chat .burb.yo')].pop();return b?b.className+'|'+b.innerText.replace(/\s+/g,' '):''});
+  hechos.push(T.sub+':'+(bub.split('|')[0].replace('burb yo ','')));
+  if(!/burb yo ok/.test(bub)){hechos.push('«'+bub+'»');break}
+  await p.waitForFunction(i=>{const C=I1_T.conv();return !C||C.i>i},T.i,{timeout:8000});
+}
+chk('CONVERSAR: en cada vuelta la pregunta nueva queda a la vista, entre la barra de arriba y el pie fijo del micrófono, sin quedar tapada ('+(tapadas.length?tapadas.join(' | '):hechos.length+' vueltas bien')+')',tapadas.length===0&&hechos.length>=9,j(tapadas));
+await p.waitForSelector('#pFin:not([hidden])',{timeout:8000});
+const fin=await p.evaluate(()=>{const S=I1_T.estado();return {h1:document.querySelector('#pFin h1').innerText,cuenta:document.querySelector('#pFin .fin-cuenta').innerText.replace(/\s+/g,' '),otra:!!document.getElementById('bConvOtra'),inicio:!!document.getElementById('bInicio'),convs:S.convs,estrellas:S.estrellas,rondas:S.rondas,dia:Object.values(S.dias).map(x=>x.join('/')).join(),C:I1_T.conv(),llam:window.__llamadas,repaso:document.querySelectorAll('#pFin .repaso li').length}});
+chk('CONVERSAR de punta a punta contestando todo bien ('+hechos.length+' vueltas): cada vuelta muestra ✅ y pasa a la siguiente, al final «'+fin.h1+'» con «'+fin.cuenta+'», 3 estrellas, queda registrada y se puede empezar otra',hechos.every(x=>/:ok$/.test(x))&&fin.convs.length===1&&fin.convs[0].ok===hechos.length&&fin.convs[0].n===hechos.length&&fin.convs[0].casi===0&&fin.estrellas===3&&fin.rondas===1&&fin.C===null&&fin.otra&&fin.inicio&&fin.llam===hechos.length&&fin.repaso===0&&/Excellent/.test(fin.h1),j([hechos,fin]));
+chk('CONVERSAR cuenta lo practicado: el día suma todas las vueltas como «bien» y las palabras practicadas suben de caja',/^\d+\/0$/.test(fin.dia)&&+fin.dia.split('/')[0]>=hechos.length&&await p.evaluate(()=>Object.keys(I1_T.estado().items).length>=3),fin.dia);
+await p.evaluate(()=>{I1_T.pintarAjustes();I1_T.ir('pAjustes')});
+const aj=await p.evaluate(()=>document.querySelector('#pAjustes').innerText);
+chk('Ajustes lista las conversaciones hechas («'+(aj.match(/\d+ de \d+ bien/g)||[]).join()+'»)',/Conversaciones/.test(aj)&&new RegExp(fin.convs[0].ok+' de '+fin.convs[0].n+' bien').test(aj));
+chk('conversar no rompe nada (sin errores en la consola)',p.errs.length===0,j(p.errs));
+await cerrar(p);
+}
+{
+// 4) equivocarse dos veces, saltear y salir
+const p=await abrir({rapido:true});
+await p.evaluate(async()=>{I1.oral._t.mock({generar:async()=>{window.__llamadas=(window.__llamadas||0)+1;return window.__dijo}});window.__llamadas=0;return I1.oral.preparar(I1_T.estado())});
+await p.click('#bConv');await p.waitForSelector('#pConv:not([hidden]) #bConvMic',{timeout:8000});
+const yo=()=>p.evaluate(()=>[...document.querySelectorAll('#chat .burb.yo')].map(b=>b.className.replace('burb yo ','')+'|'+b.innerText.replace(/\s+/g,' ')));
+const hablar=async t=>{const n=await p.evaluate(()=>document.querySelectorAll('#chat .burb.yo').length);await p.evaluate(x=>{window.__dijo=x},t);await p.click('#bConvMic');await p.waitForFunction(n=>document.querySelectorAll('#chat .burb.yo').length>n,n,{timeout:16000});await p.waitForTimeout(100)};
+await hablar('banana');
+let y=await yo();let st=await p.evaluate(()=>({i:I1_T.conv().i,prof:[...document.querySelectorAll('#chat .burb.prof')].map(b=>b.innerText.replace(/\s+/g,' ')).pop(),sig:!!document.getElementById('bConvSig'),mic:!!document.getElementById('bConvMic'),res:I1_T.conv().res.length}));
+chk('CONVERSAR mal (1.er intento): ❌ «Todavía no» con lo que escuchó, el profe dice «Try again!» y sigue la MISMA vuelta con el micrófono a mano (sin mostrar la respuesta todavía)',/^no\|.*Todavía no.*Escuché: «banana»/.test(y[0])&&!/Había que decir/.test(y[0])&&/Try again/.test(st.prof)&&st.i===0&&st.mic&&!st.sig&&st.res===0,j([y,st]));
+await hablar('banana');
+y=await yo();st=await p.evaluate(()=>({i:I1_T.conv().i,prof:[...document.querySelectorAll('#chat .burb.prof')].map(b=>b.innerText.replace(/\s+/g,' ')).pop(),sig:!!document.getElementById('bConvSig'),mic:!!document.getElementById('bConvMic'),res:I1_T.conv().res.map(x=>x.res),mal:I1_T.conv().mal,hecho:I1_T.conv().turnos[0].hecho}));
+chk('CONVERSAR mal (2.º intento): ❌ con «Había que decir: Hello!», el profe dice «Listen: Hello!», cuenta como error, desaparece el micrófono y queda «Seguir ➜» (no pasa sola) ',/^no\|.*Había que decir: «Hello!»/.test(y[1])&&/Listen: Hello!/.test(st.prof)&&st.sig&&!st.mic&&st.res.join()==='no'&&st.mal===1&&st.hecho&&st.i===0,j([y,st]));
+await p.waitForTimeout(800);
+chk('…y espera: 0,8 s después sigue en la misma vuelta con «Seguir ➜»',await p.evaluate(()=>I1_T.conv().i===0&&!!document.getElementById('bConvSig')));
+await p.click('#bConvSig');await p.waitForFunction(()=>I1_T.conv().i===1,null,{timeout:5000});
+const sg=await p.evaluate(()=>({dice:[...document.querySelectorAll('#chat .burb.prof .dice b')].pop().innerText,mic:!!document.getElementById('bConvMic'),sig:!!document.getElementById('bConvSig')}));
+chk('«Seguir ➜» pasa a la vuelta siguiente (el nombre): «What\'s your name?», con el micrófono de nuevo',sg.dice==="What's your name?"&&sg.mic&&!sg.sig,j(sg));
+// «casi»: sólo el nombre suelto
+await hablar('Ana');
+y=await yo();
+chk('CONVERSAR «casi» («Ana» sin «My name is…»): 🟡 «Casi» y se intenta otra vez ('+y[2]+')',/^casi\|.*Casi/.test(y[2])&&await p.evaluate(()=>I1_T.conv().i===1&&!I1_T.conv().turnos[1].hecho),j(y));
+await hablar('my name is Ana');
+await p.waitForFunction(()=>I1_T.conv().i===2,null,{timeout:6000});
+y=await yo();
+chk('…y al decir «My name is Ana» ✅ «¡Correcto!» y el profe reacciona con el nombre («Nice to meet you!»)',/^ok\|.*Correcto/.test(y[3])&&await p.evaluate(()=>/Nice to meet you/.test([...document.querySelectorAll('#chat .burb.prof')].pop().innerText)),j(y));
+// saltear
+await p.click('#bConvSaltar');
+st=await p.evaluate(()=>({res:I1_T.conv().res.map(x=>x.res).join(),prof:[...document.querySelectorAll('#chat .burb.prof')].pop().innerText.replace(/\s+/g,' '),sig:!!document.getElementById('bConvSig')}));
+chk('«Saltear · Skip» cuenta la vuelta como no lograda, el profe dice cómo era y queda «Seguir ➜» ('+st.prof+')',st.res==='no,ok,no'&&/Listen: I'm six/.test(st.prof)&&st.sig,j(st));
+// salir mientras escucha suelta el micrófono
+await p.click('#bConvSig');await p.waitForFunction(()=>I1_T.conv().i===3,null,{timeout:5000});
+const a0=await p.evaluate(()=>(I1.oral._t.log.join('|').match(/mic abierto/g)||[]).length);
+await p.click('#bConvMic');await p.waitForFunction(()=>/Te escucho/.test(document.getElementById('convMicT').textContent),null,{timeout:5000});
+await p.click('#bConvSalir');await p.waitForSelector('#pInicio .tema');await p.waitForTimeout(300);
+const lg=await p.evaluate(()=>({log:I1.oral._t.log.join('|'),C:I1_T.conv(),convs:I1_T.estado().convs.length}));
+chk('salir de la conversación (✕) mientras el micrófono escucha lo suelta enseguida, no deja nada a medias y no cuenta como conversación hecha',(lg.log.match(/mic abierto/g)||[]).length===(lg.log.match(/mic soltado/g)||[]).length&&(lg.log.match(/mic abierto/g)||[]).length>a0&&lg.C===null&&lg.convs===0&&p.errs.length===0,j([lg,p.errs]));
+await cerrar(p);
+}
+{
+// 5) sin micrófono (sin permiso) se conversa con «Lo dijo bien» (lo confirma un grande)
+const p=await abrir({rapido:true,sinMic:true});
+await p.click('#bConv');await p.waitForSelector('#pConv:not([hidden]) #bConvDije',{timeout:8000});
+const sm=await p.evaluate(()=>({mic:!!document.getElementById('bConvMic'),dije:!!document.getElementById('bConvDije'),rep:!!document.getElementById('bConvRep'),skip:!!document.getElementById('bConvSaltar'),nota:[...document.querySelectorAll('#chat .burb.sis')].map(x=>x.innerText).join('|'),notaEnPie:!!document.querySelector('#convCtl .aviso-c.nota')}));
+chk('CONVERSAR sin permiso de micrófono: cómo permitirlo se explica UNA vez, como nota en el chat (no en el pie fijo), y quedan «Lo dijo bien», «Otra vez» y «Saltear» ('+sm.nota.slice(0,50)+'…)',!sm.mic&&sm.dije&&sm.rep&&sm.skip&&/micrófono/i.test(sm.nota)&&!sm.notaEnPie,j(sm));
+await p.click('#bConvDije');await p.waitForFunction(()=>I1_T.conv().i===1,null,{timeout:6000});
+chk('«Lo dijo bien» cuenta la vuelta como lograda y sigue (y la nota del permiso no se repite en cada vuelta)',await p.evaluate(()=>I1_T.conv().ok===1&&I1_T.conv().res[0].res==='ok'&&document.querySelectorAll('#chat .burb.yo.ok').length===1&&document.querySelectorAll('#chat .burb.sis').length===1));
+chk('sin micrófono no se pide nada a la IA ni se rompe nada',p.errs.length===0,j(p.errs));
+await cerrar(p);
+}
+{
+// 6) lo guardado de las conversaciones: con trampas no rompe y se recorta a 10
+const raro=JSON.stringify({v:1,convs:[null,1,'x',{f:'x',ok:'9',casi:-3,n:0},{f:'2026-11-03',ok:99999,casi:2,n:5}].concat(Array(20).fill({f:'2026-11-04',ok:1,casi:0,n:2}))});
+const p=await abrir({rapido:true,estado:raro});
+const c=await p.evaluate(()=>({convs:I1_T.estado().convs,btn:document.getElementById('bConv').innerText.replace(/\s+/g,' ')}));
+chk('las conversaciones guardadas con datos absurdos se limpian (fechas válidas, números acotados, a lo sumo 10) y el inicio sigue andando ('+c.convs.length+' guardadas)',c.convs.length<=10&&c.convs.every(x=>(x.f===''||/^\d{4}-\d{2}-\d{2}$/.test(x.f))&&x.ok>=0&&x.ok<=50&&x.casi>=0&&x.casi<=50&&x.n>=1&&x.n<=50)&&!/NaN|undefined/.test(c.btn)&&p.errs.length===0,j(c));
+await cerrar(p);
+}
+
+// ---------- 7e) lo que halló la revisión independiente de Conversar: pie fijo alto sin permiso, doble toque, IA caída, resultado viejo, última vuelta, teclado y transparencia
+{
+// sin permiso de micrófono el pie no tapa la pregunta (celulares chicos, de costado y con letra grande)
+const fallas=[];
+for(const [w,h,zoom] of [[320,568,100],[360,640,100],[375,667,100],[640,360,100],[360,640,150],[320,568,150]]){
+  const p=await abrir({rapido:true,sinMic:true,rm:true,vp:{width:w,height:h}});   // (con movimiento reducido el desplazamiento es instantáneo: se puede medir enseguida)
+  if(zoom!==100)await p.evaluate(z=>{document.documentElement.style.fontSize=z+'%'},zoom);
+  await p.click('#bConv');await p.waitForSelector('#pConv:not([hidden]) #bConvDije',{timeout:8000});
+  for(let k=0;k<2;k++){await p.click('#bConvDije');await p.waitForFunction(i=>I1_T.conv().i>i,k,{timeout:6000})}   // hasta la 3.ª vuelta (la de la tarta de cumpleaños)
+  await p.waitForTimeout(300);
+  const m=await p.evaluate(()=>{const ps=[...document.querySelectorAll('#chat .burb')],u=ps[ps.length-1],r=u.getBoundingClientRect(),cc=document.getElementById('convCtl'),c=cc.getBoundingClientRect(),hb=document.querySelector('#pConv .pbarra').getBoundingClientRect(),fijo=getComputedStyle(cc).position==='sticky';
+    return {pie:Math.round(c.height),vh:innerHeight,fijo,abajo:Math.round(fijo?Math.max(0,r.bottom-c.top):0),arriba:Math.round(Math.max(0,hb.bottom-r.top)),alto:Math.round(r.height),libre:Math.round(innerHeight-hb.bottom-(fijo?c.height:0)),sx:document.documentElement.scrollWidth-innerWidth}});
+  if(!(m.arriba<=1&&(m.abajo<=1||m.alto>m.libre)&&m.sx<=1))fallas.push(w+'×'+h+' letra '+zoom+'%: tapa/desborda '+j(m));
+  if(w<h&&zoom===100&&!(m.fijo&&m.pie<=m.vh*0.45))fallas.push(w+'×'+h+': el pie sin micrófono mide '+m.pie+' de '+m.vh+' px (más de 45 %) o no es fijo');
+  if(p.errs.length)fallas.push(w+'×'+h+': '+j(p.errs));
+  await cerrar(p);
+}
+chk('CONVERSAR sin permiso de micrófono en 6 tamaños (320×568, 360×640, 375×667, de costado y con letra al 150 %): la pregunta nueva queda a la vista, el pie sin micrófono ocupa menos de 45 % de la pantalla y con letra enorme deja de ser fijo en vez de taparla',fallas.length===0,fallas.slice(0,4).join(' | '));
+}
+{
+// doble toque en «Saltear»: el segundo toque cae sobre «Seguir ➜» (el pie cambia en el mismo lugar) y no tiene que apretarlo
+const p=await abrir({});   // (sin «rapido»: la guarda del doble toque está activa)
+await p.evaluate(async()=>{I1.oral._t.mock({generar:async()=>window.__dijo});return I1.oral.preparar(I1_T.estado())});
+await p.click('#bConv');await p.waitForSelector('#pConv:not([hidden]) #bConvSaltar',{timeout:8000});await p.waitForTimeout(800);
+const bx=await p.locator('#bConvSaltar').boundingBox(),x=bx.x+bx.width/2,y=bx.y+bx.height/2;
+await p.touchscreen.tap(x,y);await p.waitForTimeout(120);await p.touchscreen.tap(x,y);await p.waitForTimeout(1300);
+const dt=await p.evaluate(()=>({i:I1_T.conv().i,res:I1_T.conv().res.map(r=>r.res).join(),sig:!!document.getElementById('bConvSig'),prof:[...document.querySelectorAll('#chat .burb.prof')].pop().innerText.replace(/\s+/g,' ')}));
+chk('CONVERSAR: un doble toque en «Saltear» salta UNA vez: el profe dice cómo era y queda «Seguir ➜» (el segundo toque no lo aprieta) ('+dt.prof+')',dt.i===0&&dt.res==='no'&&dt.sig&&/Listen: Hello|Listen: Hi/.test(dt.prof),j(dt));
+await p.waitForTimeout(500);await p.touchscreen.tap(x,y);
+await p.waitForFunction(()=>I1_T.conv().i===1,null,{timeout:6000});
+chk('…y un toque después de esperar sí pasa a la vuelta siguiente',await p.evaluate(()=>I1_T.conv().i===1&&!!document.getElementById('bConvMic')));
+chk('el doble toque no rompe nada (sin errores en la consola)',p.errs.length===0,j(p.errs));
+await cerrar(p);
+}
+{
+// la IA cae dos veces seguidas: el aviso de la primera queda en el pie; el de la segunda (que explica el cambio a «Lo dijo bien») queda como nota del chat
+const p=await abrir({rapido:true});
+await p.evaluate(async()=>{I1.oral._t.mock({generar:async()=>{throw new Error('boom 503 unavailable')}});return I1.oral.preparar(I1_T.estado())});
+await p.click('#bConv');await p.waitForSelector('#pConv:not([hidden]) #bConvMic',{timeout:8000});
+await p.click('#bConvMic');await p.waitForFunction(()=>/No pude escuchar/.test(document.getElementById('convAviso').textContent),null,{timeout:15000});
+const f1=await p.evaluate(()=>({aviso:document.getElementById('convAviso').textContent,mic:!!document.getElementById('bConvMic'),notas:document.querySelectorAll('#chat .burb.sis').length}));
+await p.click('#bConvMic');await p.waitForSelector('#bConvDije',{timeout:15000});
+const f2=await p.evaluate(()=>({mic:!!document.getElementById('bConvMic'),notas:[...document.querySelectorAll('#chat .burb.sis')].map(x=>x.innerText)}));
+chk('CONVERSAR con la IA caída: la 1.ª falla avisa «Probá de nuevo» en el pie y deja el micrófono; la 2.ª pasa a «Lo dijo bien» Y deja en el chat la explicación («Se contesta con «Lo dije»») ('+j(f2.notas)+')',/Probá de nuevo/.test(f1.aviso)&&f1.mic&&f1.notas===0&&!f2.mic&&f2.notas.length===1&&/Lo dije/.test(f2.notas[0]),j([f1,f2]));
+await cerrar(p);
+}
+{
+// un resultado viejo (la IA tardó y el chico ya saltó a la vuelta siguiente) no pisa el micrófono de la vuelta nueva
+const p=await abrir({rapido:true});
+await p.evaluate(async()=>{window.__n=0;I1.oral._t.mock({generar:async()=>{window.__n++;if(window.__n===1){await new Promise(r=>setTimeout(r,2400));const m=document.getElementById('bConvMic');window.__alResolver={oyendo:!!m&&m.classList.contains('oyendo'),txt:(document.getElementById('convMicT')||{}).textContent};window.__rancia=true}return window.__dijo}});return I1.oral.preparar(I1_T.estado())});
+await p.click('#bConv');await p.waitForSelector('#pConv:not([hidden]) #bConvMic',{timeout:8000});
+await p.evaluate(()=>{window.__dijo='Hello'});await p.click('#bConvMic');
+await p.waitForFunction(()=>document.getElementById('bConvMic').classList.contains('pensando'),null,{timeout:9000});   // la IA «piensa» (2,4 s)
+await p.click('#bConvSaltar');await p.waitForSelector('#bConvSig');await p.click('#bConvSig');
+await p.waitForFunction(()=>I1_T.conv().i===1&&!!document.getElementById('bConvMic'),null,{timeout:6000});
+await p.evaluate(()=>{window.__dijo='My name is Ana'});await p.click('#bConvMic');
+await p.waitForFunction(()=>document.getElementById('bConvMic').classList.contains('oyendo'),null,{timeout:6000});
+await p.waitForFunction(()=>window.__rancia===true,null,{timeout:8000});await p.waitForTimeout(250);
+const st=await p.evaluate(()=>({alResolver:window.__alResolver,ahora:{oyendo:document.getElementById('bConvMic').classList.contains('oyendo')||document.getElementById('bConvMic').classList.contains('pensando'),txt:document.getElementById('convMicT').textContent},res:I1_T.conv().res.map(r=>r.res).join()}));
+chk('CONVERSAR: la respuesta vieja de una vuelta saltada llega mientras se graba la nueva y NO pisa su micrófono (sigue «Te escucho…»; la vieja se descarta) ('+j(st)+')',st.alResolver&&st.alResolver.oyendo===true&&st.ahora.oyendo&&!/Tocá el micrófono/.test(st.ahora.txt)&&st.res==='no',j(st));
+await p.waitForFunction(()=>I1_T.conv().i===2,null,{timeout:12000});
+chk('…y la vuelta nueva se contesta bien después',await p.evaluate(()=>I1_T.conv().res.map(r=>r.res).join()==='no,ok'),j(await p.evaluate(()=>I1_T.conv().res)));
+chk('el resultado viejo no rompe nada (sin errores en la consola)',p.errs.length===0,j(p.errs));
+await cerrar(p);
+}
+{
+// «sin palabras» en Conversar: no cuenta como intento
+const p=await abrir({rapido:true});
+await p.evaluate(async()=>{I1.oral._t.mock({generar:async()=>window.__dijo});return I1.oral.preparar(I1_T.estado())});
+await p.click('#bConv');await p.waitForSelector('#pConv:not([hidden]) #bConvMic',{timeout:8000});
+await p.evaluate(()=>{window.__dijo=''});await p.click('#bConvMic');
+await p.waitForFunction(()=>/No entendí/.test(document.getElementById('convAviso').textContent),null,{timeout:14000});
+const v0=await p.evaluate(()=>({yo:document.querySelectorAll('#chat .burb.yo').length,intentos:I1_T.conv().turnos[0].intentos,mic:!!document.getElementById('bConvMic'),res:I1_T.conv().res.length}));
+chk('CONVERSAR sin palabras (un ruido que se tomó por voz): «No entendí lo que dijiste. Try again!», sin burbuja ❌ y SIN gastar un intento',v0.yo===0&&v0.intentos===0&&v0.mic&&v0.res===0,j(v0));
+await p.evaluate(()=>{window.__dijo='banana'});await p.click('#bConvMic');await p.waitForFunction(()=>document.querySelectorAll('#chat .burb.yo').length===1,null,{timeout:14000});
+const v1=await p.evaluate(()=>({txt:document.querySelector('#chat .burb.yo').innerText.replace(/\s+/g,' '),intentos:I1_T.conv().turnos[0].intentos,sig:!!document.getElementById('bConvSig')}));
+chk('…y lo siguiente es el PRIMER intento (❌ sin mostrar la respuesta, sigue la misma vuelta)',/Todavía no/.test(v1.txt)&&!/Había que decir/.test(v1.txt)&&v1.intentos===1&&!v1.sig,j(v1));
+await cerrar(p);
+}
+{
+// una conversación salteada de punta a punta: la última vuelta no dice «sigamos» (viene el resultado) y el teclado sigue en el pie
+const p=await abrir({rapido:true});
+await p.evaluate(async()=>{I1.oral._t.mock({generar:async()=>window.__dijo});return I1.oral.preparar(I1_T.estado())});
+await p.click('#bConv');await p.waitForSelector('#pConv:not([hidden]) #bConvSaltar',{timeout:8000});
+const total=await p.evaluate(()=>I1_T.conv().turnos.length),foco=[];
+await p.click('#bConvSaltar');await p.waitForSelector('#bConvSig');await p.click('#bConvSig');await p.waitForFunction(()=>I1_T.conv().i===1,null,{timeout:5000});
+// con el teclado: «Saltear» → el foco pasa a «Seguir ➜»; «Seguir» → el foco pasa al micrófono de la vuelta nueva
+await p.focus('#bConvSaltar');await p.keyboard.press('Enter');await p.waitForSelector('#bConvSig');foco.push(await p.evaluate(()=>document.activeElement.id));
+await p.keyboard.press('Enter');await p.waitForFunction(()=>I1_T.conv().i===2,null,{timeout:5000});await p.waitForTimeout(120);foco.push(await p.evaluate(()=>document.activeElement.id));
+// el resto se saltea con el mouse hasta que aparece el resultado
+let guardia=0;
+while(guardia++<40&&await p.evaluate(()=>!!I1_T.conv())){
+  const e=await p.evaluate(()=>({sig:!!document.getElementById('bConvSig'),salt:!!document.getElementById('bConvSaltar')}));
+  if(e.sig)await p.click('#bConvSig').catch(()=>{});else if(e.salt)await p.click('#bConvSaltar').catch(()=>{});
+  await p.waitForTimeout(60);
+}
+await p.waitForSelector('#pFin:not([hidden])',{timeout:8000});
+const fin=await p.evaluate(()=>({prof:[...document.querySelectorAll('#chat .burb.prof .rea')].map(x=>x.innerText),h1:document.querySelector('#pFin h1').innerText,cuenta:document.querySelector('#pFin .fin-cuenta').innerText.replace(/\s+/g,' '),repaso:document.querySelectorAll('#pFin .repaso li').length,convs:I1_T.estado().convs}));
+chk('CONVERSAR salteada entera: la última vuelta termina con «OK! See you soon!» (no «sigamos»), el resultado dice «'+fin.cuenta+'» con «'+fin.h1+'» y lista todas las vueltas para repasar ('+fin.repaso+')',/See you soon/.test(fin.prof[fin.prof.length-1])&&!/continue|go on/i.test(fin.prof[fin.prof.length-1])&&/^0 de \d+ bien$/.test(fin.cuenta)&&fin.repaso===total&&/Let's talk again/.test(fin.h1)&&fin.convs.length===1,j(fin));
+chk('con el teclado, al saltear el foco pasa a «Seguir ➜» y al seguir pasa al micrófono de la vuelta nueva ('+foco.join(' → ')+')',foco.join()==='bConvSig,bConvMic',j(foco));
+chk('saltear todo no rompe nada (sin errores en la consola)',p.errs.length===0,j(p.errs));
+await cerrar(p);
+}
+{
+// transparencia reducida, sin backdrop-filter e impresión: el pie de Conversar entra igual que las otras barras
+const css=leer('ingles1/estilos.css');
+chk('el pie de Conversar respeta «transparencia reducida» (sólido y sin blur), el respaldo sin backdrop-filter y no se imprime',/prefers-reduced-transparency:\s*reduce\)\s*\{\s*\.barra,\.pbarra,\.pie,\.convctl\{[^}]*backdrop-filter:\s*none/.test(css)&&/@supports not[^\n]*\.convctl\{background:var\(--bg\)\}/.test(css)&&/@media print\{[^}]*\.convctl/.test(css));
+}
+
 // ---------- 8) lo que se pide afuera: sólo las fuentes de Google (y el SDK de la IA cuando se usa)
 {
 const p=await abrir({rapido:true});
@@ -681,7 +1048,7 @@ const medir=()=>{
     if(e.matches('input,select')&&!(e.getAttribute('aria-label')||e.closest('label')))out.push('campo sin etiqueta: '+desc(e))});
   // lo de arriba de todo no se pisa entre sí (las barras fijas tapan lo que pasa por debajo a propósito, así que sólo se mira sin scroll)
   if(scrollY<=2){
-    const bs=botones.filter(e=>!e.closest('.pie'));
+    const bs=botones.filter(e=>!e.closest('.pie,.convctl'));
     for(let i=0;i<bs.length;i++)for(let k=i+1;k<bs.length;k++){if(bs[i].contains(bs[k])||bs[k].contains(bs[i]))continue;const a=caja(bs[i]),c=caja(bs[k]);const ix=Math.min(a.r,c.r)-Math.max(a.l,c.l),iy=Math.min(a.b,c.b)-Math.max(a.t,c.t);if(ix>2&&iy>2)out.push('se pisan: '+desc(bs[i])+' y '+desc(bs[k]))}
     const bl=[...pant.querySelectorAll('.cons,.dib,.frase,.pal,.grupo,.slots,.ofila,.banco,.ops,.unir,.msg,.oral-caja>*,.cuerpo>.muneco,.fin-ests,.dos-notas,.tcab,.acciones,.modos,.temas')].filter(e=>vis(e)&&!e.closest('.pbarra'));
     for(let i=0;i<bl.length;i++)for(let k=i+1;k<bl.length;k++){if(bl[i].contains(bl[k])||bl[k].contains(bl[i]))continue;const a=caja(bl[i]),c=caja(bl[k]);const ix=Math.min(a.r,c.r)-Math.max(a.l,c.l),iy=Math.min(a.b,c.b)-Math.max(a.t,c.t);if(ix>3&&iy>3)out.push('se pisan los bloques: '+desc(bl[i])+' y '+desc(bl[k]))}
@@ -708,7 +1075,12 @@ for(const [nombre,w,h] of (RAPIDO?TAMANOS.slice(3,4):TAMANOS)){
   for(const t of ['saludos','cuerpo','numeros','dias','meses','fecha','abc','colores','aula','yo','frases']){await p.click('#pInicio .tema[data-tema="'+t+'"]');await p.waitForSelector('#pTema .tcab');await p.waitForTimeout(60);await m('estudio '+t);await p.click('#pTema [data-act="atras"]');await p.waitForSelector('#pInicio .tema')}
   await p.evaluate(()=>{I1_T.pintarPrueba()});await m('prueba (intro)');await p.evaluate(()=>{I1_T.pintarPruebaOral()});await m('prueba (parte oral)');
   await p.evaluate(()=>{I1_T.pintarAjustes();I1_T.ir('pAjustes')});await m('ajustes');
-  await p.evaluate(()=>{I1_T.pintarInicio();I1_T.ir('pInicio')});
+  // conversar (con micrófono y sin él), el inicio con «Última: …» y el veredicto de «Hablar» en sus tres versiones (con un texto largo)
+  await p.evaluate(()=>{I1_T.estado().convs=[{f:'2026-11-03',ok:7,casi:1,n:9}];I1_T.pintarInicio();I1_T.ir('pInicio')});await m('inicio con la última conversación');
+  await p.evaluate(()=>{I1_T.convDemo(4,'ok')});await p.waitForTimeout(60);await m('conversar');
+  await p.evaluate(()=>{I1_T.convDemo(2,'denied')});await p.waitForTimeout(60);await m('conversar (sin micrófono)');
+  for(const r of ['ok','casi','no']){await p.evaluate(r=>{const t=I1.TEMA.colores,q=I1_T.ORAL.nombrar(t,I1.ITEM.red);q.gen='nombrar';I1_T.probar(q,'oral');I1_T.ronda().permiso='ok';document.getElementById('oyo').innerHTML=I1_T.vereHTML(r,'it is a very long answer that the child said out loud','a long model sentence to say aloud',"It's red.",r!=='ok')},r);await p.waitForTimeout(40);await m('hablar: veredicto '+r)}
+  await p.evaluate(()=>{I1_T.estado().convs=[];I1_T.pintarInicio();I1_T.ir('pInicio')});
   const corregidas=!RAPIDO&&['iPhone 14 390×844','celular chico 320×568','Android de costado 640×360'].some(x=>nombre===x);
   const lote=await lotePeor(p,corregidas?2:1);
   for(let i=0;i<lote.length;i++){
@@ -725,7 +1097,7 @@ for(const [nombre,w,h] of (RAPIDO?TAMANOS.slice(3,4):TAMANOS)){
   // resultado
   await p.evaluate(()=>{const t=I1.TEMA.colores,q=I1_T.GEN.look(t,I1.ITEM.red),q2=I1_T.GEN.look(t,I1.ITEM.blue);q.gen=q2.gen='look';I1_T.probar(q,'escrito');const R=I1_T.ronda();R.qs=[q,q2];R.res=[{gen:'look',ids:['red'],res:'ok',tema:'colores'},{gen:'look',ids:['blue'],res:'no',tema:'colores'}];R.ok=1;R.mal=1;R.i=2;I1_T.terminarParte()});
   await p.waitForSelector('#pFin:not([hidden])');await p.waitForTimeout(200);await m('resultado');
-  chk('diseño '+nombre+': inicio, 11 temas, prueba, ajustes, '+lote.length+' preguntas (peor caso'+(corregidas?', sin corregir y corregidas':'')+') y resultado — nada se sale, se pisa ni se corta, todo tiene nombre',falla.length===0&&p.errs.length===0,falla.slice(0,6).join(' | ')+j(p.errs));
+  chk('diseño '+nombre+': inicio, 11 temas, prueba, ajustes, conversar, veredicto, '+lote.length+' preguntas (peor caso'+(corregidas?', sin corregir y corregidas':'')+') y resultado — nada se sale, se pisa ni se corta, todo tiene nombre',falla.length===0&&p.errs.length===0,falla.slice(0,6).join(' | ')+j(p.errs));
   await cerrar(p);
 }
 // letra grande (el chico o la familia agrandaron el texto del navegador: 150 %) y celular chico
@@ -734,6 +1106,9 @@ for(const [nombre,w,h] of [['letra al 150 % en 390×844',390,844],['letra al 150
   const falla=[];const m=async que=>{const o=await p.evaluate(medir);o.forEach(x=>falla.push(que+' → '+x))};
   await m('inicio');
   for(const t of ['cuerpo','abc','frases']){await p.click('#pInicio .tema[data-tema="'+t+'"]');await p.waitForSelector('#pTema .tcab');await m('estudio '+t);await p.click('#pTema [data-act="atras"]');await p.waitForSelector('#pInicio .tema')}
+  await p.evaluate(()=>{I1_T.convDemo(4,'ok')});await p.waitForTimeout(60);await m('conversar');
+  await p.evaluate(()=>{I1_T.convDemo(2,'denied')});await p.waitForTimeout(60);await m('conversar (sin micrófono)');
+  await p.evaluate(()=>{const t=I1.TEMA.colores,q=I1_T.ORAL.nombrar(t,I1.ITEM.red);q.gen='nombrar';I1_T.probar(q,'oral');I1_T.ronda().permiso='ok';document.getElementById('oyo').innerHTML=I1_T.vereHTML('no','it is a very long answer that the child said out loud','a long model sentence to say aloud',"It's red.",true)});await p.waitForTimeout(40);await m('hablar: veredicto');
   const lote=await lotePeor(p,1);
   for(let i=0;i<lote.length;i+=(RAPIDO?3:1)){await p.evaluate(i=>{const x=window.__lote[i];I1_T.probar(x.q,x.modo);I1_T.ronda().permiso='ok'},i);await p.waitForSelector('#pPreg .preg');await m(lote[i])}
   chk('diseño con '+nombre+': nada se sale, se pisa ni se corta',falla.length===0&&p.errs.length===0,falla.slice(0,6).join(' | ')+j(p.errs));
@@ -779,6 +1154,10 @@ for(const oscuro of (RAPIDO?[false]:[false,true])){
   for(const t of ['cuerpo','abc','fecha','frases']){await p.click('#pInicio .tema[data-tema="'+t+'"]');await p.waitForSelector('#pTema .tcab');await medirContraste('estudio '+t);await p.click('#pTema [data-act="atras"]');await p.waitForSelector('#pInicio .tema')}
   await p.evaluate(()=>{I1_T.pintarPrueba()});await medirContraste('prueba');
   await p.evaluate(()=>{I1_T.pintarAjustes();I1_T.ir('pAjustes')});await medirContraste('ajustes');
+  await p.evaluate(()=>{I1_T.estado().convs=[{f:'2026-11-03',ok:7,casi:1,n:9}];I1_T.pintarInicio();I1_T.ir('pInicio')});await medirContraste('inicio con la última conversación');
+  await p.evaluate(()=>{I1_T.convDemo(4,'ok')});await p.waitForTimeout(450);await medirContraste('conversar');
+  await p.evaluate(()=>{I1_T.convDemo(2,'denied')});await p.waitForTimeout(450);await medirContraste('conversar (sin micrófono)');
+  for(const r of ['ok','casi','no']){await p.evaluate(r=>{const t=I1.TEMA.colores,q=I1_T.ORAL.nombrar(t,I1.ITEM.red);q.gen='nombrar';I1_T.probar(q,'oral');I1_T.ronda().permiso='ok';document.getElementById('oyo').innerHTML=I1_T.vereHTML(r,'red','red',"It's red.",true)},r);await p.waitForTimeout(450);await medirContraste('hablar: veredicto '+r)}
   const lote=await lotePeor(p,2);
   for(let i=0;i<lote.length;i+=2){
     await p.evaluate(i=>{const x=window.__lote[i];I1_T.probar(x.q,x.modo);I1_T.ronda().permiso='ok'},i);await p.waitForSelector('#pPreg .preg');await p.waitForTimeout(450);   // (esperar a que terminen las entradas con fundido)
@@ -787,11 +1166,11 @@ for(const oscuro of (RAPIDO?[false]:[false,true])){
     if(lote[i].startsWith('escrito')&&i%6===2){await responder(p,true,false).catch(()=>{});await p.waitForTimeout(400);await medirContraste(lote[i]+' (bien)')}
   }
   await p.evaluate(()=>{const t=I1.TEMA.colores,q=I1_T.GEN.look(t,I1.ITEM.red);q.gen='look';I1_T.probar(q,'escrito');const R=I1_T.ronda();R.res=[{gen:'look',ids:['red'],res:'no',tema:'colores'}];R.mal=1;R.i=1;I1_T.terminarParte()});await p.waitForTimeout(900);await medirContraste('resultado');
-  chk('contraste de los textos en modo '+(oscuro?'oscuro':'claro')+' (4,5 a 1; 3 a 1 en texto grande) en inicio, estudio, prueba, ajustes, preguntas, corregidas y resultado',malos.length===0,malos.slice(0,8).join(' | '));
+  chk('contraste de los textos en modo '+(oscuro?'oscuro':'claro')+' (4,5 a 1; 3 a 1 en texto grande) en inicio, estudio, prueba, ajustes, conversar, veredicto, preguntas, corregidas y resultado',malos.length===0,malos.slice(0,8).join(' | '));
   await cerrar(p);
 }
 
-await b.close();await bSil.close();if(srv)srv.close();
+await b.close();await bSil.close();await bBaja.close();await bRuido.close();await bRafaga.close();await bRuido12.close();await bFuerte.close();if(srv)srv.close();
 console.log(res.every(Boolean)?'\nTODO OK ('+res.length+' chequeos)':'\nHAY FALLOS: '+res.filter(x=>!x).length+' de '+res.length);
 process.exit(res.every(Boolean)?0:1);
 })().catch(e=>{console.log('FALLO',e.stack||e.message);process.exit(1)});

@@ -167,7 +167,7 @@ const MSG_DENEGADO=()=>IS_IOS?"El iPhone no dejó usar el micrófono. En Safari 
 
 // ---------------- escuchar una respuesta
 // Se abre el micrófono, se espera a que el chico hable y se corta solo cuando termina (un silencio) o cuando se toca de nuevo el micrófono.
-// → {blob, ms, pico, bajo} | {mudo:true, bajo} (no se oyó voz; «bajo»: pero sí algo de sonido, muy bajito) | {cancelado:true} | {error:"…"}
+// → {blob, ms, pico, bajo} | {mudo:true, bajo, digital} (no se oyó voz; «bajo»: pero sí algo de sonido, muy bajito; «digital»: ni ruido, silencio total)  | {cancelado:true} | {error:"…"}
 // LA VOZ BAJITA. Un micrófono de celular o de notebook «oye» a un chico que habla suave o lejos con menos volumen que el umbral fijo de antes (0,018 ≈ −35 dB) y la pantalla decía «No te escuché» aunque hablara.
 // Ahora: (1) lo que se oye se multiplica por la SENSIBILIDAD elegida (SENS) antes de decidir si hay voz; (2) el umbral sigue al ruido del lugar: sube con un ventilador y baja en silencio;
 // (3) el medidor va en decibeles y arranca en el ruido de fondo, así que se mueve también con una voz suave; (4) si a los 2,5 s no hay voz pero sí algo de sonido, avisa «te oigo muy bajito» (onBajo);
@@ -205,7 +205,7 @@ async function escuchar(o){
     const cerrar=como=>{
       if(fin)return;fin=true;clearInterval(iv);cap.onFrame=null;finalizar=null;capDetener();rklog("escuchar: "+como+" · pico "+pico.toFixed(4)+" · ruido "+(suelo/K).toFixed(4)+" · sens "+K);
       if(como==="cancelado")return res({cancelado:true});
-      if(primeraVoz<0)return res({mudo:true,bajo:hayAlgo()});
+      if(primeraVoz<0)return res({mudo:true,bajo:hayAlgo(),digital:pico===0&&(frames.length===0||frames.length>=10)});   // «digital»: no llegó nada, ni ruido (el aparato lo dejó mudo, o no dejó abrirlo solo): en manos libres es motivo para volver a tocar
       const a=Math.max(0,primeraVoz-4),b=Math.min(frames.length-1,ultimaVoz+5);   // un poco de aire antes y después de lo que dijo
       let pv=0;for(let i=primeraVoz;i<=ultimaVoz;i++)if(frames[i].r>pv)pv=frames[i].r;
       res({blob:_aWav(frames.slice(a,b+1).map(f=>f.d),cap.rate),ms:Math.round((b-a+1)*4096/cap.rate*1000),pico:pv,bajo:pv<NIVEL_BAJO});

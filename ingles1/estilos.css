@@ -275,6 +275,7 @@ small{letter-spacing:.02em}                                                     
 @keyframes onda{from{transform:scale(.92);opacity:.75}to{transform:scale(1.28);opacity:0}}
 .mic.pensando{background:var(--azul);box-shadow:0 6px 0 var(--azul-d);color:var(--azul-ink)}
 .mic.pensando .mic-ico{animation:gira 1.1s linear infinite}
+.mic.espera{filter:saturate(.2) brightness(1.08)}   /* manos libres: todavía habla el profe, no es el turno del chico: se ve apagado (sin transparencia: sigue siendo un botón y mantiene el contraste) y se enciende y se pone rojo cuando le toca */
 @keyframes gira{to{transform:rotate(360deg)}}
 .mic-t{font:800 1.1rem var(--display);color:var(--muted);text-align:center}
 .nivel{width:min(70%,260px);height:8px;border-radius:99px;background:var(--line);overflow:hidden}

@@ -18,11 +18,11 @@ const art=w=>/^[aeiou]/i.test(w)?"an":"a";   // «an apple», «an ice cream»
 const KEY="ingles1_estado",ID_OK=/^[a-z][a-z0-9:_-]{0,23}$/i;
 function mapa(o,campos,max){const r=Object.create(null);if(o&&typeof o==="object"&&!Array.isArray(o))Object.keys(o).filter(id=>ID_OK.test(id)).slice(0,600).forEach(id=>{const e=o[id];if(e&&typeof e==="object"){const x={};campos.forEach(c=>{x[c]=c==="u"?(/^\d{4}-\d{2}-\d{2}$/.test(String(e.u||""))?e.u:""):NUM(e[c],c==="c"?4:1e6)});r[id]=x}});return r}
 function cargar(){   // lo guardado se revisa campo por campo: si alguien lo tocó o quedó a medias, no rompe nada
-  const b={v:1,voz:true,sonido:true,es:true,extra:false,ia:true,mic:"alta",vel:"normal",vozNombre:"",nombre:"",items:Object.create(null),or:Object.create(null),dias:{},pruebas:[],convs:[],rondas:0,estrellas:0};
+  const b={v:1,voz:true,sonido:true,es:true,extra:false,ia:true,auto:true,autoFalla:0,mic:"alta",vel:"normal",vozNombre:"",nombre:"",items:Object.create(null),or:Object.create(null),dias:{},pruebas:[],convs:[],rondas:0,estrellas:0};
   try{
     const o=JSON.parse(localStorage.getItem(KEY)||"null");
     if(o&&typeof o==="object"&&!Array.isArray(o)){
-      b.voz=o.voz!==false;b.sonido=o.sonido!==false;b.es=o.es!==false;b.extra=o.extra===true;b.ia=o.ia!==false;
+      b.voz=o.voz!==false;b.sonido=o.sonido!==false;b.es=o.es!==false;b.extra=o.extra===true;b.ia=o.ia!==false;b.auto=o.auto!==false;b.autoFalla=NUM(o.autoFalla,9);
       if(o.vel==="lenta"||o.vel==="rapida")b.vel=o.vel;
       if(o.mic==="normal"||o.mic==="muy")b.mic=o.mic;   // (sin tocar: «alta», que oye mejor a un chico que habla bajito)
       if(typeof o.vozNombre==="string"&&o.vozNombre.length<=160)b.vozNombre=o.vozNombre;
@@ -58,6 +58,7 @@ const Son={AC:null,
   ok(){Son.init();Son.nota(660,0,.14);Son.nota(880,.09,.2)},
   mal(){Son.init();Son.nota(330,0,.18,.09,"triangle");Son.nota(262,.1,.22,.07,"triangle")},
   tic(){Son.init();Son.nota(520,0,.08,.07)},
+  cue(){Son.init();Son.nota(784,0,.09,.07);Son.nota(1047,.07,.13,.07)},   // «ahora te toca a vos»: se oye justo antes de que el micrófono se abra solo
   estrella(i){Son.init();Son.nota(700+i*140,0,.25,.1)},
   fin(){Son.init();[523,659,784,1047].forEach((f,i)=>Son.nota(f,i*.11,.3,.1))}
 };
@@ -68,7 +69,7 @@ const HAY=new Set(window.I1_AUDIO||[]);
 const VEL={lenta:.8,normal:1,rapida:1.15};
 const synth=window.speechSynthesis;
 const Voz={
-  a:new Audio(),seq:0,v:null,
+  a:new Audio(),seq:0,v:null,activas:0,fallo:false,   // activas: frases sonando ahora · fallo: la última frase no pudo ni empezar (el aparato no tiene voz, o falló)
   lista:()=>synth?synth.getVoices().filter(v=>/^en/i.test(v.lang)):[],
   id:v=>v.name+" · "+v.lang,
   elegir(){
@@ -82,12 +83,13 @@ const Voz={
   uno(texto,lento,k){
     return new Promise(res=>{
       if(!ST.voz)return res();
-      let listo=false;const a=Voz.a;
-      const fin=()=>{if(listo)return;listo=true;clearTimeout(t);a.onended=a.onerror=null;res()};
-      const t=setTimeout(fin,3000+texto.length*220);
-      const local=()=>{try{if(!synth)return fin();const u=new SpeechSynthesisUtterance(texto),v=Voz.elegir();if(v){u.voice=v;u.lang=v.lang}else u.lang="en-GB";u.rate=(lento?.6:.85)*VEL[ST.vel];u.pitch=1.05;u.onend=u.onerror=fin;synth.cancel();synth.speak(u)}catch(e){fin()}};
+      let listo=false,hablo=false;const a=Voz.a;Voz.activas++;
+      const fin=()=>{if(listo)return;listo=true;Voz.activas=Math.max(0,Voz.activas-1);clearTimeout(t);a.onended=a.onerror=null;res()};
+      const t=setTimeout(()=>{if(!hablo)Voz.fallo=true;fin()},3000+texto.length*220);   // (ni siquiera empezó a hablar: la voz no anda)
+      const local=()=>{try{if(!synth){Voz.fallo=true;return fin()}const u=new SpeechSynthesisUtterance(texto),v=Voz.elegir();if(v){u.voice=v;u.lang=v.lang}else u.lang="en-GB";u.rate=(lento?.6:.85)*VEL[ST.vel];u.pitch=1.05;
+        u.onstart=()=>{hablo=true};u.onend=fin;u.onerror=e=>{if(!(e&&/canceled|interrupted/.test(e.error)))Voz.fallo=true;fin()};synth.cancel();synth.speak(u)}catch(e){Voz.fallo=true;fin()}};
       if(!k||!HAY.has(k))return local();
-      a.onended=fin;a.onerror=()=>{a.onended=a.onerror=null;local()};
+      a.onended=()=>{hablo=true;fin()};a.onerror=()=>{a.onended=a.onerror=null;local()};
       a.src="audio/"+k+".mp3";a.playbackRate=(lento?.7:1)*VEL[ST.vel];try{a.preservesPitch=true;a.webkitPreservesPitch=true}catch(e){}
       try{const p=a.play();if(p&&p.catch)p.catch(()=>local())}catch(e){local()}
     });
@@ -95,7 +97,7 @@ const Voz={
   // x: una clave de audio (en_…) o el texto; devuelve cuando termina de hablar
   async decir(x,lento){if(!x)return;const k=I1.audio[x]!==undefined?x:I1.K(x),id=++Voz.seq;Voz.parar();Voz.seq=id;Voz.dichos.push(k);await Voz.uno(I1.audio[k],lento,k)},
   async secuencia(l,lento){const id=++Voz.seq;Voz.parar();Voz.seq=id;for(const x of l){if(Voz.seq!==id)return;const k=I1.audio[x]!==undefined?x:I1.K(x);Voz.dichos.push(k);await Voz.uno(I1.audio[k],lento,k);if(Voz.seq!==id)return;await pausa(120)}},
-  parar(){Voz.seq++;try{Voz.a.pause()}catch(e){}try{synth&&synth.cancel()}catch(e){}},
+  parar(){Voz.seq++;Voz.activas=0;try{Voz.a.pause()}catch(e){}try{synth&&synth.cancel()}catch(e){}},
   dichos:[]   // (para las pruebas: cada clave que se pidió)
 };
 if(synth){const f=()=>{Voz.elegir();if(typeof refrescarVoces==="function")refrescarVoces()};if(synth.addEventListener)synth.addEventListener("voiceschanged",f);else synth.onvoiceschanged=f}
@@ -261,7 +263,7 @@ function armarPrueba(){
 // ---------------- pantallas
 const PANT=["pInicio","pTema","pPreg","pFin","pPrueba","pAjustes","pConv"];
 let ULT_NAV=0,TEMA_ACT=null,R=null;
-function ir(p,arranque){if(I1.oral&&I1.oral.parar)I1.oral.parar();Voz.parar();PANT.forEach(x=>$(x).hidden=x!==p);if(!arranque)ULT_NAV=performance.now();window.scrollTo(0,0)}
+function ir(p,arranque){if(I1.oral&&I1.oral.parar)I1.oral.parar();Voz.parar();if(p!=="pConv")convPantalla(false);PANT.forEach(x=>$(x).hidden=x!==p);if(!arranque)ULT_NAV=performance.now();window.scrollTo(0,0)}
 const bloq=()=>window.__I1_SIN_ESPERA!==true&&performance.now()-ULT_NAV<350;   // un doble toque (el segundo cae sobre la pantalla nueva) no contesta lo que viene
 const estrellas=(n,max)=>Array.from({length:max||3},(_,i)=>`<span class="star${i<n?" on":""}" aria-hidden="true">★</span>`).join("");
 const aria=(n,max)=>`<span class="vh">${n} de ${max||3} estrellas</span>`;
@@ -346,6 +348,8 @@ function pintarAjustes(){
    <label class="fila"><input type="checkbox" id="ajEs" ${ST.es?"checked":""}><span>🇦🇷 Mostrar la ayuda en castellano</span></label>
    <label class="fila"><input type="checkbox" id="ajExtra" ${ST.extra?"checked":""}><span>➕ Más palabras (números hasta 20, más útiles y saludos, fechas del 11 al 31): por si todavía no se vieron en la escuela</span></label>
    <label class="fila"><input type="checkbox" id="ajIA" ${ST.ia?"checked":""} ${iaOk?"":"disabled"}><span>🤖 Hablar con ayuda de la IA ${iaOk?"":"(no está configurada en este sitio)"}</span></label>
+   <label class="fila"><input type="checkbox" id="ajAuto" ${ST.auto!==false?"checked":""}><span>🎙️ Conversar sin tocar: el micrófono se abre solo después de cada pregunta</span></label>
+   <p class="nota-aj">Necesita la voz del profe encendida y la IA. Si el aparato no deja abrir el micrófono solo, se vuelve a tocar (aparece un aviso).${ST.auto===false&&ST.autoFalla>=2?" <b>Se apagó solo</b> porque este aparato no lo dejó abrir dos veces seguidas: volvé a marcarlo para probar de nuevo.":""}</p>
    <label class="fila"><span>🎤 Sensibilidad del micrófono</span><select id="ajMic"><option value="normal"${ST.mic==="normal"?" selected":""}>Normal</option><option value="alta"${ST.mic==="alta"?" selected":""}>Alta</option><option value="muy"${ST.mic==="muy"?" selected":""}>Muy alta</option></select></label>
    <p class="nota-aj">Si el micrófono «escucha muy bajo», subila. «Alta» es la que viene puesta; «Muy alta» sirve si el chico habla muy bajito o lejos del aparato, pero puede tomar el ruido del cuarto por voz.</p>
    <div class="fila"><button type="button" class="btn sec chico" id="ajProbarMic">🎤 Probar el micrófono</button><span id="ajMicRes" class="nota-aj" role="status" aria-live="polite"></span></div>
@@ -502,30 +506,42 @@ RENDER.parte=q=>{
 };
 // ·· hablar (ver oral.js: el micrófono, la IA que pasa la voz a texto y la comprobación)
 // El micrófono de UNA respuesta (lo usan «Hablar» y «Conversar»). q: la tarea ({ev, tema, hecho, ocupado, oyendo, tAbrio}).
-// io: lo que cambia entre una pantalla y otra {antes, micT, estado, nivel, vigente, aviso, falla, resultado}.
-async function hablarUnaVez(q,io){
-  if(q.hecho||bloq())return;
-  if(q.ocupado){if(q.oyendo&&performance.now()-(q.tAbrio||0)>600)I1.oral.terminar();return}   // (un toque doble de un chico justo al abrir no corta la grabación)
+// io: lo que cambia entre una pantalla y otra {antes, micT, estado, nivel, vigente, aviso, falla, resultado, reposo}.
+// opc.auto: lo abrió la conversación manos libres, no un toque (no la frena la guarda del doble toque). opc.callado: no dice «Try again!» (lo decide quien llama).
+// Devuelve qué pasó: "resultado" (ya se mostró el veredicto) | "mudo" | "vacio" (no se entendió ninguna palabra) | "digital" (sólo silencio total: el aparato no lo deja abrir solo) | "error" | "falla" (la IA)
+// | "cancelado" | "viejo" (ya es otra pantalla) | "ocupado" | "hecho" | "bloq".
+async function hablarUnaVez(q,io,opc){
+  opc=opc||{};
+  if(q.hecho)return "hecho";
+  if(!opc.auto&&bloq())return "bloq";
+  if(q.ocupado){if(q.oyendo&&performance.now()-(q.tAbrio||0)>600)I1.oral.terminar();return "ocupado"}   // (un toque doble de un chico justo al abrir no corta la grabación)
   q.ocupado=true;q.oyendo=false;Voz.parar();Son.init();io.antes();
   io.micT("Abriendo el micrófono…");
-  const r=await I1.oral.escuchar({mic:ST.mic,max:q.ev.k==="serie"?(q.ev.lista.length>7?24000:14000):8000,sil:q.ev.k==="serie"?2200:1500,
+  const r=await I1.oral.escuchar({mic:ST.mic,espera:window.__I1_ESPERA,max:q.ev.k==="serie"?(q.ev.lista.length>7?24000:14000):8000,sil:q.ev.k==="serie"?2200:1500,
     alAbrir:()=>{q.oyendo=true;q.tAbrio=performance.now();io.estado("oyendo");io.micT(MIC_OYENDO);vibrar(10)},onNivel:io.nivel,
     onBajo:()=>io.micT("Te oigo muy bajito: acercate y hablá más fuerte"),onVoz:()=>io.micT(MIC_OYENDO)});
   q.oyendo=false;
-  if(q.hecho||!io.vigente()){q.ocupado=false;return}   // (ya es otra pantalla u otra vuelta: no se toca nada de lo que se ve, el micrófono de ahora puede ser otro)
+  if(q.hecho||!io.vigente()){q.ocupado=false;return "viejo"}   // (ya es otra pantalla u otra vuelta: no se toca nada de lo que se ve, el micrófono de ahora puede ser otro)
   io.nivel(0);
-  const libre=()=>{io.estado("");q.ocupado=false;io.micT("Tocá el micrófono y hablá")};
-  if(r.cancelado)return libre();
-  if(r.error){libre();return io.aviso(r.error)}
-  if(r.mudo){libre();io.aviso(r.bajo?"Te escuché muy bajito. Acercate un poco al aparato y hablá más fuerte. Try again!":"No te escuché. Try again!");return Voz.decir("Try again!")}
+  const libre=()=>{io.estado("");q.ocupado=false;io.micT(io.reposo?io.reposo():"Tocá el micrófono y hablá")};
+  if(r.cancelado){libre();return "cancelado"}
+  if(r.error){libre();q.errorTexto=r.error;io.aviso(r.error);return "error"}
+  if(r.mudo){
+    libre();
+    if(r.digital&&opc.auto)return "digital";   // (manos libres: no llega ni ruido; no se insiste, el aparato no lo deja abrir solo)
+    io.aviso(r.bajo?"Te escuché muy bajito. Acercate un poco al aparato y hablá más fuerte. Try again!":"No te escuché. Try again!");
+    if(!opc.callado)await Voz.decir("Try again!");   // (en «Conversar» lo dice la conversación: sólo cuando de verdad se va a volver a escuchar)
+    return "mudo";
+  }
   io.estado("pensando");io.micT("Pensando…");
   const t=await I1.oral.transcribir(r.blob,{pista:q.tema});
-  if(q.hecho||!io.vigente()){q.ocupado=false;return}   // (se salteó o se salió mientras la IA pensaba: el resultado viejo se descarta sin tocar la pantalla de ahora)
+  if(q.hecho||!io.vigente()){q.ocupado=false;return "viejo"}   // (se salteó o se salió mientras la IA pensaba: el resultado viejo se descarta sin tocar la pantalla de ahora)
   libre();
-  if(t.error)return io.falla(t.error);
+  if(t.error){io.falla(t.error);return "falla"}
   // sin ninguna palabra (un ruido que se tomó por voz, una voz demasiado baja) no hay nada que juzgar: no cuenta como intento, se vuelve a probar
-  if(!t.texto){io.aviso(r.bajo?"Te escuché muy bajito y no entendí nada. Acercate un poco y hablá más fuerte. Try again!":"No entendí lo que dijiste. Try again!");return Voz.decir("Try again!")}
+  if(!t.texto){io.aviso(r.bajo?"Te escuché muy bajito y no entendí nada. Acercate un poco y hablá más fuerte. Try again!":"No entendí lo que dijiste. Try again!");if(!opc.callado)await Voz.decir("Try again!");return "vacio"}
   io.resultado(I1.oral.evaluar(q.ev,t.texto,ST),t.texto,{bajo:!!r.bajo});
+  return "resultado";
 }
 const MIC_OYENDO="Te escucho… ¡hablá!";
 // el veredicto, a la vista y sin vueltas: ✅ ¡Correcto! · 🟡 Casi · ❌ Todavía no, con lo que la IA escuchó y (al final) cómo era
@@ -655,6 +671,7 @@ function pintarConv(){
    <div class="chat" id="chat" role="log" aria-live="polite" aria-label="Conversación"></div>
    <footer class="convctl" id="convCtl"></footer>`;
   try{if(CONV_RO)CONV_RO.disconnect();if(window.ResizeObserver){CONV_RO=new ResizeObserver(()=>{convPieAlto();convAVista()});CONV_RO.observe($("convCtl"))}}catch(e){}   // (si el pie cambia de alto, la última burbuja se vuelve a acomodar)
+  $("convCtl").addEventListener("click",e=>{if(C&&C.pausa&&!document.hidden&&e.target.closest&&e.target.closest("button")){C.pausa=false;C.silencios=0;C.reanudo=true}},true);   // (tocar un botón saca de la pausa: se mira antes que lo que haga el botón; el micrófono, además, repite la pregunta)
 }
 let CONV_RO=null;
 // si el pie ocupa más de la mitad de la pantalla (letra muy grande en un celular chico) deja de ser fijo: tapaba la pregunta
@@ -682,13 +699,83 @@ function convNota(texto){
   convAVista();
 }
 const convDice=(T,previa)=>`${previa?`<p class="rea" lang="en">${esc(previa)}</p>`:""}<p class="dice" lang="en"><b>${esc(T.dice)}</b><button type="button" class="oir chico" data-dec="${esc(T.dice)}" aria-label="Listen">🔊</button></p>${ST.es?`<small class="es">${esc(T.es)}</small>`:""}<div class="dib-b">${T.cuerpo}</div>`;
-function convTurno(demo){
-  const T=C.turnos[C.i];C.tok++;T.intentos=0;T.hecho=false;T.ocupado=false;T.oyendo=false;
-  const previa=C.previa;C.previa="";
+async function convTurno(demo){
+  const T=C.turnos[C.i];C.tok++;T.intentos=0;T.hecho=false;T.ocupado=false;T.oyendo=false;T.armando=false;T.silencios=0;T.siguiendo=false;clearTimeout(T.tSeguir);C.reanudo=false;
+  const tok=C.tok,previa=C.previa;C.previa="";
   const prog=$("convProg"),num=$("convNum");if(prog)prog.style.width=Math.round(100*C.i/C.turnos.length)+"%";if(num)num.textContent=(C.i+1)+"/"+C.turnos.length;
   convCtl(T);
   burbuja("prof",convDice(T,previa));
-  if(!demo)Voz.secuencia(previa?[previa,T.dice]:[T.dice]);
+  if(demo||C.pausa)return;   // (en pausa no se habla ni se escucha: al retomar se repite la pregunta)
+  if(await convHabla(previa?[previa,T.dice]:[T.dice]))convAutoEscucha(T,tok);   // (manos libres: cuando el profe termina de preguntar, el micrófono se abre solo)
+}
+// ---- Manos libres. Después de cada pregunta del profe el micrófono se abre SOLO: no hay que tocarlo. Cuando el aparato no deja (iPhone, audio suspendido, micrófono mudo) se vuelve a tocar, con un aviso.
+// Sin la voz del profe no se abre solo (el chico no oye la pregunta) y en Ajustes se puede apagar. Tocar el micrófono sigue sirviendo: si el profe todavía habla, lo calla y se contesta ya.
+const autoQuiere=()=>ST.auto!==false&&ST.voz;
+// el profe habla y se sabe si terminó SOLO (false si algo lo cortó: un toque, otra pantalla, otra frase). Si la voz del aparato no anda (el chico no oye la pregunta) no se abre el micrófono solo: se avisa y se sigue tocando.
+async function convHabla(lista){
+  const id=Voz.seq+1;Voz.fallo=false;
+  await Voz.secuencia(lista);
+  if(Voz.seq!==id)return false;
+  if(Voz.fallo&&C&&C.auto){convAutoApagar(C.turnos[C.i],"sinvoz");return false}
+  return true;
+}
+// mientras suena otra frase (el chico tocó un 🔊) no se abre el micrófono: grabaría la voz del profe y le cortaría la frase
+async function convVozLibre(T,tok){for(let k=0;k<120&&Voz.activas>0&&convAutoPuede(T,tok);k++)await pausa(100)}
+// ¿sigue siendo el momento de abrir el micrófono solo?
+const convAutoPuede=(T,tok)=>!!C&&C.auto&&!C.pausa&&C.tok===tok&&C.turnos[C.i]===T&&!T.hecho&&!T.ocupado&&!!T.ia&&!document.hidden;
+// un respiro para que se apague el eco de la voz del profe, la señal de «ahora vos» y a escuchar
+async function convAutoEscucha(T,tok){
+  if(!C||!C.auto)return;
+  if(document.hidden){convPausar();return}   // (la pantalla se fue al fondo antes de que le tocara escuchar: queda en pausa)
+  if(T.armando||!convAutoPuede(T,tok))return;
+  T.armando=true;   // (una sola cadena por vuelta: si dos terminan de hablar a la vez, sólo una abre el micrófono)
+  try{
+    await convVozLibre(T,tok);if(!convAutoPuede(T,tok))return;
+    await pausa(window.__I1_SIN_ESPERA?30:350);if(!convAutoPuede(T,tok))return;
+    await convVozLibre(T,tok);if(!convAutoPuede(T,tok))return;
+    Son.cue();await pausa(window.__I1_SIN_ESPERA?20:250);if(!convAutoPuede(T,tok))return;
+    await convVozLibre(T,tok);if(!convAutoPuede(T,tok))return;
+  }finally{T.armando=false}
+  const r=await hablarUnaVez(T,T.io,{auto:true,callado:true});
+  if((r==="resultado"||r==="mudo"||r==="vacio")&&ST.autoFalla){ST.autoFalla=0;guardar()}   // (abrió solo: el aparato sí deja)
+  convDespues(T,tok,r);
+}
+// qué sigue cuando el micrófono (abierto solo o tocado) terminó SIN veredicto; con veredicto sigue convResultado
+async function convDespues(T,tok,r){
+  if(!C||C.tok!==tok||C.turnos[C.i]!==T||T.hecho)return;
+  if(r==="mudo"||r==="vacio"){
+    if(C.pausa)return;
+    if(!C.auto){await Voz.decir("Try again!");return}   // (a mano: sólo se avisa y se espera el toque, como siempre)
+    return convSilencio(T,tok);
+  }
+  if(!C.auto||C.pausa)return;
+  if(r==="digital"||r==="error")return convAutoApagar(T,r);
+  if(r==="falla"){await pausa(window.__I1_SIN_ESPERA?30:1000);return convAutoEscucha(T,tok)}   // (la IA falló una vez: se escucha de nuevo; a la segunda el pie pasa a «Lo dijo bien»)
+}
+// el aparato no deja abrir el micrófono solo: se sigue tocando. A la 2.ª vez seguida deja de probarse sola (se puede volver a encender en «Para grandes»): en un iPhone, por ejemplo, fallaría siempre.
+function convAutoApagar(T,r){
+  C.auto=false;ST.autoFalla=(ST.autoFalla||0)+1;const apagada=ST.autoFalla>=2;if(apagada)ST.auto=false;guardar();
+  convPantalla(false);   // (ya no hace falta mantener la pantalla encendida)
+  if(T&&T.io){T.io.estado("");T.io.aviso("");T.io.micT(T.io.reposo())}
+  // el aviso del pie se pasa al chat (donde se queda): si no dejó por el audio suspendido o llegó mudo se explica lo de «solo»; si fue otra cosa (permiso negado, sin micrófono…) va el motivo tal cual
+  const e=T.errorTexto||"",generico=r==="sinvoz"?"No se oye la voz del profe en este aparato (¿está el volumen en cero?). Se contesta tocando el micrófono.":r==="digital"?"No llega sonido del micrófono. Si no lo tapaste, este aparato no deja abrirlo solo: tocá el micrófono para contestar.":"Este aparato no deja abrir el micrófono solo: tocá el micrófono para contestar.";
+  convNota((r==="error"&&e&&!/^El audio no arrancó/.test(e)?e:generico)+(apagada?" La próxima vez ya no se prueba (se puede volver a encender en «Para grandes»).":""));
+}
+// sin contestar (o sin que se entienda nada): la 1.ª vez «Try again!» y se escucha de nuevo; la 2.ª el profe da la respuesta y sigue; con 2 vueltas seguidas así, se pausa
+async function convSilencio(T,tok){
+  T.silencios=(T.silencios||0)+1;
+  if(T.silencios<2){
+    if(!(await convHabla(["Try again!"])))return;   // (otra frase lo cortó —un 🔊 tocado, una pausa—: de ahí sigue quien la cortó)
+    return convAutoEscucha(T,tok);
+  }
+  C.silencios=(C.silencios||0)+1;
+  T.hecho=true;convRegistrar(T,"no");convModelo(T);
+}
+// la pantalla se fue al fondo: no se escucha ni se avanza solo hasta que alguien toque algo
+function convPausar(){
+  if(!C||!C.auto)return;
+  C.pausa=true;
+  const T=C.turnos[C.i];if(T&&T.io&&!T.hecho){T.io.estado("");T.io.micT(T.io.reposo())}
 }
 // el pie: el micrófono (o «Lo dijo bien» si no hay IA o permiso) y «Saltear»; después de fallar, «Seguir»
 function convCtl(T,seguir){
@@ -698,12 +785,13 @@ function convCtl(T,seguir){
   const alFoco=()=>{if(foco)try{(ctl.querySelector("#bConvMic,#bConvSig,#bConvDije")||ctl).focus({preventScroll:true})}catch(e){}};
   ULT_NAV=performance.now();   // el pie nuevo aparece en el mismo lugar que el viejo: un doble toque (en «Saltear», en el micrófono) no tiene que apretar también el botón que aparece
   if(seguir){ctl.innerHTML=`<button type="button" class="btn grande" id="bConvSig">Seguir ➜</button>`;alFoco();return}
+  const reposo=()=>C&&C.pausa?"En pausa · tocá el micrófono para seguir":C&&C.auto?"Escuchá al profe…":"Tocá el micrófono y contestá";
   ctl.innerHTML=`<div class="aviso-c" id="convAviso" role="status" aria-live="polite"></div>
-   ${ia?`<button type="button" class="mic chico" id="bConvMic" aria-label="Tocar y hablar"><span class="mic-ico" aria-hidden="true">🎤</span><i class="ondas" aria-hidden="true"></i></button><div class="ct"><div class="mic-t" id="convMicT">Tocá el micrófono y contestá</div><div class="nivel" aria-hidden="true"><i id="convNivel"></i></div></div><button type="button" class="btn sec chico" id="bConvSaltar">⏭️ Saltear · Skip</button>`
+   ${ia?`<button type="button" class="mic chico${C.auto&&!C.pausa?" espera":""}" id="bConvMic" aria-label="Tocar y hablar"><span class="mic-ico" aria-hidden="true">🎤</span><i class="ondas" aria-hidden="true"></i></button><div class="ct"><div class="mic-t" id="convMicT">${reposo()}</div><div class="nivel" aria-hidden="true"><i id="convNivel"></i></div></div><button type="button" class="btn sec chico" id="bConvSaltar">⏭️ Saltear · Skip</button>`
      :`<div class="ct solo"><div class="mic-t">Contestá en voz alta y tocá ✔</div></div><button type="button" class="btn" id="bConvDije">✔ Lo dijo bien</button><div class="dos"><button type="button" class="btn sec chico" id="bConvRep">🔁 Otra vez</button><button type="button" class="btn sec chico" id="bConvSaltar">⏭️ Saltear · Skip</button></div>`}`;
   const avisar=t=>{const a=$("convAviso");if(a)a.textContent=t||""};
   const vigente=()=>!!C&&C.tok===tok&&C.turnos[C.i]===T;
-  $("bConvSaltar").addEventListener("click",()=>{if(!vigente()||T.hecho||bloq())return;if(I1.oral)I1.oral.parar();T.hecho=true;avisar("");convRegistrar(T,"no");convModelo(T)});
+  $("bConvSaltar").addEventListener("click",()=>{if(!vigente()||T.hecho||bloq())return;if(I1.oral)I1.oral.parar();T.hecho=true;C.silencios=0;C.reanudo=false;avisar("");convRegistrar(T,"no");convModelo(T)});
   if(!ia){
     $("bConvDije").addEventListener("click",()=>{if(!vigente()||T.hecho||bloq())return;T.hecho=true;burbuja("yo",`<span class="vere ok"><span class="vi" aria-hidden="true">✅</span><span class="vt"><b>¡Correcto!</b><span>Lo dijo bien (lo confirma un grande).</span></span></span>`,"ok");Son.ok();vibrar(15);convRegistrar(T,"ok");convSigue(T)});
     $("bConvRep").addEventListener("click",()=>{if(!vigente()||bloq())return;Voz.decir(T.dice)});
@@ -711,11 +799,16 @@ function convCtl(T,seguir){
   }
   const mic=$("bConvMic");
   const io={antes:()=>avisar(""),micT:t=>{const e=$("convMicT");if(e)e.textContent=t},
-    estado:e=>{const m=$("bConvMic");if(!m)return;m.classList.toggle("oyendo",e==="oyendo");m.classList.toggle("pensando",e==="pensando");m.setAttribute("aria-pressed",String(e==="oyendo"))},
-    nivel:v=>{const n=$("convNivel");if(n)n.style.width=Math.min(100,v)+"%"},vigente,aviso:avisar,
+    estado:e=>{const m=$("bConvMic");if(!m)return;m.classList.toggle("oyendo",e==="oyendo");m.classList.toggle("pensando",e==="pensando");m.classList.toggle("espera",e==="espera"||(e===""&&!!C&&C.auto&&!C.pausa));m.setAttribute("aria-pressed",String(e==="oyendo"))},   // (en manos libres, entre un intento y otro habla el profe: el micrófono se ve apagado)
+    nivel:v=>{const n=$("convNivel");if(n)n.style.width=Math.min(100,v)+"%"},vigente,aviso:avisar,reposo,
     // si la IA se cayó el pie pasa a «Lo dijo bien»: lo que explica el cambio va como nota en el chat (en el pie se perdía al volver a dibujarlo)
-    falla:t=>{if(I1.oral.disponible(ST).ia)avisar(t);else{convCtl(T);convNota(t)}},resultado:(ev,texto,x)=>convResultado(T,ev,texto,x)};
-  mic.addEventListener("click",()=>hablarUnaVez(T,io));
+    falla:t=>{if(I1.oral.disponible(ST).ia)avisar(t);else{C.auto=false;convPantalla(false);convCtl(T);convNota(t)}},resultado:(ev,texto,x)=>convResultado(T,ev,texto,x)};
+  T.io=io;
+  mic.addEventListener("click",()=>{
+    const tk=C?C.tok:0,reanudo=!!(C&&C.reanudo);if(C)C.reanudo=false;
+    if(reanudo&&C.auto&&!T.hecho&&!T.ocupado){convHabla([T.dice]).then(fin=>{if(fin)convAutoEscucha(T,tk)});return}   // (después de una pausa se repite la pregunta y se escucha)
+    hablarUnaVez(T,io,{callado:true}).then(r=>convDespues(T,tk,r));   // (a mano o, en manos libres, para contestar ya)
+  });
   alFoco();
 }
 function convRegistrar(T,res){
@@ -723,19 +816,28 @@ function convRegistrar(T,res){
   T.ids.forEach(id=>{if(res!=="casi")anotar(id,res==="ok")});T.ids.forEach(id=>anotarOral(id,res));sumarDia(res!=="no");guardar();
 }
 function convResultado(T,ev,texto,x){
-  T.intentos++;const ultimo=ev.res==="ok"||T.intentos>=2;
+  T.intentos++;C.silencios=0;const ultimo=ev.res==="ok"||T.intentos>=2,tok=C.tok;
   burbuja("yo",vereHTML(ev.res,texto,ultimo&&ev.res!=="ok"?T.mostrar:"",T.dire,x&&x.bajo),ev.res);
   if(ev.res==="ok"){T.hecho=true;convRegistrar(T,"ok");Son.ok();vibrar(15);return convSigue(T)}
-  if(!ultimo){Son.mal();const d=ev.res==="casi"?"Almost! Try again.":"Try again!";burbuja("prof",`<p class="rea" lang="en">${d}</p>`);Voz.secuencia([ev.res==="casi"?"Almost!":"Try again!",T.dice]);return}
+  if(!ultimo){Son.mal();const d=ev.res==="casi"?"Almost! Try again.":"Try again!";burbuja("prof",`<p class="rea" lang="en">${d}</p>`);
+    convHabla([ev.res==="casi"?"Almost!":"Try again!",T.dice]).then(fin=>{if(fin)convAutoEscucha(T,tok)});return}   // (manos libres: después de «Try again!» se vuelve a escuchar solo)
   T.hecho=true;convRegistrar(T,ev.res);convModelo(T);
 }
-// la segunda vez que no sale (o «Saltear»): el profe dice cómo era y se sigue con «Seguir»
+// la segunda vez que no sale (o «Saltear»): el profe dice cómo era y se sigue con «Seguir» (en manos libres se sigue solo, un momento después)
 function convModelo(T){
+  const tok=C.tok;
   burbuja("prof",`<p class="rea" lang="en">Listen: <b>${esc(T.mostrar)}</b></p><p><button type="button" class="oir chico" data-dec="${esc(T.dire)}" aria-label="Listen">🔊</button><button type="button" class="oir chico" data-dec="${esc(T.dire)}" data-lento="1" aria-label="Listen slowly">🐢</button></p>`);
-  Voz.decir(T.dire);convCtl(T,true);
+  convCtl(T,true);
+  convHabla([T.dire]).then(fin=>{
+    if(!fin||!C||!C.auto||C.tok!==tok||C.turnos[C.i]!==T)return;
+    if(C.silencios>=2){C.pausa=true;convNota("El profe espera. Tocá «Seguir ➜» cuando quieras seguir.");return}   // (dos vueltas seguidas sin contestar: no se sigue solo)
+    if(C.pausa)return;
+    T.tSeguir=setTimeout(()=>{if(C&&C.auto&&!C.pausa&&C.tok===tok&&C.turnos[C.i]===T)convSigue(T,true)},window.__I1_SIN_ESPERA?60:2200);
+  });
 }
 // después de contestar bien: el profe reacciona y sigue (en la última vuelta se despide y sale el resultado)
 async function convSigue(T,sinReaccion){
+  if(T.siguiendo)return;T.siguiendo=true;clearTimeout(T.tSeguir);   // (el «Seguir» tocado y el que viene solo no pasan dos vueltas)
   const tok=C.tok,ultima=C.i>=C.turnos.length-1;
   C.previa=sinReaccion?(ultima?"OK! See you soon!":elegir(["OK, let's continue!","Let's go on!"])):elegir(T.rea);   // (en la última vuelta no se dice «sigamos»: viene el resultado)
   if(ultima){
@@ -743,7 +845,7 @@ async function convSigue(T,sinReaccion){
     await Voz.decir(f);await pausa(window.__I1_SIN_ESPERA?30:900);if(C&&C.tok===tok)convFin();return;
   }
   C.foco=$("convCtl").contains(document.activeElement);$("convCtl").innerHTML="";   // (si el teclado estaba en el pie, pasa al pie de la vuelta que sigue)
-  await pausa(window.__I1_SIN_ESPERA?30:700);if(!C||C.tok!==tok)return;
+  await pausa(window.__I1_SIN_ESPERA?30:(C.auto?350:700));if(!C||C.tok!==tok)return;
   C.i++;convTurno();
 }
 function convFin(){
@@ -762,11 +864,27 @@ async function convEmpezar(){
   try{
     Son.init();Voz.desbloquear();
     const permiso=I1.oral?await I1.oral.preparar(ST):"off";
-    C={turnos:armarConv(),i:0,ok:0,casi:0,mal:0,res:[],tok:0,permiso,previa:""};
+    C={turnos:armarConv(),i:0,ok:0,casi:0,mal:0,res:[],tok:0,permiso,previa:"",auto:autoQuiere()&&permiso==="ok",pausa:false,silencios:0};
     pintarConv();ir("pConv");
+    if(document.hidden)C.pausa=true;   // (la pantalla se fue al fondo mientras se pedía el permiso: empieza en pausa)
+    if(C.auto)convPantalla(true);
     convNota(I1.oral?I1.oral.msgPermiso(permiso):"");   // (sin permiso de micrófono: cómo permitirlo, una sola vez y a la vista; antes se repetía en el pie de cada vuelta y lo llenaba)
     convTurno();
   }finally{EMPEZANDO=false}
+}
+
+// La pantalla se mantiene encendida mientras dura la conversación manos libres: el chico contesta hablando y no toca nada, y con el bloqueo automático del celular se apagaría a mitad (y la charla quedaría en pausa).
+// Igual que en la integradora; si el aparato no lo permite (o es más viejo), no pasa nada.
+let WAKE=null,WAKE_TOK=0;
+async function convPantalla(on){
+  const mi=++WAKE_TOK;
+  try{
+    if(!on){if(WAKE){const w=WAKE;WAKE=null;await w.release()}return}
+    if(!navigator.wakeLock||WAKE||document.hidden)return;
+    const w=await navigator.wakeLock.request("screen");
+    if(mi!==WAKE_TOK){try{await w.release()}catch(e){}return}   // (mientras se pedía, la charla ya había terminado)
+    WAKE=w;w.addEventListener("release",()=>{if(WAKE===w)WAKE=null});
+  }catch(e){WAKE=null}
 }
 
 // ---- «Probar el micrófono» (Ajustes): escucha unos segundos y dice cómo se oyó con la sensibilidad elegida. No se manda nada a la IA.
@@ -789,7 +907,14 @@ document.addEventListener("click",e=>{
   const b=e.target.closest&&e.target.closest("button,.card,.fr");if(!b)return;
   if(!window.__I1_SIN_ESPERA&&false)return;
   Son.init();Voz.desbloquear();
-  if(b.classList.contains("oir")&&b.dataset.dec){return Voz.decir(b.dataset.dec,b.dataset.lento==="1")}
+  if(b.classList.contains("oir")&&b.dataset.dec){
+    if(C){const T=C.turnos[C.i];if(T){
+      clearTimeout(T.tSeguir);   // (quien toca 🔊/🐢 está escuchando la respuesta: no se sigue solo mientras tanto)
+      if(T.ocupado&&I1.oral)I1.oral.parar();   // (si el micrófono estaba abierto se descarta: grabaría la voz del profe como si fuera la respuesta)
+      if(C.auto&&!T.hecho&&!C.pausa){const tok=C.tok,id=Voz.seq+1;return Voz.decir(b.dataset.dec,b.dataset.lento==="1").then(()=>{if(Voz.seq===id)convAutoEscucha(T,tok)})}   // (manos libres: después de oír eso —la pregunta u otra burbuja— se vuelve a escuchar)
+    }}
+    return Voz.decir(b.dataset.dec,b.dataset.lento==="1");
+  }
   if(b.id==="bOir"&&R){return Voz.secuencia(dichosInicio(R.qs[R.i]))}
   if(b.classList.contains("card")&&b.dataset.k){if(b.dataset.ej){Voz.secuencia([b.dataset.k,b.dataset.ej])}else Voz.decir(b.dataset.k);b.classList.remove("late");void b.offsetWidth;b.classList.add("late");return}
   if(b.classList.contains("fr")&&b.dataset.dec)return Voz.decir(b.dataset.dec);
@@ -822,6 +947,7 @@ document.addEventListener("change",e=>{
   if(i==="ajVozOn")ST.voz=e.target.checked;else if(i==="ajSon")ST.sonido=e.target.checked;else if(i==="ajEs")ST.es=e.target.checked;else if(i==="ajExtra")ST.extra=e.target.checked;
   else if(i==="ajIA")ST.ia=e.target.checked;else if(i==="ajVel")ST.vel=e.target.value==="lenta"||e.target.value==="rapida"?e.target.value:"normal";
   else if(i==="ajVoz"){ST.vozNombre=String(e.target.value||"").slice(0,160);Voz.elegir()}
+  else if(i==="ajAuto"){ST.auto=e.target.checked;if(ST.auto)ST.autoFalla=0}
   else if(i==="ajMic")ST.mic=e.target.value==="normal"||e.target.value==="muy"?e.target.value:"alta";
   guardar();
 });
@@ -833,7 +959,7 @@ function confirmar(msg,si){
   document.addEventListener("keydown",tecla,true);
   $("mSi").onclick=()=>{cerrarM();si()};$("mNo").onclick=cerrarM;try{$("mNo").focus()}catch(e){}
 }
-document.addEventListener("visibilitychange",()=>{if(document.hidden){Voz.parar();if(I1.oral&&I1.oral.parar)I1.oral.parar()}});
+document.addEventListener("visibilitychange",()=>{if(document.hidden){Voz.parar();if(I1.oral&&I1.oral.parar)I1.oral.parar();convPausar()}else if(C&&C.auto)convPantalla(true)});   // (el navegador suelta la pantalla encendida al irse al fondo: se vuelve a pedir)
 
 // ---------------- arranque
 function arrancar(){
@@ -843,9 +969,9 @@ function arrancar(){
     // muestra UNA pregunta ya armada (para mirar cada tipo en pantalla)
     probar:(q,modo)=>{R={modo:modo||"escrito",parte:modo==="oral"?"oral":"escrita",tema:q.tema,qs:[q],i:0,ok:0,casi:0,mal:0,res:[],tok:0,permiso:"ok"};ir("pPreg");mostrar()},
     terminarParte,pintarInicio,pintarPrueba,empezarPrueba,pintarPruebaOral,empezarOralPrueba,terminarPrueba,ir,
-    armarConv,conv:()=>C,convEmpezar,vereHTML,
+    armarConv,conv:()=>C,convEmpezar,vereHTML,convSigue:(T,s)=>convSigue(T,s),convPausar,
     // arma una conversación a medias, sin micrófono (para mirar cómo se ve): n vueltas ya contestadas (bien, casi, mal…) y la que sigue
-    convDemo:(n,permiso)=>{C={turnos:armarConv(),i:0,ok:0,casi:0,mal:0,res:[],tok:0,permiso:permiso||"ok",previa:""};pintarConv();ir("pConv");convNota(I1.oral.msgPermiso(C.permiso));
+    convDemo:(n,permiso,auto)=>{C={turnos:armarConv(),i:0,ok:0,casi:0,mal:0,res:[],tok:0,permiso:permiso||"ok",previa:"",auto:!!auto,pausa:false,silencios:0};pintarConv();ir("pConv");convNota(I1.oral.msgPermiso(C.permiso));
       const res=["ok","casi","no","ok"];for(let k=0;k<n;k++){convTurno(true);const T=C.turnos[C.i],r=res[k%res.length];burbuja("yo",vereHTML(r,r==="no"?"banana":T.dire,r==="ok"?"":T.mostrar,T.dire),r);if(r!=="ok")burbuja("prof",`<p class="rea" lang="en">Listen: <b>${esc(T.mostrar)}</b></p>`);C.previa=elegir(T.rea);C.i++}convTurno(true)}};
 }
 arrancar();

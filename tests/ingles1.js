@@ -95,7 +95,7 @@ const bRuido12=await chromium.launch({args:ARGS.concat(['--use-file-for-fake-aud
 const bFuerte=await chromium.launch({args:ARGS.concat(['--use-file-for-fake-audio-capture='+WAV_FUERTE+'%noloop'])});
 
 // ---------- utilidades de página
-// o: {vp, oscuro, rm (movimiento reducido), rapido (sin esperas: __I1_SIN_ESPERA), estado (lo guardado), bloquear (localStorage que falla), sinMic (permiso denegado), silencio (micrófono mudo), nav (otro navegador: voz bajita, ruido…), sinAGC (sin el control automático de volumen del navegador: como un iPhone), sinIr}
+// o: {vp, oscuro, rm (movimiento reducido), rapido (sin esperas: __I1_SIN_ESPERA), estado (lo guardado), bloquear (localStorage que falla), sinMic (permiso denegado), micDesde (n: el permiso se da pero desde la n-ésima apertura el micrófono se niega), silencio (micrófono mudo), nav (otro navegador: voz bajita, ruido…), sinAGC (sin el control automático de volumen del navegador: como un iPhone), sinIr}
 const abrir=async(o={})=>{
   const ctx=await (o.nav||(o.silencio?bSil:b)).newContext({viewport:o.vp||{width:390,height:844},hasTouch:true,deviceScaleFactor:1,colorScheme:o.oscuro?'dark':'light',reducedMotion:o.rm?'reduce':'no-preference',serviceWorkers:'block',permissions:['microphone']});
   const p=await ctx.newPage();p.errs=[];p.externos=[];p.ctx=ctx;
@@ -103,17 +103,19 @@ const abrir=async(o={})=>{
   await ctx.route(u=>u.hostname!==propio&&!/^(127\.0\.0\.1|localhost)$/.test(u.hostname),r=>{p.externos.push(new URL(r.request().url()).hostname);r.abort()});
   p.on('pageerror',e=>{p.errs.push('pageerror: '+e.message);console.log('   [error de la página]',e.message.slice(0,200))});
   p.on('console',m=>{if(m.type()==='error'&&!/Failed to load resource|net::ERR|ERR_FAILED/i.test(m.text())){p.errs.push('console: '+m.text());console.log('   [consola]',m.text().slice(0,200))}});
-  await ctx.addInitScript(({rapido,estado,bloquear,sinMic,sinAGC})=>{
+  await ctx.addInitScript(({rapido,estado,bloquear,sinMic,sinAGC,micDesde,micError})=>{
     window.__dichos=[];if(rapido)window.__I1_SIN_ESPERA=true;
     if(sinAGC&&navigator.mediaDevices){const g=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);navigator.mediaDevices.getUserMedia=c=>{if(c&&c.audio&&typeof c.audio==='object')c.audio.autoGainControl=false;return g(c)}}
     const s=window.speechSynthesis;if(s){s.speak=u=>{if(u.volume!==0)window.__dichos.push(u.text);setTimeout(()=>{try{u.onstart&&u.onstart({});u.onend&&u.onend({})}catch(e){}},5)};s.cancel=()=>{};s.getVoices=()=>[]}
     if(bloquear)Object.defineProperty(window,'localStorage',{get(){throw new Error('bloqueado')}});
     else if(estado!==undefined&&!sessionStorage.getItem('__sem')){try{localStorage.setItem('ingles1_estado',estado);sessionStorage.setItem('__sem','1')}catch(e){}}
     if(sinMic&&navigator.mediaDevices)navigator.mediaDevices.getUserMedia=()=>Promise.reject(Object.assign(new Error('Permission denied'),{name:'NotAllowedError'}));
-  },{rapido:!!o.rapido,estado:o.estado,bloquear:!!o.bloquear,sinMic:!!o.sinMic,sinAGC:!!o.sinAGC});
+    if(micDesde&&navigator.mediaDevices){const g=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);let n=0;navigator.mediaDevices.getUserMedia=c=>{n++;return n>=micDesde?Promise.reject(Object.assign(new Error('mic negado'),{name:micError||'NotAllowedError'})):g(c)}}   // (el permiso se da al empezar y después el aparato no deja abrir el micrófono solo)
+  },{rapido:!!o.rapido,estado:o.estado,bloquear:!!o.bloquear,sinMic:!!o.sinMic,sinAGC:!!o.sinAGC,micDesde:o.micDesde||0,micError:o.micError||''});
   if(!o.sinIr){await p.goto(BASE+'ingles1/');await p.waitForSelector('#pInicio .tema',{timeout:15000})}
   return p;
 };
+const MANUAL=JSON.stringify({v:1,auto:false});   // el estado guardado de quien conversa TOCANDO el micrófono (las pruebas de a mano; por defecto la conversación es manos libres)
 const cerrar=async p=>{await p.ctx.close()};
 const visible=(p,sel)=>p.evaluate(s=>{const e=document.querySelector(s);return !!e&&!e.hidden&&e.getBoundingClientRect().width>0},sel);
 const textoVisible=p=>p.evaluate(()=>{const e=document.querySelector('.pantalla:not([hidden])');return e?e.innerText:''});
@@ -797,7 +799,7 @@ await cerrar(p);
 
 // ---------- 7d) CONVERSAR: el profe pregunta lo básico (nombre, edad, cómo está, gustos, colores, contar, objetos, cuerpo, día) y el chico contesta hablando
 {
-const p=await abrir({rapido:true,vp:{width:360,height:640}});
+const p=await abrir({rapido:true,estado:MANUAL,vp:{width:360,height:640}});
 // 1) la conversación que se arma: siempre válida, con la respuesta modelo aceptada por el evaluador y sin repetir vueltas
 const g=await p.evaluate(()=>{
   const bad=[],ST=I1_T.estado(),largos=new Set(),subs=new Set();
@@ -851,7 +853,7 @@ await cerrar(p);
 }
 {
 // 4) equivocarse dos veces, saltear y salir
-const p=await abrir({rapido:true});
+const p=await abrir({rapido:true,estado:MANUAL});
 await p.evaluate(async()=>{I1.oral._t.mock({generar:async()=>{window.__llamadas=(window.__llamadas||0)+1;return window.__dijo}});window.__llamadas=0;return I1.oral.preparar(I1_T.estado())});
 await p.click('#bConv');await p.waitForSelector('#pConv:not([hidden]) #bConvMic',{timeout:8000});
 const yo=()=>p.evaluate(()=>[...document.querySelectorAll('#chat .burb.yo')].map(b=>b.className.replace('burb yo ','')+'|'+b.innerText.replace(/\s+/g,' ')));
@@ -929,7 +931,7 @@ chk('CONVERSAR sin permiso de micrófono en 6 tamaños (320×568, 360×640, 375�
 }
 {
 // doble toque en «Saltear»: el segundo toque cae sobre «Seguir ➜» (el pie cambia en el mismo lugar) y no tiene que apretarlo
-const p=await abrir({});   // (sin «rapido»: la guarda del doble toque está activa)
+const p=await abrir({estado:MANUAL});   // (sin «rapido»: la guarda del doble toque está activa)
 await p.evaluate(async()=>{I1.oral._t.mock({generar:async()=>window.__dijo});return I1.oral.preparar(I1_T.estado())});
 await p.click('#bConv');await p.waitForSelector('#pConv:not([hidden]) #bConvSaltar',{timeout:8000});await p.waitForTimeout(800);
 const bx=await p.locator('#bConvSaltar').boundingBox(),x=bx.x+bx.width/2,y=bx.y+bx.height/2;
@@ -944,7 +946,7 @@ await cerrar(p);
 }
 {
 // la IA cae dos veces seguidas: el aviso de la primera queda en el pie; el de la segunda (que explica el cambio a «Lo dijo bien») queda como nota del chat
-const p=await abrir({rapido:true});
+const p=await abrir({rapido:true,estado:MANUAL});
 await p.evaluate(async()=>{I1.oral._t.mock({generar:async()=>{throw new Error('boom 503 unavailable')}});return I1.oral.preparar(I1_T.estado())});
 await p.click('#bConv');await p.waitForSelector('#pConv:not([hidden]) #bConvMic',{timeout:8000});
 await p.click('#bConvMic');await p.waitForFunction(()=>/No pude escuchar/.test(document.getElementById('convAviso').textContent),null,{timeout:15000});
@@ -956,7 +958,7 @@ await cerrar(p);
 }
 {
 // un resultado viejo (la IA tardó y el chico ya saltó a la vuelta siguiente) no pisa el micrófono de la vuelta nueva
-const p=await abrir({rapido:true});
+const p=await abrir({rapido:true,estado:MANUAL});
 await p.evaluate(async()=>{window.__n=0;I1.oral._t.mock({generar:async()=>{window.__n++;if(window.__n===1){await new Promise(r=>setTimeout(r,2400));const m=document.getElementById('bConvMic');window.__alResolver={oyendo:!!m&&m.classList.contains('oyendo'),txt:(document.getElementById('convMicT')||{}).textContent};window.__rancia=true}return window.__dijo}});return I1.oral.preparar(I1_T.estado())});
 await p.click('#bConv');await p.waitForSelector('#pConv:not([hidden]) #bConvMic',{timeout:8000});
 await p.evaluate(()=>{window.__dijo='Hello'});await p.click('#bConvMic');
@@ -975,7 +977,7 @@ await cerrar(p);
 }
 {
 // «sin palabras» en Conversar: no cuenta como intento
-const p=await abrir({rapido:true});
+const p=await abrir({rapido:true,estado:MANUAL});
 await p.evaluate(async()=>{I1.oral._t.mock({generar:async()=>window.__dijo});return I1.oral.preparar(I1_T.estado())});
 await p.click('#bConv');await p.waitForSelector('#pConv:not([hidden]) #bConvMic',{timeout:8000});
 await p.evaluate(()=>{window.__dijo=''});await p.click('#bConvMic');
@@ -989,7 +991,7 @@ await cerrar(p);
 }
 {
 // una conversación salteada de punta a punta: la última vuelta no dice «sigamos» (viene el resultado) y el teclado sigue en el pie
-const p=await abrir({rapido:true});
+const p=await abrir({rapido:true,estado:MANUAL});
 await p.evaluate(async()=>{I1.oral._t.mock({generar:async()=>window.__dijo});return I1.oral.preparar(I1_T.estado())});
 await p.click('#bConv');await p.waitForSelector('#pConv:not([hidden]) #bConvSaltar',{timeout:8000});
 const total=await p.evaluate(()=>I1_T.conv().turnos.length),foco=[];
@@ -1015,6 +1017,263 @@ await cerrar(p);
 // transparencia reducida, sin backdrop-filter e impresión: el pie de Conversar entra igual que las otras barras
 const css=leer('ingles1/estilos.css');
 chk('el pie de Conversar respeta «transparencia reducida» (sólido y sin blur), el respaldo sin backdrop-filter y no se imprime',/prefers-reduced-transparency:\s*reduce\)\s*\{\s*\.barra,\.pbarra,\.pie,\.convctl\{[^}]*backdrop-filter:\s*none/.test(css)&&/@supports not[^\n]*\.convctl\{background:var\(--bg\)\}/.test(css)&&/@media print\{[^}]*\.convctl/.test(css));
+}
+
+// ---------- 7f) CONVERSAR MANOS LIBRES: el micrófono se abre solo después de cada pregunta (no hay que tocarlo) y, si el aparato no deja, se vuelve a tocar
+const IA_SEGUN_TURNO="I1.oral._t.mock({generar:async()=>{const C=I1_T.conv();return C?C.turnos[C.i].dire:''}})";   // la IA simulada «oye» la respuesta modelo de la vuelta en curso
+const CUENTA_CLICS="window.__clicsMic=0;window.__clicsSig=0;document.addEventListener('click',e=>{const t=e.target.closest&&e.target.closest('#bConvMic,#bConvSig');if(t)window[t.id==='bConvMic'?'__clicsMic':'__clicsSig']++},true)";
+const ABIERTOS=p=>p.evaluate(()=>(I1.oral._t.log.join('|').match(/mic abierto/g)||[]).length);
+{
+// una conversación entera SIN tocar el micrófono
+const p=await abrir({rapido:true});
+await p.evaluate(async([ia,clics])=>{window.__textos=new Set();new MutationObserver(()=>{const e=document.getElementById('convMicT');if(e)window.__textos.add(e.textContent)}).observe(document.body,{subtree:true,childList:true,characterData:true});eval(clics);eval(ia);return I1.oral.preparar(I1_T.estado())},[IA_SEGUN_TURNO,CUENTA_CLICS]);
+const ini=await p.evaluate(()=>I1_T.estado().auto);
+await p.click('#bConv');
+await p.waitForSelector('#pFin:not([hidden])',{timeout:90000});
+const f=await p.evaluate(()=>{const S=I1_T.estado(),lg=I1.oral._t.log.join('|');return {h1:document.querySelector('#pFin h1').innerText,cuenta:document.querySelector('#pFin .fin-cuenta').innerText.replace(/\s+/g,' '),convs:S.convs,abiertos:(lg.match(/mic abierto/g)||[]).length,soltados:(lg.match(/mic soltado/g)||[]).length,clicsMic:window.__clicsMic,clicsSig:window.__clicsSig,textos:[...window.__textos]}});
+chk('MANOS LIBRES: el ajuste viene encendido y una conversación ENTERA ('+f.cuenta+') se hace sin tocar el micrófono ni «Seguir»: el micrófono se abre solo en cada vuelta ('+f.abiertos+' veces) y se suelta siempre',ini===true&&/^10 de 10 bien$|^9 de 9 bien$/.test(f.cuenta)&&f.abiertos===f.convs[0].n&&f.soltados===f.abiertos&&f.clicsMic===0&&f.clicsSig===0,j(f));
+chk('MANOS LIBRES: el cartel del micrófono acompaña cada momento («Escuchá al profe…» → «Te escucho… ¡hablá!» → «Pensando…») ('+f.textos.join(' | ')+')',['Escuchá al profe…','Te escucho… ¡hablá!','Pensando…'].every(t=>f.textos.includes(t)),j(f.textos));
+chk('MANOS LIBRES: de punta a punta sin errores en la consola',p.errs.length===0,j(p.errs));
+await cerrar(p);
+}
+{
+// un error pide intentar otra vez SOLO («Try again!» y se vuelve a escuchar); al segundo error el profe da la respuesta y sigue solo
+const p=await abrir({rapido:true});
+await p.evaluate(async clics=>{eval(clics);window.__n={};I1.oral._t.mock({generar:async()=>{const C=I1_T.conv(),T=C.turnos[C.i];window.__n[C.i]=(window.__n[C.i]||0)+1;if(C.i===0&&window.__n[0]===1)return 'banana';if(C.i===1)return "I'm six";return T.dire}});return I1.oral.preparar(I1_T.estado())},CUENTA_CLICS);
+await p.click('#bConv');
+await p.waitForFunction(()=>{const C=I1_T.conv();return C&&C.i>=3},null,{timeout:60000});
+const e=await p.evaluate(()=>{const C=I1_T.conv();return {res:C.res.map(r=>r.res).join(),i:C.i,intentos:[0,1].map(k=>C.turnos[k].intentos),clicsMic:window.__clicsMic,clicsSig:window.__clicsSig,tryAgain:[...document.querySelectorAll('#chat .burb.prof .rea')].filter(x=>/Try again/.test(x.innerText)).length,listen:[...document.querySelectorAll('#chat .burb.prof .rea')].filter(x=>/Listen:/.test(x.innerText)).length,intentosPedidos:window.__n}});
+chk('MANOS LIBRES con errores, sin tocar nada: la vuelta 1 falla una vez («Try again!») y se vuelve a escuchar sola; la vuelta 2 falla dos veces, el profe da la respuesta («Listen: …») y SIGUE SOLO ('+e.res+')',e.res==='ok,no,ok'&&e.intentos[0]===2&&e.intentos[1]===2&&e.tryAgain>=2&&e.listen===1&&e.clicsMic===0&&e.clicsSig===0,j(e));
+chk('MANOS LIBRES con errores: sin errores en la consola',p.errs.length===0,j(p.errs));
+await cerrar(p);
+}
+{
+// sin contestar: «Try again!» y se escucha de nuevo; a la 2.ª vez sin contestar el profe da la respuesta y sigue; con 2 vueltas seguidas así se queda esperando («Seguir ➜»)
+const p=await abrir({rapido:true,nav:bRuido,sinAGC:true});   // (un cuarto con un poco de ruido y nadie habla)
+await p.evaluate(async clics=>{eval(clics);window.__I1_ESPERA=900;I1.oral._t.mock({generar:async()=>'red'});return I1.oral.preparar(I1_T.estado())},CUENTA_CLICS);
+await p.click('#bConv');
+await p.waitForFunction(()=>{const C=I1_T.conv();return C&&C.pausa===true},null,{timeout:40000});
+await p.waitForTimeout(1500);
+const s1=await p.evaluate(()=>{const C=I1_T.conv();return {tryAgain:window.__dichos.filter(x=>/Try again/.test(x)).length,res:C.res.map(r=>r.res).join(),i:C.i,pausa:C.pausa,sig:!!document.getElementById('bConvSig'),nota:[...document.querySelectorAll('#chat .burb.sis')].map(x=>x.innerText).join('|'),abiertos:(I1.oral._t.log.join('|').match(/mic abierto/g)||[]).length,intentos:C.turnos[0].intentos,sil:C.turnos[0].silencios}});
+chk('MANOS LIBRES sin contestar: nada que juzgar (no gasta intentos), «Try again!» UNA vez por vuelta (no justo antes de dar la respuesta) y el profe da la respuesta; con 2 vueltas seguidas así se queda esperando en «Seguir ➜» con una nota ('+s1.res+')',s1.res==='no,no'&&s1.i===1&&s1.pausa&&s1.sig&&/El profe espera/.test(s1.nota)&&s1.intentos===0&&s1.sil===2&&s1.abiertos===4&&s1.tryAgain===2,j(s1));
+await p.click('#bConvSig');await p.waitForFunction(()=>I1_T.conv().i===2&&I1_T.conv().pausa===false,null,{timeout:6000});
+await p.waitForFunction(()=>(I1.oral._t.log.join('|').match(/mic abierto/g)||[]).length>=5,null,{timeout:8000});
+chk('…y tocar «Seguir ➜» saca de la pausa: la vuelta siguiente vuelve a abrir el micrófono sola',true);
+chk('sin contestar no rompe nada (sin errores en la consola)',p.errs.length===0,j(p.errs));
+await cerrar(p);
+}
+{
+// el aparato no deja abrir el micrófono solo: vuelve a tocar, con un aviso, y no insiste
+const p=await abrir({rapido:true,silencio:true});   // (un micrófono que llega en silencio total)
+await p.evaluate(async()=>{window.__I1_ESPERA=1500;I1.oral._t.mock({generar:async()=>'red'});return I1.oral.preparar(I1_T.estado())});
+await p.click('#bConv');
+await p.waitForFunction(()=>{const C=I1_T.conv();return C&&C.auto===false},null,{timeout:20000});
+await p.waitForTimeout(2500);
+const d=await p.evaluate(()=>({nota:[...document.querySelectorAll('#chat .burb.sis')].map(x=>x.innerText).join('|'),txt:document.getElementById('convMicT').textContent,espera:document.getElementById('bConvMic').classList.contains('espera'),abiertos:(I1.oral._t.log.join('|').match(/mic abierto/g)||[]).length,i:I1_T.conv().i}));
+d.fallas=await p.evaluate(()=>I1_T.estado().autoFalla);
+chk('MANOS LIBRES con un micrófono que llega mudo (silencio total): lo avisa («tocá el micrófono para contestar»), vuelve a tocar, NO insiste abriéndolo otra vez y cuenta una falla ('+d.nota.slice(0,60)+'…)',/tocá el micrófono para contestar/.test(d.nota)&&d.txt==='Tocá el micrófono y contestá'&&!d.espera&&d.abiertos===1&&d.i===0&&d.fallas===1,j(d));
+await p.click('#bConvMic');await p.waitForFunction(()=>/No te escuch/.test(document.getElementById('convAviso').textContent),null,{timeout:15000});
+chk('…y tocándolo funciona como siempre (a mano)',await p.evaluate(()=>(I1.oral._t.log.join('|').match(/mic abierto/g)||[]).length===2));
+await cerrar(p);
+}
+{
+// el permiso se da al empezar pero después el aparato no deja abrir el micrófono solo (iPhone, por ejemplo): se vuelve a tocar con un aviso
+const p=await abrir({rapido:true,micDesde:2});
+await p.evaluate(async()=>{I1.oral._t.mock({generar:async()=>'red'});return I1.oral.preparar(I1_T.estado())});
+await p.click('#bConv');
+await p.waitForFunction(()=>{const C=I1_T.conv();return C&&C.auto===false},null,{timeout:15000});
+const q=await p.evaluate(()=>({nota:[...document.querySelectorAll('#chat .burb.sis')].map(x=>x.innerText).join('|'),aviso:(document.getElementById('convAviso')||{}).textContent,i:I1_T.conv().i}));
+q.fallas=await p.evaluate(()=>I1_T.estado().autoFalla);
+chk('MANOS LIBRES: si el aparato no deja abrir el micrófono solo (permiso negado al reabrir), el motivo se avisa en el chat (no en el pie) y la conversación queda en la misma vuelta, contando una falla ('+q.nota.slice(0,50)+'…)',/micrófono/.test(q.nota)&&/permit/.test(q.nota)&&q.aviso===''&&q.i===0&&q.fallas===1&&p.errs.length===0,j([q,p.errs]));
+await cerrar(p);
+}
+{
+// un aparato que NUNCA deja abrir el micrófono solo (un iPhone, por ejemplo): a la 2.ª vez seguida deja de probarse y en «Para grandes» se ve por qué; volver a marcar la casilla vuelve a probar
+const p=await abrir({rapido:true,micDesde:2,micError:'NotReadableError'});
+await p.evaluate(async()=>{I1.oral._t.mock({generar:async()=>'red'});return I1.oral.preparar(I1_T.estado())});
+const empezar=async()=>{await p.evaluate(()=>{I1_T.pintarInicio();I1_T.ir('pInicio')});await p.click('#bConv');await p.waitForSelector('#bConvMic')};
+await empezar();await p.waitForFunction(()=>I1_T.conv().auto===false,null,{timeout:15000});
+const f1=await p.evaluate(()=>({falla:I1_T.estado().autoFalla,auto:I1_T.estado().auto,nota:[...document.querySelectorAll('#chat .burb.sis')].map(x=>x.innerText).join('|')}));
+await empezar();await p.waitForFunction(()=>I1_T.conv().auto===false&&I1_T.estado().autoFalla===2,null,{timeout:15000});
+const f2=await p.evaluate(()=>({falla:I1_T.estado().autoFalla,auto:I1_T.estado().auto,guardado:JSON.parse(localStorage.getItem('ingles1_estado')),nota:[...document.querySelectorAll('#chat .burb.sis')].map(x=>x.innerText).join('|')}));
+await p.evaluate(()=>{window.__abrir3=0;const g=navigator.mediaDevices.getUserMedia;navigator.mediaDevices.getUserMedia=c=>{window.__abrir3++;return g.call(navigator.mediaDevices,c)}});
+await empezar();await p.waitForTimeout(1200);
+const f3=await p.evaluate(()=>({auto:I1_T.conv().auto,intentos:window.__abrir3,txt:document.getElementById('convMicT').textContent}));
+await p.evaluate(()=>{I1_T.pintarAjustes();I1_T.ir('pAjustes')});
+const aj=await p.evaluate(()=>({marcado:document.getElementById('ajAuto').checked,aviso:/Se apagó solo/.test(document.getElementById('pAjustes').innerText)}));
+await p.click('#ajAuto');
+const aj2=await p.evaluate(()=>({auto:I1_T.estado().auto,falla:I1_T.estado().autoFalla}));
+chk('MANOS LIBRES en un aparato que nunca deja: 1.ª falla avisa; la 2.ª seguida apaga la prueba automática y lo dice; la 3.ª conversación ya empieza a mano sin intentar abrir el micrófono; en «Para grandes» se ve «Se apagó solo» y marcar la casilla lo vuelve a encender',f1.falla===1&&f1.auto===true&&f2.falla===2&&f2.auto===false&&f2.guardado.auto===false&&/ya no se prueba/.test(f2.nota)&&f3.auto===false&&f3.intentos===0&&f3.txt==='Tocá el micrófono y contestá'&&aj.marcado===false&&aj.aviso&&aj2.auto===true&&aj2.falla===0&&p.errs.length===0,j([f1,f2,f3,aj,aj2,p.errs]));
+await cerrar(p);
+}
+{
+// tocar el micrófono mientras el profe todavía habla: lo calla y se contesta YA (el micrófono no se abre dos veces); tocar el 🔊 de la pregunta la repite y después se escucha
+const p=await abrir({rapido:true});
+await p.evaluate(async([ia,clics])=>{eval(clics);eval(ia);const sy=window.speechSynthesis;sy.speak=u=>{window.__dichos.push(u.text);setTimeout(()=>{try{u.onstart&&u.onstart({});u.onend&&u.onend({})}catch(e){}},1800)};return I1.oral.preparar(I1_T.estado())},[IA_SEGUN_TURNO,CUENTA_CLICS]);   // (el profe tarda 1,8 s en cada frase)
+await p.click('#bConv');await p.waitForSelector('#bConvMic');await p.waitForTimeout(400);
+await p.click('#bConvMic');
+await p.waitForFunction(()=>I1_T.conv().i===1||I1_T.conv().res.length>=1,null,{timeout:15000});
+const a1=await p.evaluate(()=>({res:I1_T.conv().res.map(r=>r.res).join(),clics:window.__clicsMic,abiertos:(I1.oral._t.log.join('|').match(/mic abierto/g)||[]).length}));
+await p.waitForTimeout(2600);   // (la frase vieja del profe termina sola a los 1,8 s: no tiene que abrir otro micrófono)
+const a2=await p.evaluate(()=>({abiertos:(I1.oral._t.log.join('|').match(/mic abierto/g)||[]).length,i:I1_T.conv().i}));
+chk('MANOS LIBRES: tocar el micrófono mientras el profe habla contesta ya (1 sola apertura, sin que la pregunta cortada abra otra) ('+j([a1,a2])+')',a1.res==='ok'&&a1.clics===1&&a1.abiertos===1&&a2.abiertos<=2&&p.errs.length===0,j([a1,a2,p.errs]));
+await cerrar(p);
+const p2=await abrir({rapido:true});
+await p2.evaluate(async([ia])=>{eval(ia);const sy=window.speechSynthesis;sy.speak=u=>{window.__dichos.push(u.text);setTimeout(()=>{try{u.onstart&&u.onstart({});u.onend&&u.onend({})}catch(e){}},1500)};return I1.oral.preparar(I1_T.estado())},[IA_SEGUN_TURNO]);
+await p2.click('#bConv');await p2.waitForSelector('#chat .burb.prof .dice .oir');await p2.waitForTimeout(300);
+await p2.click('#chat .burb.prof .dice .oir');
+await p2.waitForFunction(()=>I1_T.conv().res.length>=1,null,{timeout:20000});
+const o=await p2.evaluate(()=>{const d=I1_T.conv().turnos[0].dice.replace(/[!.?,]/g,'');return {res:I1_T.conv().res.map(r=>r.res).join(),abiertos:(I1.oral._t.log.join('|').match(/mic abierto/g)||[]).length,pregunta:d,veces:window.__dichos.filter(x=>x===d).length}});
+chk('MANOS LIBRES: tocar el 🔊 de la pregunta la repite y después el micrófono se abre solo ('+j(o)+')',o.res==='ok'&&o.abiertos===1&&o.veces>=2&&p2.errs.length===0,j([o,p2.errs]));
+await cerrar(p2);
+}
+{
+// al irse la pantalla al fondo se pausa (no se escucha ni se sigue solo) y tocar el micrófono retoma
+const p=await abrir({rapido:true});
+await p.evaluate(async ia=>{eval(ia);const sy=window.speechSynthesis;sy.speak=u=>{window.__dichos.push(u.text);setTimeout(()=>{try{u.onstart&&u.onstart({});u.onend&&u.onend({})}catch(e){}},1800)};return I1.oral.preparar(I1_T.estado())},IA_SEGUN_TURNO);
+await p.click('#bConv');await p.waitForSelector('#bConvMic');await p.waitForTimeout(300);
+await p.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'))});
+await p.waitForTimeout(2600);
+await p.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});document.dispatchEvent(new Event('visibilitychange'))});
+const z=await p.evaluate(()=>({pausa:I1_T.conv().pausa,txt:document.getElementById('convMicT').textContent,abiertos:(I1.oral._t.log.join('|').match(/mic abierto/g)||[]).length}));
+chk('MANOS LIBRES: si la pantalla se va al fondo se pausa («En pausa · tocá el micrófono para seguir»), no abre el micrófono sola y no sigue ('+z.txt+')',z.pausa===true&&/En pausa/.test(z.txt)&&z.abiertos===0,j(z));
+await p.click('#bConvMic');await p.waitForFunction(()=>I1_T.conv().res.length>=1,null,{timeout:15000});
+chk('…y tocar el micrófono retoma: se contesta y la conversación sigue sola',await p.evaluate(()=>I1_T.conv().pausa===false&&I1_T.conv().res[0].res==='ok'));
+await cerrar(p);
+}
+{
+// el ajuste: encendido por defecto, se apaga en «Para grandes» (queda guardado) y entonces nada se abre solo; sin la voz del profe tampoco se abre solo
+const p=await abrir({rapido:true});
+await p.evaluate(()=>{I1_T.pintarAjustes();I1_T.ir('pAjustes')});
+const on=await p.evaluate(()=>({hay:!!document.getElementById('ajAuto'),marcado:document.getElementById('ajAuto').checked,label:document.getElementById('ajAuto').closest('label').getBoundingClientRect().height}));
+await p.click('#ajAuto');
+const off=await p.evaluate(()=>({auto:I1_T.estado().auto,guardado:JSON.parse(localStorage.getItem('ingles1_estado')).auto}));
+await p.evaluate(async()=>{I1.oral._t.mock({generar:async()=>'red'});return I1.oral.preparar(I1_T.estado())});
+await p.evaluate(()=>{I1_T.pintarInicio();I1_T.ir('pInicio')});await p.click('#bConv');await p.waitForSelector('#bConvMic');await p.waitForTimeout(2500);
+const m=await p.evaluate(()=>({auto:I1_T.conv().auto,txt:document.getElementById('convMicT').textContent,espera:document.getElementById('bConvMic').classList.contains('espera'),abiertos:(I1.oral._t.log.join('|').match(/mic abierto/g)||[]).length}));
+chk('MANOS LIBRES: el ajuste «Conversar sin tocar» está en «Para grandes» (encendido), se apaga y queda guardado; apagado la conversación espera el toque del micrófono ('+m.txt+')',on.hay&&on.marcado&&on.label>=44&&off.auto===false&&off.guardado===false&&m.auto===false&&m.txt==='Tocá el micrófono y contestá'&&!m.espera&&m.abiertos===0,j([on,off,m]));
+await cerrar(p);
+const p2=await abrir({rapido:true,estado:JSON.stringify({v:1,voz:false})});
+await p2.evaluate(async()=>{I1.oral._t.mock({generar:async()=>'red'});return I1.oral.preparar(I1_T.estado())});
+await p2.click('#bConv');await p2.waitForSelector('#bConvMic');await p2.waitForTimeout(2000);
+const v=await p2.evaluate(()=>({auto:I1_T.conv().auto,abiertos:(I1.oral._t.log.join('|').match(/mic abierto/g)||[]).length}));
+chk('MANOS LIBRES: con la voz del profe apagada no se abre solo (el chico no oye la pregunta): se toca el micrófono',v.auto===false&&v.abiertos===0,j(v));
+await cerrar(p2);
+const q=await abrir({rapido:true,estado:JSON.stringify({v:1,auto:'no sé'})});
+chk('un valor absurdo de «sin tocar» guardado se ignora y queda encendido',await q.evaluate(()=>I1_T.estado().auto===true));
+await cerrar(q);
+}
+{
+// el «Seguir» tocado y el que viene solo no pasan dos vueltas
+const p=await abrir({rapido:true,estado:MANUAL});
+await p.click('#bConv');await p.waitForSelector('#bConvSaltar');await p.click('#bConvSaltar');await p.waitForSelector('#bConvSig');
+await p.evaluate(()=>{const C=I1_T.conv(),T=C.turnos[C.i];I1_T.convSigue(T,true);I1_T.convSigue(T,true);I1_T.convSigue(T,true)});
+await p.waitForTimeout(500);
+chk('«Seguir» (tocado o solo) pasa UNA sola vuelta aunque se llame varias veces juntas',await p.evaluate(()=>I1_T.conv().i===1),j(await p.evaluate(()=>I1_T.conv().i)));
+chk('…sin errores en la consola',p.errs.length===0,j(p.errs));
+await cerrar(p);
+}
+
+// ---------- 7g) lo que halló la revisión independiente del modo manos libres: pantalla encendida, 🔊 en cualquier momento, voz que no anda, pausa con algo en vuelo
+// una voz del aparato de mentira que corta de verdad (cancel() corta la frase que suena, como Chrome) y anota el orden de lo que pasa
+const TTS_REAL=ms=>`(()=>{const sy=window.speechSynthesis;let cur=null;window.__orden=[];sy.cancel=()=>{if(cur){const c=cur;cur=null;try{c.onerror&&c.onerror({error:'canceled'})}catch(e){}}};sy.speak=u=>{if(u.volume===0)return;window.__dichos.push(u.text);window.__orden.push('dice:'+u.text);cur=u;setTimeout(()=>{if(cur===u)try{u.onstart&&u.onstart({})}catch(e){}},0);setTimeout(()=>{if(cur!==u)return;cur=null;window.__orden.push('fin:'+u.text);try{u.onend&&u.onend({})}catch(e){}},${ms})};const o=I1.oral.escuchar;I1.oral.escuchar=a=>{window.__orden.push('mic');return o(a)}})()`;
+const ORDEN=p=>p.evaluate(()=>window.__orden.slice());
+{
+// la pantalla se mantiene encendida mientras dura la conversación manos libres (el chico no toca nada: sin esto el celular se bloquea a mitad); a mano no hace falta
+const wake=`Object.defineProperty(navigator,'wakeLock',{configurable:true,value:{request:async()=>{window.__wake=(window.__wake||0)+1;const l={escuchas:[],released:false,release:async()=>{l.released=true;window.__wakeLibre=(window.__wakeLibre||0)+1},addEventListener:(n,f)=>{if(n==='release')l.escuchas.push(f)}};window.__wakeUlt=l;return l}}})`;
+const p=await abrir({rapido:true});
+await p.addInitScript(wake);await p.reload();await p.waitForSelector('#pInicio .tema');
+await p.evaluate(async()=>{window.__wake=0;window.__wakeLibre=0;I1.oral._t.mock({generar:async()=>{const C=I1_T.conv();return C?C.turnos[C.i].dire:''}});return I1.oral.preparar(I1_T.estado())});
+await p.click('#bConv');await p.waitForSelector('#bConvMic');await p.waitForTimeout(400);
+const w1=await p.evaluate(()=>({pidio:window.__wake,libre:window.__wakeLibre}));
+// el navegador la suelta al irse al fondo; al volver se pide de nuevo
+await p.evaluate(()=>{window.__wakeUlt.released=true;window.__wakeUlt.escuchas.forEach(f=>f());Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'))});
+await p.waitForTimeout(200);
+await p.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});document.dispatchEvent(new Event('visibilitychange'))});
+await p.waitForTimeout(300);
+const w2=await p.evaluate(()=>({pidio:window.__wake}));
+await p.click('#bConvSalir');await p.waitForSelector('#pInicio .tema');await p.waitForTimeout(200);
+const w3=await p.evaluate(()=>({libre:window.__wakeLibre,ult:window.__wakeUlt.released}));
+chk('MANOS LIBRES mantiene la PANTALLA ENCENDIDA (Wake Lock) mientras dura la conversación, la vuelve a pedir si el navegador la soltó al irse al fondo y la suelta al salir ('+j([w1,w2,w3])+')',w1.pidio===1&&w1.libre===0&&w2.pidio===2&&w3.ult===true&&p.errs.length===0,j([w1,w2,w3,p.errs]));
+await cerrar(p);
+const q=await abrir({rapido:true,estado:MANUAL});
+await q.addInitScript(wake);await q.reload();await q.waitForSelector('#pInicio .tema');
+await q.evaluate(async()=>{window.__wake=0;I1.oral._t.mock({generar:async()=>'red'});return I1.oral.preparar(I1_T.estado())});
+await q.click('#bConv');await q.waitForSelector('#bConvMic');await q.waitForTimeout(500);
+chk('…y a mano (sin manos libres) no pide mantener la pantalla encendida',await q.evaluate(()=>window.__wake===0));
+await cerrar(q);
+}
+{
+// tocar el 🔊 de una burbuja VIEJA (el «Listen: …» de la vuelta anterior) mientras el profe pregunta no deja la vuelta colgada: después de oírlo se escucha solo
+const p=await abrir({rapido:true});
+await p.evaluate(async tts=>{eval(tts);I1.oral._t.mock({generar:async()=>{const C=I1_T.conv();return C.i===0?'banana':C.turnos[C.i].dire}});return I1.oral.preparar(I1_T.estado())},TTS_REAL(900));
+await p.click('#bConv');
+await p.waitForFunction(()=>{const C=I1_T.conv();return C&&C.i===1},null,{timeout:40000});   // (la vuelta 1 falló dos veces: el profe dio la respuesta y pasó a la 2)
+await p.waitForSelector('#chat .burb.prof:last-of-type .dice');
+await p.evaluate(()=>window.__orden.push('TOQUE'));
+await p.evaluate(()=>{const b=[...document.querySelectorAll('#chat .burb.prof .oir')].find(x=>x.closest('.cb').innerText.includes('Listen:'));b.click()});
+await p.waitForFunction(()=>{const C=I1_T.conv();return C.res.length>=2},null,{timeout:30000});
+const o=await ORDEN(p);const i=o.indexOf('TOQUE');
+const despues=o.slice(i+1);
+chk('MANOS LIBRES: tocar el 🔊 de una burbuja VIEJA durante la vuelta nueva lo reproduce y, al terminar, el micrófono se abre solo (la vuelta no queda colgada) ('+despues.slice(0,5).join(' › ')+')',i>=0&&despues.some(x=>x==='mic')&&despues.indexOf('mic')>despues.findIndex(x=>/^fin:/.test(x))&&await p.evaluate(()=>I1_T.conv().res.map(r=>r.res).join()==='no,ok'),j(o.slice(-8)));
+await cerrar(p);
+}
+{
+// tocar el 🔊 de la pregunta justo después de «Try again!» (tras un silencio) o en los primeros 600 ms: la repetición no se corta, el micrófono espera a que termine
+const p=await abrir({rapido:true,nav:bRuido,sinAGC:true});
+await p.evaluate(async tts=>{eval(tts);window.__I1_ESPERA=900;I1.oral._t.mock({generar:async()=>{const C=I1_T.conv();return C?C.turnos[C.i].dire:''}});return I1.oral.preparar(I1_T.estado())},TTS_REAL(1200));
+await p.click('#bConv');
+await p.waitForFunction(()=>window.__orden.filter(x=>/^dice:Try again/.test(x)).length>=1,null,{timeout:20000});   // (empezó el «Try again!» de la 1.ª vez sin contestar)
+await p.waitForTimeout(250);
+const preg=await p.evaluate(()=>I1_T.conv().turnos[I1_T.conv().i].dice.replace(/[!.?,]/g,''));
+await p.evaluate(()=>window.__orden.push('TOQUE'));
+await p.click('#chat .burb.prof:last-of-type .dice .oir');
+await p.waitForFunction(()=>{const o=window.__orden,i=o.indexOf('TOQUE');return o.slice(i).some(x=>/^fin:/.test(x))&&o.slice(i).filter(x=>x==='mic').length>=1},null,{timeout:20000});
+const o=await ORDEN(p);const i=o.indexOf('TOQUE'),d=o.slice(i+1);
+const finPreg=d.findIndex(x=>x==='fin:'+preg),mic=d.indexOf('mic');
+chk('MANOS LIBRES: tocar el 🔊 de la pregunta mientras suena «Try again!» repite la pregunta COMPLETA y recién después abre el micrófono ('+d.slice(0,6).join(' › ')+')',finPreg>=0&&mic>finPreg,j(o.slice(-9)));
+await cerrar(p);
+}
+{
+// si la voz del aparato no anda (no hay o falla), el chico no oye la pregunta: no se abre el micrófono solo, se avisa y se sigue tocando
+const p=await abrir({rapido:true});
+await p.evaluate(async()=>{window.speechSynthesis.speak=u=>{if(u.volume===0)return;setTimeout(()=>{try{u.onerror&&u.onerror({error:'synthesis-failed'})}catch(e){}},5)};I1.oral._t.mock({generar:async()=>'red'});return I1.oral.preparar(I1_T.estado())});
+await p.click('#bConv');await p.waitForFunction(()=>{const C=I1_T.conv();return C&&C.auto===false},null,{timeout:15000});
+await p.waitForTimeout(1500);
+const sv=await p.evaluate(()=>({nota:[...document.querySelectorAll('#chat .burb.sis')].map(x=>x.innerText).join('|'),abiertos:(I1.oral._t.log.join('|').match(/mic abierto/g)||[]).length,falla:I1_T.estado().autoFalla,i:I1_T.conv().i,res:I1_T.conv().res.length}));
+chk('MANOS LIBRES con la VOZ del aparato rota: no se abre el micrófono solo ni se anota nada (el chico no oyó la pregunta), se avisa en el chat y se sigue tocando ('+sv.nota.slice(0,50)+'…)',/No se oye la voz del profe/.test(sv.nota)&&sv.abiertos===0&&sv.falla===1&&sv.i===0&&sv.res===0&&p.errs.length===0,j([sv,p.errs]));
+await cerrar(p);
+const p2=await abrir({rapido:true});
+await p2.evaluate(async()=>{window.speechSynthesis.speak=()=>{throw new Error('el motor de voz no anda')};I1.oral._t.mock({generar:async()=>'red'});return I1.oral.preparar(I1_T.estado())});
+await p2.click('#bConv');await p2.waitForFunction(()=>{const C=I1_T.conv();return C&&C.auto===false},null,{timeout:15000});
+chk('…y si el motor de voz lanza un error pasa lo mismo',await p2.evaluate(()=>(I1.oral._t.log.join('|').match(/mic abierto/g)||[]).length===0&&I1_T.conv().res.length===0)&&p2.errs.length===0,j(p2.errs));
+await cerrar(p2);
+}
+{
+// la pantalla se va al fondo con la IA «pensando»: el veredicto se muestra pero la conversación no habla ni escucha estando en pausa; tocar el micrófono repite la pregunta y sigue
+const p=await abrir({rapido:true});
+await p.evaluate(async tts=>{eval(tts);I1.oral._t.mock({generar:async()=>{await new Promise(r=>setTimeout(r,1800));const C=I1_T.conv();return C?C.turnos[C.i].dire:''}});return I1.oral.preparar(I1_T.estado())},TTS_REAL(200));
+await p.click('#bConv');
+await p.waitForFunction(()=>document.getElementById('bConvMic')&&document.getElementById('bConvMic').classList.contains('pensando'),null,{timeout:15000});
+await p.evaluate(()=>{window.__orden.push('OCULTA');Object.defineProperty(document,'hidden',{configurable:true,get:()=>true});document.dispatchEvent(new Event('visibilitychange'))});
+await p.waitForTimeout(3500);
+const z=await p.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,get:()=>false});document.dispatchEvent(new Event('visibilitychange'));const C=I1_T.conv();return {i:C.i,pausa:C.pausa,res:C.res.map(r=>r.res).join(),txt:document.getElementById('convMicT')&&document.getElementById('convMicT').textContent,espera:document.getElementById('bConvMic')&&document.getElementById('bConvMic').classList.contains('espera'),orden:window.__orden.slice(window.__orden.indexOf('OCULTA')+1)}});
+chk('MANOS LIBRES: si la pantalla se va con la IA pensando, el veredicto se muestra pero la conversación queda en PAUSA (no habla la pregunta siguiente ni abre el micrófono) y el micrófono no se ve «esperando» ('+j(z.orden)+')',z.res==='ok'&&z.i===1&&z.pausa===true&&/En pausa/.test(z.txt)&&z.espera===false&&z.orden.length===0,j(z));
+await p.click('#bConvMic');
+await p.waitForFunction(()=>I1_T.conv().res.length>=2,null,{timeout:30000});
+const o=await ORDEN(p);const i=o.indexOf('OCULTA');
+const resumen=o.slice(i+1);
+chk('…y tocar el micrófono retoma: repite la pregunta y después escucha solo ('+resumen.slice(0,3).join(' › ')+')',/^dice:/.test(resumen[0])&&resumen[1]&&/^fin:/.test(resumen[1])&&resumen[2]==='mic'&&await p.evaluate(()=>I1_T.conv().pausa===false),j(resumen));
+await cerrar(p);
+}
+{
+// el micrófono «esperando al profe» se ve apagado SIN transparencia (un botón activo no baja de contraste)
+const p=await abrir({rapido:true});
+await p.evaluate(async tts=>{eval(tts);I1.oral._t.mock({generar:async()=>'red'});return I1.oral.preparar(I1_T.estado())},TTS_REAL(3000));
+await p.click('#bConv');await p.waitForSelector('#bConvMic.espera');
+const e=await p.evaluate(()=>{const c=getComputedStyle(document.getElementById('bConvMic'));return {op:c.opacity,filtro:c.filter}});
+chk('MANOS LIBRES: el micrófono «esperando al profe» se ve apagado con un filtro de color y SIN bajar la opacidad (un botón activo mantiene el contraste) ('+j(e)+')',e.op==='1'&&/saturate/.test(e.filtro),j(e));
+await cerrar(p);
 }
 
 // ---------- 8) lo que se pide afuera: sólo las fuentes de Google (y el SDK de la IA cuando se usa)
@@ -1079,6 +1338,7 @@ for(const [nombre,w,h] of (RAPIDO?TAMANOS.slice(3,4):TAMANOS)){
   await p.evaluate(()=>{I1_T.estado().convs=[{f:'2026-11-03',ok:7,casi:1,n:9}];I1_T.pintarInicio();I1_T.ir('pInicio')});await m('inicio con la última conversación');
   await p.evaluate(()=>{I1_T.convDemo(4,'ok')});await p.waitForTimeout(60);await m('conversar');
   await p.evaluate(()=>{I1_T.convDemo(2,'denied')});await p.waitForTimeout(60);await m('conversar (sin micrófono)');
+  await p.evaluate(()=>{I1_T.convDemo(4,'ok',true)});await p.waitForTimeout(60);await m('conversar (manos libres)');
   for(const r of ['ok','casi','no']){await p.evaluate(r=>{const t=I1.TEMA.colores,q=I1_T.ORAL.nombrar(t,I1.ITEM.red);q.gen='nombrar';I1_T.probar(q,'oral');I1_T.ronda().permiso='ok';document.getElementById('oyo').innerHTML=I1_T.vereHTML(r,'it is a very long answer that the child said out loud','a long model sentence to say aloud',"It's red.",r!=='ok')},r);await p.waitForTimeout(40);await m('hablar: veredicto '+r)}
   await p.evaluate(()=>{I1_T.estado().convs=[];I1_T.pintarInicio();I1_T.ir('pInicio')});
   const corregidas=!RAPIDO&&['iPhone 14 390×844','celular chico 320×568','Android de costado 640×360'].some(x=>nombre===x);
@@ -1108,6 +1368,7 @@ for(const [nombre,w,h] of [['letra al 150 % en 390×844',390,844],['letra al 150
   for(const t of ['cuerpo','abc','frases']){await p.click('#pInicio .tema[data-tema="'+t+'"]');await p.waitForSelector('#pTema .tcab');await m('estudio '+t);await p.click('#pTema [data-act="atras"]');await p.waitForSelector('#pInicio .tema')}
   await p.evaluate(()=>{I1_T.convDemo(4,'ok')});await p.waitForTimeout(60);await m('conversar');
   await p.evaluate(()=>{I1_T.convDemo(2,'denied')});await p.waitForTimeout(60);await m('conversar (sin micrófono)');
+  await p.evaluate(()=>{I1_T.convDemo(4,'ok',true)});await p.waitForTimeout(60);await m('conversar (manos libres)');
   await p.evaluate(()=>{const t=I1.TEMA.colores,q=I1_T.ORAL.nombrar(t,I1.ITEM.red);q.gen='nombrar';I1_T.probar(q,'oral');I1_T.ronda().permiso='ok';document.getElementById('oyo').innerHTML=I1_T.vereHTML('no','it is a very long answer that the child said out loud','a long model sentence to say aloud',"It's red.",true)});await p.waitForTimeout(40);await m('hablar: veredicto');
   const lote=await lotePeor(p,1);
   for(let i=0;i<lote.length;i+=(RAPIDO?3:1)){await p.evaluate(i=>{const x=window.__lote[i];I1_T.probar(x.q,x.modo);I1_T.ronda().permiso='ok'},i);await p.waitForSelector('#pPreg .preg');await m(lote[i])}
@@ -1157,6 +1418,7 @@ for(const oscuro of (RAPIDO?[false]:[false,true])){
   await p.evaluate(()=>{I1_T.estado().convs=[{f:'2026-11-03',ok:7,casi:1,n:9}];I1_T.pintarInicio();I1_T.ir('pInicio')});await medirContraste('inicio con la última conversación');
   await p.evaluate(()=>{I1_T.convDemo(4,'ok')});await p.waitForTimeout(450);await medirContraste('conversar');
   await p.evaluate(()=>{I1_T.convDemo(2,'denied')});await p.waitForTimeout(450);await medirContraste('conversar (sin micrófono)');
+  await p.evaluate(()=>{I1_T.convDemo(4,'ok',true)});await p.waitForTimeout(450);await medirContraste('conversar (manos libres)');
   for(const r of ['ok','casi','no']){await p.evaluate(r=>{const t=I1.TEMA.colores,q=I1_T.ORAL.nombrar(t,I1.ITEM.red);q.gen='nombrar';I1_T.probar(q,'oral');I1_T.ronda().permiso='ok';document.getElementById('oyo').innerHTML=I1_T.vereHTML(r,'red','red',"It's red.",true)},r);await p.waitForTimeout(450);await medirContraste('hablar: veredicto '+r)}
   const lote=await lotePeor(p,2);
   for(let i=0;i<lote.length;i+=2){

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>English · 1.er grado</title>
+<meta name="theme-color" content="#d1431f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="English 1.º">
+<script src="../firebase-config.js"></script>
+<script>try{localStorage.setItem("trinity_ultimo","8")}catch(e){}</script>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Nunito:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="estilos.css?b=2026-11-25-english-1-ingles-de-1-er-grado-escrito-y-oral">
+</head>
+<body>
+<main class="app">
+  <!-- Inicio: escribir, hablar, la prueba y los temas -->
+  <section id="pInicio" class="pantalla" hidden></section>
+  <!-- Un tema: aprender (tocar y escuchar) y los botones para practicarlo -->
+  <section id="pTema" class="pantalla" hidden></section>
+  <!-- Una pregunta (de práctica, de la prueba o de hablar) -->
+  <section id="pPreg" class="pantalla" hidden></section>
+  <!-- Resultado de una ronda o de la prueba -->
+  <section id="pFin" class="pantalla" hidden></section>
+  <!-- «Mi prueba»: escrita + oral -->
+  <section id="pPrueba" class="pantalla" hidden></section>
+  <!-- Para grandes: voz, ayuda en castellano, IA, avance (se abre manteniendo apretado el engranaje) -->
+  <section id="pAjustes" class="pantalla" hidden></section>
+  <noscript><p class="sin-js">Esta página necesita JavaScript para funcionar.</p></noscript>
+</main>
+<!-- Cartel para confirmar (salir de la prueba, borrar el avance) -->
+<div class="modal" id="modal" hidden></div>
+
+<script src="audio/manifest.js?b=2026-11-25-english-1-ingles-de-1-er-grado-escrito-y-oral"></script>
+<script src="contenido.js?b=2026-11-25-english-1-ingles-de-1-er-grado-escrito-y-oral"></script>
+<script src="dibujos.js?b=2026-11-25-english-1-ingles-de-1-er-grado-escrito-y-oral"></script>
+<script src="oral.js?b=2026-11-25-english-1-ingles-de-1-er-grado-escrito-y-oral"></script>
+<script src="app.js?b=2026-11-25-english-1-ingles-de-1-er-grado-escrito-y-oral"></script>
+<script>
+// en iPhone, «:active» (la respuesta al apretar) sólo anda si la página escucha toques
+document.addEventListener("touchstart",function(){},{passive:true});
+if("serviceWorker"in navigator&&location.protocol==="https:")navigator.serviceWorker.register("../sw.js").catch(function(){});
+</script>
+</body>
+</html>

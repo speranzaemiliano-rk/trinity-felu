@@ -21,27 +21,28 @@ function rutasRotas(htmlRel){
     const f=path.resolve(dir,sin);if(!fs.existsSync(f)||(fs.statSync(f).isDirectory()&&!fs.existsSync(path.join(f,'index.html'))))rotas.push(u)}
   return {rotas,n:vistas.length,tokens:[...h.matchAll(/\?b=([^"']+)/g)].map(m=>m[1])};
 }
-const pHub=rutasRotas('index.html'),pFelu=rutasRotas('felu/index.html'),pRaph=rutasRotas('raphina/index.html'),pSala=rutasRotas('sala5/index.html'),pBee=rutasRotas('beehive3/index.html'),pInt=rutasRotas('integradora/index.html');
+const pHub=rutasRotas('index.html'),pFelu=rutasRotas('felu/index.html'),pRaph=rutasRotas('raphina/index.html'),pSala=rutasRotas('sala5/index.html'),pBee=rutasRotas('beehive3/index.html'),pInt=rutasRotas('integradora/index.html'),pIng=rutasRotas('ingles1/index.html');
 chk('Inicio: las '+pHub.n+' rutas de la página existen',pHub.rotas.length===0&&pHub.n>=5,JSON.stringify(pHub.rotas));
 chk('Felu: las '+pFelu.n+' rutas de la página existen (con «../» hacia el motor, los estilos y los audios)',pFelu.rotas.length===0,JSON.stringify(pFelu.rotas));
 chk('Raphina: las '+pRaph.n+' rutas de la página existen (con «../» hacia el motor, los estilos y los audios)',pRaph.rotas.length===0,JSON.stringify(pRaph.rotas));
 chk('Sala de 5: las '+pSala.n+' rutas de la página existen (sus estilos, sus scripts, su lista de audios, el manifiesto y los íconos: no usa el motor de Trinity)',pSala.rotas.length===0&&pSala.n>=7,JSON.stringify(pSala.rotas));
 chk('Beehive 3: las '+pBee.n+' rutas de la página existen (sus estilos, sus scripts, su lista de audios, el manifiesto y los íconos: tampoco usa el motor de Trinity)',pBee.rotas.length===0&&pBee.n>=7,JSON.stringify(pBee.rotas));
 chk('Integradora: las '+pInt.n+' rutas de la página existen (sus estilos, sus scripts —contenido, mapas, dibujos, ideas, cada tema y app—, el manifiesto y los íconos: tampoco usa el motor de Trinity)',pInt.rotas.length===0&&pInt.n>=7,JSON.stringify(pInt.rotas));
-const toks=new Set(pFelu.tokens.concat(pRaph.tokens,pSala.tokens,pBee.tokens,pInt.tokens));
-chk('los cinco módulos piden los scripts y estilos con la MISMA marca de versión «?b=» ('+[...toks].join(',')+') y el inicio no carga el motor',toks.size===1&&pFelu.tokens.length>=4&&pRaph.tokens.length>=4&&pSala.tokens.length>=4&&pBee.tokens.length>=4&&pInt.tokens.length>=4&&pHub.tokens.length===0&&!/motor\.js/.test(fs.readFileSync(path.join(RAIZ,'index.html'),'utf8')));
+chk('English 1.º: las '+pIng.n+' rutas de la página existen (sus estilos, sus scripts —contenido, dibujos, oral y app—, la lista de audios, la configuración de la IA, el manifiesto y los íconos: tampoco usa el motor de Trinity)',pIng.rotas.length===0&&pIng.n>=9,JSON.stringify(pIng.rotas));
+const toks=new Set(pFelu.tokens.concat(pRaph.tokens,pSala.tokens,pBee.tokens,pInt.tokens,pIng.tokens));
+chk('los seis módulos piden los scripts y estilos con la MISMA marca de versión «?b=» ('+[...toks].join(',')+') y el inicio no carga el motor',toks.size===1&&pFelu.tokens.length>=4&&pRaph.tokens.length>=4&&pSala.tokens.length>=4&&pBee.tokens.length>=4&&pInt.tokens.length>=4&&pIng.tokens.length>=5&&pHub.tokens.length===0&&!/motor\.js/.test(fs.readFileSync(path.join(RAIZ,'index.html'),'utf8')));
 const leerJ=f=>JSON.parse(fs.readFileSync(path.join(RAIZ,f),'utf8'));
-const manH=leerJ('manifest.json'),manF=leerJ('felu/manifest.json'),manR=leerJ('raphina/manifest.json'),manS=leerJ('sala5/manifest.json'),manB=leerJ('beehive3/manifest.json'),manI=leerJ('integradora/manifest.json');
+const manH=leerJ('manifest.json'),manF=leerJ('felu/manifest.json'),manR=leerJ('raphina/manifest.json'),manS=leerJ('sala5/manifest.json'),manB=leerJ('beehive3/manifest.json'),manI=leerJ('integradora/manifest.json'),manG=leerJ('ingles1/manifest.json');
 const png=(dir,f)=>{const b=fs.readFileSync(path.join(RAIZ,dir,f));return b.readUInt32BE(16)+'x'+b.readUInt32BE(20)};
 const BASE_PAGES='https://x.test/trinity-felu/';
 const dentro=(m,dir)=>{const sc=new URL(m.scope,BASE_PAGES+dir+'manifest.json').href,st=new URL(m.start_url,BASE_PAGES+dir+'manifest.json').href;return st.startsWith(sc)};
-chk('los seis manifiestos: nombre propio, íconos del tamaño que dicen y la página de inicio dentro de su alcance',
-  [[manH,'','Trinity GESE'],[manF,'felu/','Grade 3'],[manR,'raphina/','Grade 4'],[manS,'sala5/','Sala de 5'],[manB,'beehive3/','Beehive 3'],[manI,'integradora/','integradora']].every(([m,d,n])=>m.name.includes(n)&&m.start_url==='./'&&dentro(m,d)&&m.icons.every(i=>png(d.replace(/\/$/,''),i.src)===i.sizes)));
-chk('el inicio, Felu, Raphina, Sala de 5, Beehive 3 y la Integradora se instalan como seis apps distintas (otro «id») y los módulos tienen alcance «../» para que «Inicio» y el otro módulo abran dentro de la misma app',
-  new Set([manH.id,manF.id,manR.id,manS.id,manB.id,manI.id]).size===6&&manH.id==='/trinity-felu/'&&manF.id==='/trinity-felu/felu/'&&manR.id==='/trinity-felu/raphina/'&&manS.id==='/trinity-felu/sala5/'&&manB.id==='/trinity-felu/beehive3/'&&manI.id==='/trinity-felu/integradora/'&&manF.scope==='../'&&manR.scope==='../'&&manS.scope==='../'&&manB.scope==='../'&&manI.scope==='../'&&manH.scope==='./',JSON.stringify([manH.id,manF.id,manR.id,manS.id,manB.id,manI.id]));
+chk('los siete manifiestos: nombre propio, íconos del tamaño que dicen y la página de inicio dentro de su alcance',
+  [[manH,'','Trinity GESE'],[manF,'felu/','Grade 3'],[manR,'raphina/','Grade 4'],[manS,'sala5/','Sala de 5'],[manB,'beehive3/','Beehive 3'],[manI,'integradora/','integradora'],[manG,'ingles1/','English']].every(([m,d,n])=>m.name.includes(n)&&m.start_url==='./'&&dentro(m,d)&&m.icons.every(i=>png(d.replace(/\/$/,''),i.src)===i.sizes)));
+chk('el inicio, Felu, Raphina, Sala de 5, Beehive 3, la Integradora y English 1.º se instalan como siete apps distintas (otro «id») y los módulos tienen alcance «../» para que «Inicio» y el otro módulo abran dentro de la misma app',
+  new Set([manH.id,manF.id,manR.id,manS.id,manB.id,manI.id,manG.id]).size===7&&manG.id==='/trinity-felu/ingles1/'&&manG.scope==='../'&&manH.id==='/trinity-felu/'&&manF.id==='/trinity-felu/felu/'&&manR.id==='/trinity-felu/raphina/'&&manS.id==='/trinity-felu/sala5/'&&manB.id==='/trinity-felu/beehive3/'&&manI.id==='/trinity-felu/integradora/'&&manF.scope==='../'&&manR.scope==='../'&&manS.scope==='../'&&manB.scope==='../'&&manI.scope==='../'&&manH.scope==='./',JSON.stringify([manH.id,manF.id,manR.id,manS.id,manB.id,manI.id]));
 const hHub=fs.readFileSync(path.join(RAIZ,'index.html'),'utf8'),hFelu=fs.readFileSync(path.join(RAIZ,'felu/index.html'),'utf8'),hRaph=fs.readFileSync(path.join(RAIZ,'raphina/index.html'),'utf8');
-chk('el inicio tiene las cinco tarjetas (Trinity 3 → felu/, Trinity 4 → raphina/, Sala de 5 → sala5/, Beehive 3 → beehive3/, Integradora → integradora/) y cada módulo de Trinity una barra con Inicio · Trinity 3 · Trinity 4',
-  /class="mod m3" href="felu\/"/.test(hHub)&&/class="mod m4" href="raphina\/"/.test(hHub)&&/class="mod m5" href="sala5\/"/.test(hHub)&&/class="mod m6" href="beehive3\/"/.test(hHub)&&/class="mod m7" href="integradora\/"/.test(hHub)&&[hFelu,hRaph].every(h=>/class="modbar"[\s\S]*href="\.\.\/"[\s\S]*Trinity 3[\s\S]*Trinity 4/.test(h))&&/class="on" href=".\/" aria-current="page">Trinity 3/.test(hFelu)&&/class="on" href=".\/" aria-current="page">Trinity 4/.test(hRaph));
+chk('el inicio tiene las seis tarjetas (Trinity 3 → felu/, Trinity 4 → raphina/, Sala de 5 → sala5/, Beehive 3 → beehive3/, Integradora → integradora/, English 1.º → ingles1/) y cada módulo de Trinity una barra con Inicio · Trinity 3 · Trinity 4',
+  /class="mod m3" href="felu\/"/.test(hHub)&&/class="mod m4" href="raphina\/"/.test(hHub)&&/class="mod m5" href="sala5\/"/.test(hHub)&&/class="mod m6" href="beehive3\/"/.test(hHub)&&/class="mod m7" href="integradora\/"/.test(hHub)&&/class="mod m8" href="ingles1\/"/.test(hHub)&&[hFelu,hRaph].every(h=>/class="modbar"[\s\S]*href="\.\.\/"[\s\S]*Trinity 3[\s\S]*Trinity 4/.test(h))&&/class="on" href=".\/" aria-current="page">Trinity 3/.test(hFelu)&&/class="on" href=".\/" aria-current="page">Trinity 4/.test(hRaph));
 
 // ---------- 2) el service worker, simulado: instala todo, y sin internet cada módulo abre SU página
 function simularSW(){
@@ -69,7 +70,7 @@ function simularSW(){
 const sw=simularSW();
 let ok=true,motivo='';try{await sw.evento('install')}catch(e){ok=false;motivo=e.message}
 chk('el service worker instala: los '+sw.ARCHIVOS.length+' archivos de su lista existen (si falta uno, no se instala nada)',ok&&sw.guardado.size===sw.ARCHIVOS.length&&sw.log.skip===1,motivo);
-chk('guarda las carpetas de Felu, de Raphina, de Sala de 5, de Beehive 3 y de la Integradora («./felu/», «./raphina/», «./sala5/», «./beehive3/», «./integradora/»: es lo que abre cada app instalada) además de sus index.html, y el inicio',['felu/','felu/index.html','raphina/','raphina/index.html','sala5/','sala5/index.html','beehive3/','beehive3/index.html','beehive3/manifest.json','beehive3/icon.svg','beehive3/icon-192.png','beehive3/icon-512.png','beehive3/estilos.css','beehive3/contenido.js','beehive3/app.js','beehive3/audio/manifest.js','integradora/','integradora/index.html','integradora/manifest.json','integradora/icon.svg','integradora/icon-192.png','integradora/icon-512.png','integradora/estilos.css','integradora/contenido.js','integradora/mapa.js','integradora/mapa-limitrofes.js','integradora/app.js',...SCRIPTS_INT.map(f=>'integradora/'+f),'sala5/sala5.css','sala5/contenido.js','sala5/contenido2.js','sala5/adaptar.js','sala5/juego.js','sala5/juegos2.js','sala5/audio/manifest.js','','index.html','contenido-g3.js','contenido-g4.js'].every(x=>sw.guardado.has(sw.SITIO+x)));
+chk('guarda las carpetas de Felu, de Raphina, de Sala de 5, de Beehive 3, de la Integradora y de English 1.º («./felu/», «./raphina/», «./sala5/», «./beehive3/», «./integradora/», «./ingles1/»: es lo que abre cada app instalada) además de sus index.html, y el inicio',['ingles1/','ingles1/index.html','ingles1/manifest.json','ingles1/icon.svg','ingles1/icon-192.png','ingles1/icon-512.png','ingles1/estilos.css','ingles1/contenido.js','ingles1/dibujos.js','ingles1/oral.js','ingles1/app.js','ingles1/audio/manifest.js','felu/','felu/index.html','raphina/','raphina/index.html','sala5/','sala5/index.html','beehive3/','beehive3/index.html','beehive3/manifest.json','beehive3/icon.svg','beehive3/icon-192.png','beehive3/icon-512.png','beehive3/estilos.css','beehive3/contenido.js','beehive3/app.js','beehive3/audio/manifest.js','integradora/','integradora/index.html','integradora/manifest.json','integradora/icon.svg','integradora/icon-192.png','integradora/icon-512.png','integradora/estilos.css','integradora/contenido.js','integradora/mapa.js','integradora/mapa-limitrofes.js','integradora/app.js',...SCRIPTS_INT.map(f=>'integradora/'+f),'sala5/sala5.css','sala5/contenido.js','sala5/contenido2.js','sala5/adaptar.js','sala5/juego.js','sala5/juegos2.js','sala5/audio/manifest.js','','index.html','contenido-g3.js','contenido-g4.js'].every(x=>sw.guardado.has(sw.SITIO+x)));
 let a=await sw.evento('activate');
 chk('al activarse borra los cachés viejos y no el actual',sw.log.borrados.join()==='trinity-felu-v1',sw.log.borrados.join());
 sw.linea(false);
@@ -79,7 +80,7 @@ chk('SIN INTERNET: abrir /raphina/ muestra el módulo de Raphina',r.respondio&&/
 r=await sw.pedir('felu/',{mode:'navigate'});t=await txt(r);
 chk('SIN INTERNET: abrir /felu/ muestra el módulo de Felu',r.respondio&&/<title>Trinity GESE Grade 3<\/title>/.test(t)&&!/Raphina · Trinity GESE/.test(t));
 r=await sw.pedir('',{mode:'navigate'});t=await txt(r);
-chk('SIN INTERNET: abrir la raíz muestra el INICIO con las cinco opciones (no un módulo)',/<title>Trinity GESE · Inicio<\/title>/.test(t)&&/href="felu\/"/.test(t)&&/href="raphina\/"/.test(t)&&/href="sala5\/"/.test(t)&&/href="beehive3\/"/.test(t)&&/href="integradora\/"/.test(t)&&!/id="v-study"/.test(t));
+chk('SIN INTERNET: abrir la raíz muestra el INICIO con las seis opciones (no un módulo)',/<title>Trinity GESE · Inicio<\/title>/.test(t)&&/href="felu\/"/.test(t)&&/href="raphina\/"/.test(t)&&/href="sala5\/"/.test(t)&&/href="beehive3\/"/.test(t)&&/href="integradora\/"/.test(t)&&/href="ingles1\/"/.test(t)&&!/id="v-study"/.test(t));
 r=await sw.pedir('sala5/',{mode:'navigate'});t=await txt(r);
 chk('SIN INTERNET: abrir /sala5/ muestra «Sala de 5» (no el inicio ni otro módulo)',r.respondio&&/<title>Sala de 5 · Jugar y aprender<\/title>/.test(t)&&/id="bJugar"/.test(t));
 r=await sw.pedir('sala5/una-pagina-que-no-esta.html',{mode:'navigate'});t=await txt(r);
@@ -103,6 +104,13 @@ chk('SIN INTERNET: una dirección desconocida dentro de /integradora/ cae en la 
 for(const f of [...SCRIPTS_INT,'estilos.css']){
   r=await sw.pedir('integradora/'+f+'?b=otra-marca-que-nunca-se-guardo');t=await txt(r);
   chk('SIN INTERNET: «integradora/'+f+'» se encuentra aunque la página pida otra marca «?b=»',t===fs.readFileSync(path.join(RAIZ,'integradora/'+f),'utf8'))}
+r=await sw.pedir('ingles1/',{mode:'navigate'});t=await txt(r);
+chk('SIN INTERNET: abrir /ingles1/ muestra «English · 1.er grado» (no el inicio ni otro módulo)',r.respondio&&/<title>English · 1\.er grado<\/title>/.test(t)&&/id="pInicio"/.test(t)&&!/Trinity GESE · Inicio/.test(t)&&!/Beehive 3 · Prueba/.test(t));
+r=await sw.pedir('ingles1/una-pagina-que-no-esta.html',{mode:'navigate'});t=await txt(r);
+chk('SIN INTERNET: una dirección desconocida dentro de /ingles1/ cae en la portada de English 1.º',/<title>English · 1\.er grado<\/title>/.test(t)&&!/Trinity GESE · Inicio/.test(t));
+for(const f of ['contenido.js','dibujos.js','oral.js','app.js','estilos.css','audio/manifest.js']){
+  r=await sw.pedir('ingles1/'+f+'?b=otra-marca-que-nunca-se-guardo');t=await txt(r);
+  chk('SIN INTERNET: «ingles1/'+f+'» se encuentra aunque la página pida otra marca «?b=»',t===fs.readFileSync(path.join(RAIZ,'ingles1/'+f),'utf8'))}
 r=await sw.pedir('raphina/?lo=que-sea',{mode:'navigate'});t=await txt(r);
 chk('SIN INTERNET: /raphina/ con otra marca en la dirección sigue siendo Raphina',/Grade 4/.test(t));
 r=await sw.pedir('felu/?lo=que-sea',{mode:'navigate'});t=await txt(r);
@@ -157,7 +165,7 @@ await p.goto('https://trinity.test/');await p.waitForSelector('.mod');await p.wa
 const rH=T.est.resp.map(x=>x[0]);
 chk('el inicio abre desde la raíz sin errores y es liviano: no carga el motor ni ningún contenido ('+T.est.resp.length+' pedidos)',T.est.resp.every(x=>x[1]<400)&&T.est.fallos.length===0&&!rH.some(x=>/motor\.js|contenido-g|comun\.js|estilos\.css/.test(x))&&p.errs.length===0,JSON.stringify([rH,p.errs]));
 const tarj=await p.evaluate(()=>[...document.querySelectorAll('.mod')].map(a=>({href:a.getAttribute('href'),txt:a.innerText.replace(/\s+/g,' '),w:a.getBoundingClientRect().width,h:a.getBoundingClientRect().height,visible:getComputedStyle(a).display!=='none'})));
-chk('el inicio muestra las cinco opciones, grandes y tocables: «Trinity 3 · Felu», «Trinity 4 · Raphina», «Sala de 5», «Beehive 3» y la «Integradora»',tarj.length===5&&/Trinity 3/.test(tarj[0].txt)&&/Felu/.test(tarj[0].txt)&&/Trinity 4/.test(tarj[1].txt)&&/Raphina/.test(tarj[1].txt)&&/Sala de 5/.test(tarj[2].txt)&&/Beehive 3/.test(tarj[3].txt)&&/Integradora/.test(tarj[4].txt)&&/Felipe/.test(tarj[4].txt)&&tarj.every(c=>c.visible&&c.w>=300&&c.h>=100),JSON.stringify(tarj));
+chk('el inicio muestra las seis opciones, grandes y tocables: «Trinity 3 · Felu», «Trinity 4 · Raphina», «Sala de 5», «Beehive 3», la «Integradora» y «English 1.º»',tarj.length===6&&/English 1/.test(tarj[5].txt)&&/1\.er grado/.test(tarj[5].txt)&&/Trinity 3/.test(tarj[0].txt)&&/Felu/.test(tarj[0].txt)&&/Trinity 4/.test(tarj[1].txt)&&/Raphina/.test(tarj[1].txt)&&/Sala de 5/.test(tarj[2].txt)&&/Beehive 3/.test(tarj[3].txt)&&/Integradora/.test(tarj[4].txt)&&/Felipe/.test(tarj[4].txt)&&tarj.every(c=>c.visible&&c.w>=300&&c.h>=100),JSON.stringify(tarj));
 chk('sin haber entrado a ninguno todavía, el inicio no marca ninguna «Última vez»',await p.evaluate(()=>[...document.querySelectorAll('.ult')].every(e=>e.hidden)));
 // entrar al 3 desde el menú
 await Promise.all([p.waitForURL('**/felu/'),p.click('.mod.m3')]);await p.waitForSelector('#v-study');
@@ -169,7 +177,7 @@ chk('la barra marca en cuál estás («Trinity 4») y tiene Inicio y Trinity 3',
 await Promise.all([p.waitForURL('**/felu/'),p.click('.modbar a[href="../felu/"]')]);await p.waitForSelector('#v-study');
 chk('desde Raphina, «Trinity 3» de la barra abre otra vez el módulo de Felu: los dos siguen estando',new URL(p.url()).pathname==='/felu/'&&await p.evaluate(()=>MOD.id==="g3"));
 await Promise.all([p.waitForURL('https://trinity.test/'),p.click('.modbar a.home')]);await p.waitForSelector('.mod');
-chk('«🏠 Inicio» vuelve al menú, que ahora marca «Última vez» en el Trinity 3 (el último que se abrió) y en ninguno más',await p.evaluate(()=>{const m=[...document.querySelectorAll('.mod')];return m.length===5&&!m[0].querySelector('.ult').hidden&&m[1].querySelector('.ult').hidden&&m[2].querySelector('.ult').hidden&&m[3].querySelector('.ult').hidden&&m[4].querySelector('.ult').hidden}));
+chk('«🏠 Inicio» vuelve al menú, que ahora marca «Última vez» en el Trinity 3 (el último que se abrió) y en ninguno más',await p.evaluate(()=>{const m=[...document.querySelectorAll('.mod')];return m.length===6&&m.every((x,i)=>x.querySelector('.ult').hidden===(i!==0))}));
 await Promise.all([p.waitForURL('**/raphina/'),p.click('.mod.m4')]);await p.waitForSelector('#v-study');
 chk('tocar «Trinity 4» en el menú abre el módulo de Raphina',new URL(p.url()).pathname==='/raphina/'&&await p.evaluate(()=>MOD.id==="g4"));
 // «Sala de 5»: se entra desde el menú, carga lo suyo (sus estilos, scripts y audios; nada del motor de Trinity) y queda marcada como «Última vez»
@@ -183,7 +191,7 @@ T.est.resp.length=0;await p.click('#bJugar',{force:true});await p.waitForTimeout
 const mp3S=T.est.resp.filter(x=>/\.mp3$/.test(x[0]));
 chk('en «Sala de 5» la voz sale de /sala5/audio/ (mp3 grabados, no los de Trinity) y llega bien ('+(mp3S[0]?mp3S[0][0]:'ninguno')+')',mp3S.length>=1&&mp3S.every(x=>x[0].startsWith('/sala5/audio/')&&x[1]<400&&/audio\/mpeg/.test(x[2])),JSON.stringify(mp3S));
 await p.goto('https://trinity.test/');await p.waitForSelector('.mod');
-chk('al volver al inicio, «Sala de 5» queda marcada como «Última vez» (y ya no el Trinity 4)',await p.evaluate(()=>{const m=[...document.querySelectorAll('.mod')];return m.length===5&&m[0].querySelector('.ult').hidden&&m[1].querySelector('.ult').hidden&&!m[2].querySelector('.ult').hidden&&m[3].querySelector('.ult').hidden&&m[4].querySelector('.ult').hidden}));
+chk('al volver al inicio, «Sala de 5» queda marcada como «Última vez» (y ya no el Trinity 4)',await p.evaluate(()=>{const m=[...document.querySelectorAll('.mod')];return m.length===6&&m.every((x,i)=>x.querySelector('.ult').hidden===(i!==2))}));
 // «Beehive 3»: se entra desde el menú, carga lo suyo (sus estilos, scripts y audios; nada del motor de Trinity), anda y queda marcada como «Última vez»
 T.est.resp.length=0;T.est.fallos.length=0;p.errs.length=0;
 await Promise.all([p.waitForURL('**/beehive3/'),p.click('.mod.m6')]);await p.waitForSelector('#pInicio .tema');await p.waitForTimeout(300);
@@ -195,7 +203,7 @@ await p.click('.tema[data-tema="housework"]');await p.waitForSelector('#bPractic
 const mp3B=T.est.resp.filter(x=>/\.mp3$/.test(x[0]));
 chk('en «Beehive 3» la voz sale de /beehive3/audio/ (mp3 grabados, con su versión ?a=) y llega bien ('+(mp3B[0]?mp3B[0][0]:'ninguno')+')',mp3B.length>=1&&mp3B.every(x=>x[0].startsWith('/beehive3/audio/')&&x[1]<400&&/audio\/mpeg/.test(x[2])),JSON.stringify(mp3B));
 await p.goto('https://trinity.test/');await p.waitForSelector('.mod');
-chk('al volver al inicio, «Beehive 3» queda marcada como «Última vez» (y ya no Sala de 5)',await p.evaluate(()=>{const m=[...document.querySelectorAll('.mod')];return m.length===5&&m[0].querySelector('.ult').hidden&&m[1].querySelector('.ult').hidden&&m[2].querySelector('.ult').hidden&&!m[3].querySelector('.ult').hidden&&m[4].querySelector('.ult').hidden}));
+chk('al volver al inicio, «Beehive 3» queda marcada como «Última vez» (y ya no Sala de 5)',await p.evaluate(()=>{const m=[...document.querySelectorAll('.mod')];return m.length===6&&m.every((x,i)=>x.querySelector('.ult').hidden===(i!==3))}));
 // «Prueba final integradora»: se entra desde el menú, carga lo suyo (sus estilos y sus scripts —contenido, mapas, dibujos, ideas, cada tema y la app—; nada del motor de Trinity ni audios), anda y queda marcada como «Última vez»
 T.est.resp.length=0;T.est.fallos.length=0;p.errs.length=0;
 await Promise.all([p.waitForURL('**/integradora/'),p.click('.mod.m7')]);await p.waitForSelector('#pInicio .area');await p.waitForTimeout(300);
@@ -207,7 +215,17 @@ chk('en la Integradora el mapa de las provincias se dibuja desde el navegador de
 await p.click('#pMapa .atras');await p.click('#pTema .atras');await p.click('.tema-btn[data-tema="limitrofes"]');await p.waitForSelector('#bMapaEst');await p.click('#bMapaEst');await p.waitForSelector('#pMapa svg.mapa-lim');
 chk('y el mapa de los países limítrofes también (5 países con forma, más la Argentina en un solo color) sin errores',await p.evaluate(()=>document.querySelectorAll('#pMapa svg.mapa-lim path[data-id]').length===5&&[...document.querySelectorAll('#pMapa svg.mapa-lim path[data-id]')].every(e=>e.getBBox().width>0)&&document.querySelectorAll('#pMapa svg.mapa-lim path.arg').length===24)&&p.errs.length===0,JSON.stringify(p.errs));
 await p.goto('https://trinity.test/');await p.waitForSelector('.mod');
-chk('al volver al inicio, la «Integradora» queda marcada como «Última vez» (y ya no Beehive 3)',await p.evaluate(()=>{const m=[...document.querySelectorAll('.mod')];return m.length===5&&m.every((x,i)=>x.querySelector('.ult').hidden===(i!==4))}));
+chk('al volver al inicio, la «Integradora» queda marcada como «Última vez» (y ya no Beehive 3)',await p.evaluate(()=>{const m=[...document.querySelectorAll('.mod')];return m.length===6&&m.every((x,i)=>x.querySelector('.ult').hidden===(i!==4))}));
+// «English 1.º»: se entra desde el menú, carga lo suyo (sus estilos y scripts —contenido, dibujos, oral y app—, la lista de audios y la configuración de la IA; nada del motor de Trinity), anda y queda marcada como «Última vez»
+T.est.resp.length=0;T.est.fallos.length=0;p.errs.length=0;
+await Promise.all([p.waitForURL('**/ingles1/'),p.click('.mod.m8')]);await p.waitForSelector('#pInicio .tema');await p.waitForTimeout(300);
+const rG=T.est.resp.map(x=>x[0]);
+chk('tocar «English 1.º» en el menú abre /ingles1/ con todo funcionando: sus estilos, scripts, lista de audios y la configuración de la IA ('+T.est.resp.length+' pedidos, ninguno con error), sin el motor de Trinity y sin errores de página',
+  new URL(p.url()).pathname==='/ingles1/'&&await p.evaluate(()=>typeof I1==='object'&&I1.TEMAS.length===11&&/English/.test(document.title)&&document.querySelectorAll('#pInicio .tema').length===11&&document.querySelectorAll('#pInicio .modo').length===3)&&['/ingles1/estilos.css','/ingles1/contenido.js','/ingles1/dibujos.js','/ingles1/oral.js','/ingles1/app.js','/ingles1/audio/manifest.js','/firebase-config.js'].every(x=>rG.includes(x))&&!rG.some(x=>/^\/(motor\.js|comun\.js|estilos\.css|contenido-g\d\.js)$/.test(x))&&T.est.resp.every(x=>x[1]<400)&&T.est.fallos.length===0&&p.errs.length===0,JSON.stringify([rG,p.errs,T.est.fallos]));
+await p.click('.tema[data-tema="colores"]');await p.click('#bEsc');await p.waitForSelector('#pPreg .preg');
+chk('y se puede jugar: una pregunta de colores aparece con sus opciones, sin errores',await p.evaluate(()=>document.querySelectorAll('#pPreg .op').length>=2)&&p.errs.length===0,JSON.stringify(p.errs));
+await p.goto('https://trinity.test/');await p.waitForSelector('.mod');
+chk('al volver al inicio, «English 1.º» queda marcada como «Última vez» (y ya no la Integradora)',await p.evaluate(()=>{const m=[...document.querySelectorAll('.mod')];return m.length===6&&m.every((x,i)=>x.querySelector('.ult').hidden===(i!==5))}));
 await T.ctx.close();
 
 // 3a) Raphina carga todo desde la raíz
